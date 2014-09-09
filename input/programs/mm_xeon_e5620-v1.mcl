@@ -1,0 +1,342 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module matrixmultiplication
+
+
+
+import perfect;
+import cpu;
+import xeon_e5620;
+
+
+
+
+
+
+
+
+
+
+xeon_e5620 void matmul(const int n = 2048, const int m = 2048, const int p = 2048, main float[n,m] c,
+         const main float[n,p] a, const main float[p,m] b) {
+    const int nrElsM = 8;
+    const int nrVectorsM = cpu.hierarchy.threads.thread.vectors.nr_units;
+    const int nrThreadsM = m / (nrElsM * nrVectorsM);
+    const int nrElsN = 16;
+    const int nrThreadsN = n / nrElsN;
+    c as float[nrThreadsN,nrThreadsM][nrElsN,nrElsM][1,nrVectorsM] c2;
+    a as float[nrThreadsN,p][nrElsN,1] a2;
+    b as float[p,nrThreadsM][1,nrElsM][1,nrVectorsM] b2;
+    foreach (const int ti in nrThreadsN threads) {
+        foreach (const int tj in nrThreadsM threads) {
+            foreach (const int vj in nrVectorsM vectors) {
+                for (reg int ej = 0; ej < nrElsM; ej++) {
+                    main float[p] bTemp;
+                    main float[nrElsN] sums;
+                    for (reg int ei = 0; ei < nrElsN; ei++) {
+                        sums[ei] = 0.0;
+                    }
+                    for (reg int k = 0; k < p; k++) {
+                        bTemp[k] = b2[k,tj][0,ej][0,vj];
+                    }
+                    for (reg int k = 0; k < p; k++) {
+                        const float bTemp2 = bTemp[k];
+                        for (reg int ei = 0; ei < nrElsN; ei++) {
+                            sums[ei] += a2[ti,k][ei,0] * bTemp2;
+                        }
+                    }
+                    for (reg int ei = 0; ei < nrElsN; ei++) {
+                        c2[ti,tj][ei,ej][0,vj] += sums[ei];
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
+
+
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(945,4,<33,39>,<33,43>): for declaration sums with size 4 * nrElsN bytes, if possible, try to adjust the size in relation to:
+  for cache l2_cache:
+    the capacity: 256 kB
+    the cache line size: 64 B
+  for cache l3_cache:
+    the capacity: 12 MB
+    the cache line size: 64 B
+  for cache l1_cache:
+    the capacity: 32 kB
+    the cache line size: 64 B
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(899,5,<32,34>,<32,39>): for declaration bTemp with size 4 * p bytes, if possible, try to adjust the size in relation to:
+  for cache l2_cache:
+    the capacity: 256 kB
+    the cache line size: 64 B
+  for cache l3_cache:
+    the capacity: 12 MB
+    the cache line size: 64 B
+  for cache l1_cache:
+    the capacity: 32 kB
+    the cache line size: 64 B
+    
+trying to do this one.
+    
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(104,6,<18,16>,<18,22>): This is a cache-oriented architecture. Make sure that each access benefits from the cache(s)
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1164,2,<38,35>,<38,37>): Var b2[k,tj][0,ej][0,vj]:
+  in loop k:
+    does not benefit from cache l2_cache:
+      2048 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 / 4 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1433,2,<43,50>,<43,52>): Var a2[ti,k][ei,0]:
+  in loop ei:
+    does not benefit from cache l2_cache:
+      16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1592,2,<47,24>,<47,26>): Var c2[ti,tj][ei,ej][0,vj]:
+  in loop ei:
+    does not benefit from cache l2_cache:
+      16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 / 4 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1037,4,<35,24>,<35,28>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l2_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1617,4,<47,49>,<47,53>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l2_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1422,4,<43,39>,<43,43>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l2_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1411,4,<43,28>,<43,32>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l2_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1307,5,<41,45>,<41,50>): Var bTemp[k]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: 128 cache line fetches
+      worst case: 2048 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1153,5,<38,24>,<38,29>): Var bTemp[k]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: 128 cache line fetches
+      worst case: 2048 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1164,2,<38,35>,<38,37>): Var b2[k,tj][0,ej][0,vj]:
+  in loop k:
+    does not benefit from cache l3_cache:
+      2048 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l3_cache:
+      1 / 4 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1433,2,<43,50>,<43,52>): Var a2[ti,k][ei,0]:
+  in loop ei:
+    does not benefit from cache l3_cache:
+      16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l3_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1592,2,<47,24>,<47,26>): Var c2[ti,tj][ei,ej][0,vj]:
+  in loop ei:
+    does not benefit from cache l3_cache:
+      16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l3_cache:
+      1 / 4 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1037,4,<35,24>,<35,28>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l3_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l3_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1617,4,<47,49>,<47,53>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l3_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l3_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1422,4,<43,39>,<43,43>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l3_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l3_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1411,4,<43,28>,<43,32>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l3_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l3_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1307,5,<41,45>,<41,50>): Var bTemp[k]:
+  in loop k:
+    may benefit from cache l3_cache:
+      best case: 128 cache line fetches
+      worst case: 2048 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l3_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1153,5,<38,24>,<38,29>): Var bTemp[k]:
+  in loop k:
+    may benefit from cache l3_cache:
+      best case: 128 cache line fetches
+      worst case: 2048 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l3_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1164,2,<38,35>,<38,37>): Var b2[k,tj][0,ej][0,vj]:
+  in loop k:
+    does not benefit from cache l1_cache:
+      2048 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 / 4 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1433,2,<43,50>,<43,52>): Var a2[ti,k][ei,0]:
+  in loop ei:
+    does not benefit from cache l1_cache:
+      16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1592,2,<47,24>,<47,26>): Var c2[ti,tj][ei,ej][0,vj]:
+  in loop ei:
+    does not benefit from cache l1_cache:
+      16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 / 4 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1037,4,<35,24>,<35,28>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l1_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1617,4,<47,49>,<47,53>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l1_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1422,4,<43,39>,<43,43>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l1_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1411,4,<43,28>,<43,32>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l1_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1307,5,<41,45>,<41,50>): Var bTemp[k]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: 128 cache line fetches
+      worst case: 2048 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1153,5,<38,24>,<38,29>): Var bTemp[k]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: 128 cache line fetches
+      worst case: 2048 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1433,2,<43,50>,<43,52>): Data reuse: a2[ti,k][ei,0] is accessed inside for-loop with index ej but does not depend on it.
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1433,2,<43,50>,<43,52>): Data reuse: a2[ti,k][ei,0] is accessed for nrVectorsM vectors vj.
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1433,2,<43,50>,<43,52>): Data reuse: a2[ti,k][ei,0] is accessed for nrThreadsM threads tj.
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1422,4,<43,39>,<43,43>): Data reuse: sums[ei] is accessed inside for-loop with index k but does not depend on it.
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(1164,2,<38,35>,<38,37>): Data reuse: b2[k,tj][0,ej][0,vj] is accessed for nrThreadsN threads ti.
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(104,6,<18,16>,<18,22>): computation:
+  vectors:
+    loads: 
+      main: 2*nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM*p+2*nrElsM*nrThreadsM*nrThreadsN*nrVectorsM*p+nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM
+    instructions: 
+      2*nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM*p
+    stores: 
+      main: nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM*p+nrElsM*nrThreadsM*nrThreadsN*nrVectorsM*p+
+      2*nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(104,6,<18,16>,<18,22>): control flow:
+  host:
+    instructions: 
+      3
+  vectors:
+    instructions: 
+      2*nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM*p+4*nrElsM*nrThreadsM*nrThreadsN*nrVectorsM*p+
+      4*nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM+2*nrElsM*nrThreadsM*nrThreadsN*nrVectorsM
+INFO at |project://mcl/input/programs/mm_xeon_e5620-v1.mcl|(104,6,<18,16>,<18,22>): Arithmetic intensity: 2*nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM*p*(3*nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM*p+
+3*nrElsM*nrThreadsM*nrThreadsN*nrVectorsM*p+3*nrElsM*nrElsN*nrThreadsM*nrThreadsN*nrVectorsM)^(
+-1)
+
+
+matmulKernel             : avg =  691 ms, total = 3.46  s, count =         5
+
+#GFLOPS: 24.847 GFLOPS
+
+
+*/

@@ -1,0 +1,101 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module histogram
+
+
+import perfect;
+import atomics;
+import mic;
+
+
+
+
+
+mic void histogram(const int nrBuckets, const int m, const int n, 
+        int[nrBuckets] hist, const int[m,n] data) {
+    const int nrVectorsN = mic.hierarchy.threads.thread.vectors.nr_units;
+    
+    const int nrElsM = 64;
+    const int nrThreadsM = m / nrElsM;
+    
+    const int nrElsN = 64;
+    const int nrThreadsN = n / (nrVectorsN * nrElsN);
+    
+    data as int[nrThreadsM, nrThreadsN][nrElsM, nrElsN][1, nrVectorsN] data2;
+    
+    foreach (const int ti in nrThreadsM threads) {
+        foreach (const int tj in nrThreadsN threads) {
+            foreach (const int vj in nrVectorsN vectors) {
+            	
+            	int[nrBuckets] hist2;
+            	
+            	for (int i = 0; i < nrBuckets; i++) {
+            		hist2[i] = 0;
+            	}
+            	
+            	for (int ei = 0; ei < nrElsM; ei++) {
+            		for (int ej = 0; ej < nrElsN; ej++) {
+            		
+                		const int d = data2[ti, tj][ei, ej][0, vj];
+                		hist2[d] = hist2[d] + 1;
+                	}
+                }
+                
+                
+                for (int i = 0; i < nrBuckets; i++) {
+                	atomicAdd(hist[i], hist2[i]);
+                }
+            }
+        }
+    }
+}
+
+
+
+/*
+
+
+INFO at |project://mcl/input/programs/histogram_mic-v2.mcl|(1217,4,<44,27>,<44,31>): Data reuse: For hist[i]:
+    the loops const int ti, int i = 0 may have a positive data reuse ratio: m / 64
+    the loops const int ti, const int tj may have a positive data reuse ratio: m * n / 65536
+    the loops const int tj, int i = 0 may have a positive data reuse ratio: n / 1024
+    the loops const int vj, int i = 0  have a positive data reuse ratio: 16
+    the loops const int ti, const int vj may have a positive data reuse ratio: m / 4
+    the loops const int tj, const int vj may have a positive data reuse ratio: n / 64
+INFO at |project://mcl/input/programs/histogram_mic-v2.mcl|(1051,5,<38,29>,<38,34>): Data reuse: For hist2[d]:
+    the loops int ei = 0, int ej = 0 may have a positive data reuse ratio: 4096 / (d + 1)
+
+
+
+
+much better! --> histogram_xeon_phi
+
+
+histogramKernel          : avg = 42.3 ms, total =  211 ms, count =         5
+
+#GFLOPS: 6.7435 GFLOPS
+Effective Bandwidth: 0 GB/s
+Bandwidth: 23.644 GB/s
+
+
+
+*/

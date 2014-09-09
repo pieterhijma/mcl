@@ -1,0 +1,198 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module matrixmultiplication
+
+import cc_2_0;
+
+
+cc_2_0 void matmul(const int n = 32, const int m = 32, const int p = 32, 
+        float[n,m] c, const float[n,p] a, const float[p,m] b) {
+        
+    const int nrElsN = 8;
+    const int nrBlocksN = n / nrElsN;
+    
+    const int nrThreadsM = 32;
+    const int nrBlocksM = m / nrThreadsM;
+    const int nrThreadsNrThreadsM = 
+            cc_2_0.hierarchy.blocks.block.warps.warp.threads.nr_units;
+    const int nrWarpsNrThreadsM = nrThreadsM / (1 *  nrThreadsNrThreadsM);
+    
+    const int nrLoadIters = p / nrThreadsM;
+    
+    a as float[nrBlocksN,nrLoadIters][nrElsN,nrThreadsM] a2;
+    c as float[nrBlocksN,nrBlocksM][nrElsN,nrThreadsM] c2;
+    
+    foreach (const int bi in nrBlocksN blocks) {
+        foreach (const int bj in nrBlocksM blocks) {
+        
+            shared float[nrElsN][nrThreadsM] l_a;
+            
+            foreach (const int wtj in nrWarpsNrThreadsM warps) {
+                foreach (const int ttj in nrThreadsNrThreadsM threads) {
+                    const int tj = wtj * (1 * nrThreadsNrThreadsM) + ttj;
+                    
+                    local float[nrElsN] sums;
+                    
+                    const int j = bj * nrThreadsM + tj;
+                    
+                    for (local int ei = 0; ei < nrElsN; ei++) {
+                        sums[ei] = 0.0;
+                    }
+                    
+                    for (local int l = 0; l < nrLoadIters; l++) {
+                        for (local int ei = 0; ei < nrElsN; ei++) {
+                            l_a[ei][tj] = a2[bi,l][ei,tj];
+                        }
+                        
+                        barrier(shared);
+                        
+                        for (local int k2 = 0; k2 < p / nrLoadIters; k2++) {
+                            const int k = l * p / nrLoadIters + k2;
+                            const float bkj = b[k,j];
+                            for (local int ei = 0; ei < nrElsN; ei++) {
+                                sums[ei] = sums[ei] + l_a[ei][k2] * bkj;
+                            }
+                        }
+                        barrier(shared);
+                    }
+                    
+                    for (local int ei = 0; ei < nrElsN; ei++) {
+                        c2[bi,bj][ei,tj] = sums[ei];
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/*
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2284,2,<58,24>,<58,26>): Memory access pattern of c2[bi,bj][ei,tj] is optimal
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1903,1,<49,46>,<49,47>): Memory access pattern of b[k,j] is optimal
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1578,2,<42,42>,<42,44>): Memory access pattern of a2[bi,l][ei,tj] is optimal
+
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2037,3,<51,54>,<51,57>): instruction l_a[ei][k2] has 0 bank conflicts
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1564,3,<42,28>,<42,31>): instruction l_a[ei][tj] has 0 bank conflicts
+
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(58,6,<6,12>,<6,18>): Memory on_chip is shared by more than one warp, carefully consider the usage of memory spaces {}
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(58,6,<6,12>,<6,18>): Memory regs is shared by more than one warp, carefully consider the usage of memory spaces {}
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(58,6,<6,12>,<6,18>): Memory on_chip is shared by more than one block, carefully consider the usage of memory spaces {"shared"}
+
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1578,2,<42,42>,<42,44>): Data reuse: a2[bi,l][ei,tj] is accessed for nrBlocksM blocks bj.
+
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2284,2,<58,24>,<58,26>): Var c2[bi,bj][ei,tj]:
+  in loop ei:
+    does not benefit from cache l1_cache:
+      8 cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1903,1,<49,46>,<49,47>): Var b[k,j]:
+  in loop k2:
+    does not benefit from cache l1_cache:
+      256 cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2026,4,<51,43>,<51,47>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l1_cache:
+      best case: 1 / 4 cache line fetches
+      worst case: 8 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1578,2,<42,42>,<42,44>): Var a2[bi,l][ei,tj]:
+  in loop ei:
+    does not benefit from cache l1_cache:
+      8 cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2303,4,<58,43>,<58,47>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l1_cache:
+      best case: 1 / 4 cache line fetches
+      worst case: 8 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2015,4,<51,32>,<51,36>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l1_cache:
+      best case: 1 / 4 cache line fetches
+      worst case: 8 cache line fetches 
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1343,4,<37,24>,<37,28>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l1_cache:
+      best case: 1 / 4 cache line fetches
+      worst case: 8 cache line fetches
+     
+
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2284,2,<58,24>,<58,26>): Var c2[bi,bj][ei,tj]:
+  in loop ei:
+    does not benefit from cache l2_cache:
+      8 cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1578,2,<42,42>,<42,44>): Var a2[bi,l][ei,tj]:
+  in loop ei:
+    does not benefit from cache l2_cache:
+      8 cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2026,4,<51,43>,<51,47>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l2_cache:
+      best case: 1 / 4 cache line fetches
+      worst case: 8 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1903,1,<49,46>,<49,47>): Var b[k,j]:
+  in loop k2:
+    does not benefit from cache l2_cache:
+      256 cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1343,4,<37,24>,<37,28>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l2_cache:
+      best case: 1 / 4 cache line fetches
+      worst case: 8 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2015,4,<51,32>,<51,36>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l2_cache:
+      best case: 1 / 4 cache line fetches
+      worst case: 8 cache line fetches
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(1903,1,<49,46>,<49,47>): Data reuse: b[k,j] is accessed for nrBlocksN blocks bi.
+INFO at |project://mcl/input/programs/mm_cc_2_0.mcl|(2303,4,<58,43>,<58,47>): Var sums[ei]:
+  in loop ei:
+    may benefit from cache l2_cache:
+      best case: 1 / 4 cache line fetches
+      worst case: 8 cache line fetches
+      
+      
+matmulKernel             : avg = 34.7 ms, total =  173 ms, count =         5
+
+#GFLOPS: 495.18 GFLOPS
+Effective Bandwidth: 119.35 GB/s
+Bandwidth: 1.3511 GB/s
+      
+      
+      
+      
+*/

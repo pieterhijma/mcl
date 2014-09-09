@@ -1,0 +1,84 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module histogram
+
+
+import perfect;
+import atomics;
+import gpu;
+
+
+
+// In this version, a block-local histogram is used, since the feedback
+// points at a lot of data re-use.
+
+
+gpu void histogram(const int nrBuckets, const int m, const int n, 
+        int[nrBuckets] hist, const int[m,n] data) {
+
+	int nrBlocks = 512;
+	
+	int nrThreads = 1024;
+	int nrIterations = m * n / (nrBlocks * nrThreads);
+    
+    int[nrBlocks][nrBuckets] t_hist;
+    
+    data as int[nrBlocks][nrIterations][nrThreads] data2;
+    
+    foreach (const int i in nrBlocks blocks) {
+        foreach (const int tj in nrThreads threads) {
+        	if (tj < nrBuckets) {
+        		t_hist[i][tj] = 0;
+        	}
+        	
+        	
+        	for (int k = 0; k < nrIterations; k++) {
+        		int bin = data2[i][k][tj];
+        		atomicAdd(t_hist[i][bin], 1);
+        	}
+        	
+        	if (tj < nrBuckets) {
+        		atomicAdd(hist[tj], t_hist[i][tj]);
+        	}
+        }
+    }
+}
+
+/*
+
+INFO at |project://mcl/input/programs/histogram_gpu_v2.mcl|(1130,4,<38,26>,<38,30>): Data reuse: For hist[tj]:
+    the loops const int i, const int bj may have a positive data reuse ratio: m * n / nrBuckets / 512
+    the loops const int bj, const int tj may have a positive data reuse ratio: n / nrBuckets
+    the loops const int i, const int tj may have a positive data reuse ratio: m / 512
+
+
+
+  
+ openCL.run(NDRange(2048, 256), NDRange(32, 8)
+histogramKernel          : avg = 12.5 ms, total = 12.5 ms, count =         1
+
+#GFLOPS: 21.506 GFLOPS
+Effective Bandwidth: 0.15617 GB/s
+Bandwidth: 79.96 GB/s
+
+ */
+ 

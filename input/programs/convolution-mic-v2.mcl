@@ -1,0 +1,136 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module convolution
+
+
+import perfect;
+import mic;
+
+
+
+
+
+mic void convolve(const int outputHeight, const int outputWidth, const int 
+        filterHeight, const int filterWidth, float[outputHeight,outputWidth] 
+        output, const float[outputHeight + filterHeight / 2 * 2,outputWidth + 
+        filterWidth / 2 * 2] input, const float[filterHeight,filterWidth] 
+        filter) {
+        
+    const int nrVectorsW = 
+            mic.hierarchy.threads.thread.vectors.nr_units;
+    int nrElsW = 32;
+    const int nrThreadsW = outputWidth / (nrElsW * nrVectorsW);
+    
+    int nrElsH = 32;
+    int nrThreadsH = outputHeight / nrElsH;
+    
+    foreach (const int ti in nrThreadsH threads) {
+        foreach (const int tj in nrThreadsW threads) {
+            foreach (const int vj in nrVectorsW vectors) {
+            
+            	float[filterHeight, filterWidth] filter2;
+                for (int y = 0; y < filterHeight; y++) {
+                    for (int x = 0; x < filterWidth; x++) {
+                    	filter2[y,x] = filter[y,x];
+                    }
+                }
+            	
+            	for (int ei = 0; ei < nrElsH; ei++) {
+            		int i = ti * nrElsH + ei;
+            		
+            		for (int ej = 0; ej < nrElsW; ej++) {
+		                const int j = tj * (nrVectorsW * nrElsW) + ej * nrVectorsW + vj;
+	                
+		                float sum = 0.0;
+		                for (int y = 0; y < filterHeight; y++) {
+		                    for (int x = 0; x < filterWidth; x++) {
+		                        sum = sum + filter2[y,x] * input[i + y,j + x];
+		                    }
+		                }
+		                output[i,j] = sum / (filterHeight * filterWidth);
+	                }
+                }
+            }
+        }
+    }
+}
+
+/*
+
+
+INFO at |project://mcl/input/programs/convolution-mic-v2.mcl|(1022,6,<32,36>,<32,42>): Data reuse: filter[y,x] is accessed for nrThreadsW threads tj.
+INFO at |project://mcl/input/programs/convolution-mic-v2.mcl|(1557,5,<45,53>,<45,58>): Data reuse: For input[i + y,j + x]:
+  For dimension 0:
+    the loops int ei = 0, int y = 0 may have a positive data reuse ratio: 32 * filterHeight / (filterHeight + 31)
+    the loops const int vj, int ei = 0  have a positive data reuse ratio: 16
+    the loops const int tj, int ei = 0 may have a positive data reuse ratio: outputWidth / 512
+    the loops const int tj, const int vj may have a positive data reuse ratio: outputWidth / 32
+    the loops const int tj, int y = 0 may have a positive data reuse ratio: outputWidth / 512
+    the loops const int vj, int y = 0  have a positive data reuse ratio: 16
+    the loops const int ti, int ej = 0 may have a positive data reuse ratio: outputHeight / (outputHeight - 31)
+    the loops int ei = 0, int ej = 0  have a positive data reuse ratio: 32
+    the loops const int vj, int ej = 0  have a positive data reuse ratio: 512
+    the loops const int tj, int ej = 0 may have a positive data reuse ratio: outputWidth / 16
+    the loops const int ti, int y = 0 may have a positive data reuse ratio: filterHeight * outputHeight / (filterHeight + outputHeight - 32) / 32
+    the loops const int ti, const int vj may have a positive data reuse ratio: outputHeight / (outputHeight - 31) / 2
+    the loops const int tj, int x = 0 may have a positive data reuse ratio: filterWidth * outputWidth / 512
+    the loops int ej = 0, int y = 0  have a positive data reuse ratio: 32
+    the loops const int ti, int x = 0 may have a positive data reuse ratio: filterWidth * outputHeight / (outputHeight - 31) / 32
+    the loops const int ti, const int tj may have a positive data reuse ratio: outputHeight * outputWidth / (outputHeight - 31) / 16384
+  For dimension 1:
+    the loops int ej = 0, int x = 0 may have a positive data reuse ratio: 32 * filterWidth / (filterWidth + 496)
+    the loops const int vj, int ei = 0  have a positive data reuse ratio: 32
+    the loops const int tj, int ei = 0 may have a positive data reuse ratio: outputWidth / (outputWidth - 511) / 16
+    the loops const int tj, const int vj may have a positive data reuse ratio: outputWidth / (outputWidth - 496) / 32
+    the loops const int tj, int y = 0 may have a positive data reuse ratio: filterHeight * outputWidth / (outputWidth - 511) / 512
+    the loops const int ti, int ej = 0 may have a positive data reuse ratio: outputHeight / 497
+    the loops int ei = 0, int ej = 0  have a positive data reuse ratio: 2.060362173
+    the loops const int tj, int ej = 0 may have a positive data reuse ratio: outputWidth / (outputWidth - 15) / 16
+    the loops const int ti, int y = 0 may have a positive data reuse ratio: filterHeight * outputHeight / 32
+    the loops const int ti, const int vj may have a positive data reuse ratio: outputHeight / 32
+    the loops const int vj, int x = 0 may have a positive data reuse ratio: 16 * filterWidth / (filterWidth + 15)
+    the loops const int tj, int x = 0 may have a positive data reuse ratio: filterWidth * outputWidth / (filterWidth + outputWidth - 512) / 512
+    the loops int ej = 0, int y = 0 may have a positive data reuse ratio: 32 * filterHeight / 497
+    the loops int ei = 0, int x = 0  have a positive data reuse ratio: 32
+    the loops const int ti, int x = 0 may have a positive data reuse ratio: outputHeight / 32
+    the loops const int ti, const int tj may have a positive data reuse ratio: outputHeight * outputWidth / (outputWidth - 511) / 16384
+INFO at |project://mcl/input/programs/convolution-mic-v2.mcl|(1022,6,<32,36>,<32,42>): Data reuse: filter[y,x] is accessed for nrThreadsH threads ti.
+INFO at |project://mcl/input/programs/convolution-mic-v2.mcl|(1022,6,<32,36>,<32,42>): Data reuse: filter[y,x] is accessed for nrVectorsW vectors vj.
+INFO at |project://mcl/input/programs/convolution-mic-v2.mcl|(1542,7,<45,38>,<45,45>): Data reuse: filter2[y,x] is accessed inside for-loop with index ej but does not depend on it.
+INFO at |project://mcl/input/programs/convolution-mic-v2.mcl|(1542,7,<45,38>,<45,45>): Data reuse: filter2[y,x] is accessed inside for-loop with index ei but does not depend on it.
+
+
+convolveKernel           : avg =   18 ms, total = 90.2 ms, count =         5
+
+
+
+
+
+#GFLOPS: 152.48 GFLOPS
+Effective Bandwidth: 284.28 GB/s
+Bandwidth: 6.9423 GB/s
+
+
+
+
+
+*/

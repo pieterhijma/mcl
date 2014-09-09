@@ -1,0 +1,91 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module sparsemv
+
+
+import perfect;
+import gpu;
+
+
+
+
+
+gpu void sparsemv(const int n, const int m, const int nz, const int[n + 1] air, 
+        const int[nz] ajc, const float[nz] avalues, const float[m] b, float[n] 
+        c) {
+    const int nrThreadsN = gpu.hierarchy.blocks.block.threads.max_nr_units;
+    const int nrBlocksN = n / (1 * nrThreadsN);
+    foreach (const int barow in nrBlocksN blocks) {
+        foreach (const int tarow in nrThreadsN threads) {
+            const int arow = barow * (1 * nrThreadsN) + tarow;
+            c[arow] = 0;
+            for (int i = air[arow]; i < air[arow + 1]; i++) {
+                c[arow] = c[arow] + avalues[i] * b[ajc[i]];
+            }
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(60,8,<11,9>,<11,17>): pcie transfers 4 * m + (4 * n + 8 * nz) + 16 bytes from host to device
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(60,8,<11,9>,<11,17>): pcie transfers 4 * n bytes from device to host
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(658,1,<21,49>,<21,50>): Data reuse: For b[ajc[i]]:
+    the loops const int barow, const int tarow may have a positive data reuse ratio: n / (ajc[((i))] + 1)
+    the loops const int tarow, int i = air[arow] may have a positive data reuse ratio: (-1024 * air[((arow))] + 1024 * air[((1) + (arow))]) / (ajc[((i))] + 1)
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(645,7,<21,36>,<21,43>): Data reuse: For avalues[i]:
+    the loops const int tarow, int i = air[arow] may have a positive data reuse ratio: (-1024 * air[((arow))] + 1024 * air[((1) + (arow))]) / (-1 * air[((arow))] + air[((1) + (arow))])
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(635,1,<21,26>,<21,27>): Data reuse: c[arow] is accessed inside for-loop with index i but does not depend on it.
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(587,3,<20,40>,<20,43>): Data reuse: air[arow + 1] is accessed inside for-loop with index i but does not depend on it.
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(572,3,<20,25>,<20,28>): Data reuse: air[arow] is accessed inside for-loop with index i but does not depend on it.
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(60,8,<11,9>,<11,17>): computation:
+  threads:
+    loads: 
+      dev: 3*nrBlocksN*nrThreadsN*(air[arow+1]-air[arow]) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(372,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(428,5,<17,27>,<17,32>))
+    instructions: 
+      2*nrBlocksN*nrThreadsN*(air[arow+1]-air[arow]) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(372,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(428,5,<17,27>,<17,32>))
+    stores: 
+      dev: nrBlocksN*nrThreadsN*(air[arow+1]-air[arow])+nrBlocksN*nrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(372,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(428,5,<17,27>,<17,32>))
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(60,8,<11,9>,<11,17>): indexing:
+  threads:
+    loads: 
+      dev: nrBlocksN*nrThreadsN*(air[arow+1]-air[arow]) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(372,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(428,5,<17,27>,<17,32>))
+    instructions: 
+      nrBlocksN*nrThreadsN*(air[arow+1]-air[arow]) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(372,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(428,5,<17,27>,<17,32>))
+    stores: 
+      dev: 0 (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(372,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(428,5,<17,27>,<17,32>))
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(60,8,<11,9>,<11,17>): control flow:
+  threads:
+    loads: 
+      dev: nrBlocksN*nrThreadsN*(air[arow+1]-air[arow])+nrBlocksN*nrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(372,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(428,5,<17,27>,<17,32>))
+    instructions: 
+      2*nrBlocksN*nrThreadsN*(air[arow+1]-air[arow])+3*nrBlocksN*nrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(372,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(428,5,<17,27>,<17,32>))
+    stores: 
+      dev: 0 (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(372,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu.mcl|(428,5,<17,27>,<17,32>))
+  host:
+    instructions: 
+      2
+INFO at |project://mcl/input/programs/sparsemv-gpu.mcl|(60,8,<11,9>,<11,17>): Arithmetic intensity: 2*nrBlocksN*nrThreadsN*(air[arow+1]-air[arow])*(4*nrBlocksN*nrThreadsN*(air[arow+
+1]-air[arow])+nrBlocksN*nrThreadsN)^(-1)
+
+Action: fix reuse of c and air. Cannot do much about reuse of b.
+
+*/

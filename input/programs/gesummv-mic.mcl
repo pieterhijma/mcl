@@ -1,0 +1,96 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module gesummv
+
+
+import perfect;
+import mic;
+
+
+
+
+
+mic void gesummv(const int n, const float[n,n] a, const float[n,n] b, const 
+        float[n] x, float[n] y, const float alpha, const float beta) {
+    const int nrVectorsN = mic.hierarchy.threads.thread.vectors.nr_units;
+    const int nrThreadsN = n / (1 * nrVectorsN);
+    foreach (const int ti in nrThreadsN threads) {
+        foreach (const int vi in nrVectorsN vectors) {
+            const int i = ti * (1 * nrVectorsN) + vi;
+            float sum1 = 0.0;
+            float sum2 = 0.0;
+            for (int k = 0; k < n; k++) {
+                sum1 = sum1 + a[i,k] * x[k];
+                sum2 = sum2 + b[i,k] * x[k];
+            }
+            y[i] = alpha * sum1 + beta * sum2;
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(59,7,<11,9>,<11,16>): pcie transfers 8 * (n * n) + 4 * n + 12 bytes from host to device
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(59,7,<11,9>,<11,16>): pcie transfers 4 * n bytes from device to host
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(667,1,<22,39>,<22,40>): Data reuse: x[k] is accessed for nrVectorsN vectors vi.
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(667,1,<22,39>,<22,40>): Data reuse: x[k] is accessed for nrThreadsN threads ti.
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(622,1,<21,39>,<21,40>): Data reuse: x[k] is accessed for nrVectorsN vectors vi.
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(622,1,<21,39>,<21,40>): Data reuse: x[k] is accessed for nrThreadsN threads ti.
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(59,7,<11,9>,<11,16>): computation:
+  vectors:
+    loads: 
+      dev: 4*n*nrThreadsN*nrVectorsN
+    instructions: 
+      4*n*nrThreadsN*nrVectorsN+3*nrThreadsN*nrVectorsN
+    stores: 
+      dev: nrThreadsN*nrVectorsN
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(59,7,<11,9>,<11,16>): indexing:
+  vectors:
+    instructions: 
+      3*nrThreadsN*nrVectorsN
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(59,7,<11,9>,<11,16>): control flow:
+  host:
+    instructions: 
+      2
+  vectors:
+    instructions: 
+      2*n*nrThreadsN*nrVectorsN
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(59,7,<11,9>,<11,16>): Arithmetic intensity: (4*n*nrThreadsN*nrVectorsN+3*nrThreadsN*nrVectorsN)*(4*n*nrThreadsN*nrVectorsN+nrThreadsN*nrVectorsN)^(
+-1)
+INFO at |project://mcl/input/programs/gesummv-mic.mcl|(156,1,<12,29>,<12,30>): It may be beneficial to consider computing more than one element of y per vector.
+
+openCL.run(NDRange(8192), NDRange(16)
+pre                      : avg =  318 ms, total =  954 ms, count =         3
+
+gesummvKernel            : avg =  317 ms, total =  317 ms, count =         1
+
+gesummvKernel            : avg =  317 ms, total =  634 ms, count =         2
+
+gesummvKernel            : avg =  317 ms, total =  951 ms, count =         3
+
+gesummvKernel            : avg =  317 ms, total = 1.27  s, count =         4
+
+gesummvKernel            : avg =  317 ms, total = 1.59  s, count =         5
+
+#GFLOPS: 0.84575 GFLOPS
+Effective Bandwidth: 3.1505 GB/s
+Bandwidth: 1.5754 GB/s
+*/

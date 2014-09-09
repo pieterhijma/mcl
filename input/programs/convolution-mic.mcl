@@ -1,0 +1,90 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module convolution
+
+
+import perfect;
+import mic;
+
+
+
+
+
+mic void convolve(const int outputHeight, const int outputWidth, const int 
+        filterHeight, const int filterWidth, float[outputHeight,outputWidth] 
+        output, const float[outputHeight + filterHeight / 2 * 2,outputWidth + 
+        filterWidth / 2 * 2] input, const float[filterHeight,filterWidth] 
+        filter) {
+    const int nrVectorsOutputWidth = 
+            mic.hierarchy.threads.thread.vectors.nr_units;
+    const int nrThreadsOutputWidth = outputWidth / (1 * nrVectorsOutputWidth);
+    foreach (const int i in outputHeight threads) {
+        foreach (const int tj in nrThreadsOutputWidth threads) {
+            foreach (const int vj in nrVectorsOutputWidth vectors) {
+                const int j = tj * (1 * nrVectorsOutputWidth) + vj;
+                float sum = 0.0;
+                for (int y = 0; y < filterHeight; y++) {
+                    for (int x = 0; x < filterWidth; x++) {
+                        sum = sum + filter[y,x] * input[i + y,j + x];
+                    }
+                }
+                output[i,j] = sum / (filterHeight * filterWidth);
+            }
+        }
+    }
+}
+
+
+
+/*
+
+
+INFO at |project://mcl/input/programs/convolution-mic.mcl|(63,8,<11,9>,<11,17>): pcie transfers 4 * (outputHeight * outputWidth) bytes from device to host
+INFO at |project://mcl/input/programs/convolution-mic.mcl|(63,8,<11,9>,<11,17>): pcie transfers 8 * (filterHeight * filterWidth) + (4 * (filterHeight * outputWidth) + (4 * (filterWidth * outputHeight) + 4 * (outputHeight * outputWidth))) + 16 bytes from host to device
+
+
+INFO at |project://mcl/input/programs/convolution-mic.mcl|(1010,5,<26,50>,<26,55>): Data reuse: For input[i + y,j + x]:
+  For dimension 0:
+    the loops const int tj, int x = 0 may have a positive data reuse ratio: filterWidth * outputWidth / 16
+    the loops const int i, const int vj  have a positive data reuse ratio: 16
+    the loops const int vj, int y = 0  have a positive data reuse ratio: 16
+    the loops const int tj, int y = 0 may have a positive data reuse ratio: outputWidth / 16
+    the loops const int i, int y = 0 may have a positive data reuse ratio: filterHeight * outputHeight / (filterHeight + outputHeight - 1)
+    the loops const int i, const int tj may have a positive data reuse ratio: outputWidth / 16
+  For dimension 1:
+    the loops const int vj, int x = 0 may have a positive data reuse ratio: 16 * filterWidth / (filterWidth + 15)
+    the loops const int tj, int x = 0 may have a positive data reuse ratio: filterWidth * outputWidth / (filterWidth + outputWidth - 16) / 16
+    the loops const int tj, int y = 0 may have a positive data reuse ratio: filterHeight * outputWidth / (outputWidth - 15) / 16
+    the loops const int i, const int tj may have a positive data reuse ratio: outputHeight * outputWidth / (outputWidth - 15) / 16
+INFO at |project://mcl/input/programs/convolution-mic.mcl|(996,6,<26,36>,<26,42>): Data reuse: filter[y,x] is accessed for outputHeight threads i.
+INFO at |project://mcl/input/programs/convolution-mic.mcl|(996,6,<26,36>,<26,42>): Data reuse: filter[y,x] is accessed for nrVectorsOutputWidth vectors vj.
+
+INFO at |project://mcl/input/programs/convolution-mic.mcl|(216,6,<13,8>,<13,14>): It may be beneficial to consider computing more than one element of output per vector.
+INFO at |project://mcl/input/programs/convolution-mic.mcl|(996,6,<26,36>,<26,42>): Data reuse: filter[y,x] is accessed for nrThreadsOutputWidth threads tj.
+
+
+So, compute multiple elements per vector, which dimension? both??
+
+
+
+*/
+

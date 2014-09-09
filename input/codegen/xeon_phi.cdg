@@ -1,0 +1,19 @@
+<
+	"opencl",
+	"CL_DEVICE_TYPE_ACCELERATOR",
+	(
+		"reg":<"", "">,
+		"dev":<"__global", "barrier(CLK_GLOBAL_MEM_FENCE)">
+	),
+	(
+		"threads":<"get_group_id", "get_group_size">,
+		"hwThreads":<"get_group_id", "get_group_id">,
+		"vectors":<"get_local_id", "get_local_size">
+	),
+	(	
+		"get_local_id":<3, func()>,
+		"get_group_id":<3, func()>
+	),
+	"dev",
+	( "atomicAdd":"atomic_add" )
+>

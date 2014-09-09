@@ -1,0 +1,267 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module sparsemv
+
+
+import perfect;
+import gpu;
+import nvidia;
+import cc_2_0;
+
+
+// Attempt to use shared memory for b.
+
+cc_2_0 void sparsemv(const int n = 16384, const int m = 65536, const int nz = 524288, const int[n + 1] 
+        air, const int[nz] ajc, const float[nz] avalues, const float[m] b, 
+        float[n] c) {
+    const int nrThreadsPerBlock = 1024;
+    const int nElementsPerWarp = 16;
+    const int bCopySize = 8192;
+    const int nrThreadsNrThreadsN = 
+        cc_2_0.hierarchy.blocks.block.warps.warp.threads.nr_units;	// should be 32.
+    const int nrWarpsPerBlock = nrThreadsPerBlock / nrThreadsNrThreadsN;
+    const int blockSize = nrWarpsPerBlock * nElementsPerWarp;
+    const int nrBlocksN = n / blockSize;
+    int nBiterations = (m + bCopySize - 1) / bCopySize;
+    foreach (const int barow in nrBlocksN blocks) {
+        shared float[nrWarpsPerBlock, nrThreadsNrThreadsN] vals;
+        shared float[bCopySize] bCopy;
+        
+        foreach (const int wtarow in nrWarpsPerBlock warps) {
+            foreach (const int ttarow in nrThreadsNrThreadsN threads) {
+            	int[nElementsPerWarp] start;
+            	int[nElementsPerWarp] end;
+            	const int arow = barow * blockSize + wtarow;
+            	int start = air[arow];
+	            const int end = air[arow + 1] - ttarow;
+	            vals[wtarow, ttarow] = 0;
+            	for (int biter = 0; biter < nBiterations; biter++) {
+            		for (int k = wtarow * nrThreadsNrThreadsN + ttarow; k < bCopySize; k += nrThreadsPerBlock) {
+            			bCopy[k] = b[k + biter * bCopySize];
+            		}
+            		barrier(shared);        	
+	                for (local int i = start; i < end; i += nrThreadsNrThreadsN) {
+	                	int bindex = ajc[i + ttarow] - biter * bCopySize;
+	                	if (bindex < bCopySize) {
+	                    	vals[wtarow, ttarow] = vals[wtarow, ttarow] + avalues[i + ttarow] * bCopy[bindex];
+	                    	start = i + nrThreadsNrThreadsN;
+	                    } else {
+	                    	i = end;
+	                    }
+	                }
+	
+		            // Parallel reduction
+		            if (ttarow < 16) {
+		             	vals[wtarow, ttarow] = vals[wtarow, ttarow] + vals[wtarow, ttarow + 16];
+		            }
+		            if (ttarow < 8) {
+		              	vals[wtarow, ttarow] = vals[wtarow, ttarow] + vals[wtarow, ttarow + 8];
+		            }
+		            if (ttarow < 4) {
+		              	vals[wtarow, ttarow] = vals[wtarow, ttarow] + vals[wtarow, ttarow + 4];
+		            }
+		            if (ttarow == 0) {
+		                c[arow] = vals[wtarow, ttarow] + vals[wtarow, ttarow+1]
+		                	+ vals[wtarow, ttarow+2] + vals[wtarow, ttarow+3];
+		            }
+		            barrier(shared);
+		        }
+            }
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1840,1,<45,17>,<45,18>): Var c[arow]:
+  in foreach loop ttarow:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1148,1,<29,88>,<29,89>): Var b[ajc[i + ttarow]]:: unpredictable access pattern
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1126,7,<29,66>,<29,73>): Var avalues[i + ttarow]:
+  in loop i:
+    does not benefit from cache l1_cache:
+      (ttarow + air[arow]) / -32 + air[arow + 1] / 32 cache line fetches
+ (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+  in foreach loop ttarow:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1150,3,<29,90>,<29,93>): Var ajc[i + ttarow]:
+  in loop i:
+    does not benefit from cache l1_cache:
+      (ttarow + air[arow]) / -32 + air[arow + 1] / 32 cache line fetches
+ (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+  in foreach loop ttarow:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(911,3,<26,32>,<26,35>): Var air[arow + 1]:
+  in foreach loop ttarow:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1012,3,<28,35>,<28,38>): Var air[arow]:
+  in loop i:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+  in foreach loop ttarow:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1840,1,<45,17>,<45,18>): Var c[arow]:
+  in foreach loop ttarow:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1148,1,<29,88>,<29,89>): Var b[ajc[i + ttarow]]:: unpredictable access pattern
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1126,7,<29,66>,<29,73>): Var avalues[i + ttarow]:
+  in loop i:
+    does not benefit from cache l2_cache:
+      (ttarow + air[arow]) / -32 + air[arow + 1] / 32 cache line fetches
+ (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+  in foreach loop ttarow:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1150,3,<29,90>,<29,93>): Var ajc[i + ttarow]:
+  in loop i:
+    does not benefit from cache l2_cache:
+      (ttarow + air[arow]) / -32 + air[arow + 1] / 32 cache line fetches
+ (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+  in foreach loop ttarow:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(911,3,<26,32>,<26,35>): Var air[arow + 1]:
+  in foreach loop ttarow:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1012,3,<28,35>,<28,38>): Var air[arow]:
+  in loop i:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+  in foreach loop ttarow:
+
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(93,8,<13,12>,<13,20>): pcie transfers 4 * m + (4 * n + 8 * nz) + 16 bytes from host to device
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(93,8,<13,12>,<13,20>): pcie transfers 4 * n bytes from device to host
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1150,3,<29,90>,<29,93>): Data reuse: For ajc[i + ttarow]:
+    the loops const int barow, const int ttarow  have a positive data reuse ratio: 512
+    the loops const int wtarow, const int ttarow  have a positive data reuse ratio: 32
+    the loops const int barow, const int wtarow  have a positive data reuse ratio: 16384
+    the loops const int ttarow, local int i = air[arow] may have a positive data reuse ratio: (-1 * air[((arow))] + (air[((1) + (arow))] + -1 * ttarow)) / (air[((1) + (arow))] + (-1 * air[((arow))] + -1 * ttarow) + 31)
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1148,1,<29,88>,<29,89>): Data reuse: For b[ajc[i + ttarow]]:
+    the loops const int barow, const int ttarow may have a positive data reuse ratio: 16384 / (ajc[((i) + (ttarow))] + 1)
+    the loops const int wtarow, local int i = air[arow] may have a positive data reuse ratio: (air[((1) + (arow))] + (-1 * air[((arow))] + -1 * ttarow)) / (ajc[((i) + (ttarow))] + 1)
+    the loops const int barow, local int i = air[arow] may have a positive data reuse ratio: (-16 * air[((arow))] + (16 * air[((1) + (arow))] + -16 * ttarow)) / (ajc[((i) + (ttarow))] + 1)
+    the loops const int wtarow, const int ttarow may have a positive data reuse ratio: 1024 / (ajc[((i) + (ttarow))] + 1)
+    the loops const int barow, const int wtarow may have a positive data reuse ratio: 16384 / (ajc[((i) + (ttarow))] + 1)
+    the loops const int ttarow, local int i = air[arow] may have a positive data reuse ratio: (air[((1) + (arow))] + (-1 * air[((arow))] + -1 * ttarow)) / (ajc[((i) + (ttarow))] + 1)
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1126,7,<29,66>,<29,73>): Data reuse: For avalues[i + ttarow]:
+    the loops const int barow, const int ttarow  have a positive data reuse ratio: 512
+    the loops const int wtarow, const int ttarow  have a positive data reuse ratio: 32
+    the loops const int barow, const int wtarow  have a positive data reuse ratio: 16384
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1103,4,<29,43>,<29,47>): Data reuse: vals[wtarow,ttarow] is accessed inside for-loop with index i but does not depend on it.
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1012,3,<28,35>,<28,38>): Data reuse: air[arow] is accessed inside for-loop with index i but does not depend on it.
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1012,3,<28,35>,<28,38>): Data reuse: air[arow] is accessed for nrThreadsNrThreadsN threads ttarow.
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(911,3,<26,32>,<26,35>): Data reuse: air[arow + 1] is accessed for nrThreadsNrThreadsN threads ttarow.
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(93,8,<13,12>,<13,20>): computation:
+  threads:
+    loads: 
+      shared: nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end)+10*nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1667,10,<41,20>,<41,30>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1242,11,<32,20>,<32,31>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1385,10,<35,20>,<35,30>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1808,11,<44,20>,<44,31>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1526,10,<38,20>,<38,30>))
+      global: 2*nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1808,11,<44,20>,<44,31>))
+    instructions: 
+      2*nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end)+5*nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1667,10,<41,20>,<41,30>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1242,11,<32,20>,<32,31>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1385,10,<35,20>,<35,30>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1808,11,<44,20>,<44,31>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1526,10,<38,20>,<38,30>))
+    stores: 
+      shared: nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end)+5*nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1667,10,<41,20>,<41,30>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1242,11,<32,20>,<32,31>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1385,10,<35,20>,<35,30>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1808,11,<44,20>,<44,31>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1526,10,<38,20>,<38,30>))
+      global: nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1808,11,<44,20>,<44,31>))
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(93,8,<13,12>,<13,20>): indexing:
+  threads:
+    loads: 
+      local: 2*nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+      global: nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+    instructions: 
+      2*nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end)+6*nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1667,10,<41,20>,<41,30>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1242,11,<32,20>,<32,31>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1385,10,<35,20>,<35,30>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1808,11,<44,20>,<44,31>), control flow at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1526,10,<38,20>,<38,30>))
+    stores: 
+      local: 0 (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+      global: 0 (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(93,8,<13,12>,<13,20>): control flow:
+  threads:
+    loads: 
+      local: 2*nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+      global: 2*nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN
+    instructions: 
+      2*nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end)+3*nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+    stores: 
+      local: nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end)+nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(769,6,<24,31>,<24,37>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(521,5,<20,23>,<20,28>), depends on loop at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(701,6,<23,27>,<23,33>))
+  host:
+    instructions: 
+      2
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(93,8,<13,12>,<13,20>): Arithmetic intensity: (2*nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end)+5*nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN)*(
+4*nrBlocksN*nrWarpsNrThreadsN*(-air[arow]+end)+16*nrBlocksN*nrThreadsNrThreadsN*nrWarpsNrThreadsN)^(
+-1)
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(93,8,<13,12>,<13,20>): Memory on_chip is shared by more than one block, carefully consider the usage of memory spaces {"shared"}
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(278,1,<15,17>,<15,18>): It may be beneficial to consider computing more than one element of c per thread.
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1320,4,<33,63>,<33,67>): For vals[wtarow,ttarow + 16]:
+  For dimension 1:
+    the loops const int wtarow, const int ttarow have a positive data reuse ratio: a factor 21.33333333
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1744,4,<42,63>,<42,67>): For vals[wtarow,ttarow + 2]:
+  For dimension 1:
+    the loops const int wtarow, const int ttarow have a positive data reuse ratio: a factor 30.11764706
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1603,4,<39,63>,<39,67>): For vals[wtarow,ttarow + 4]:
+  For dimension 1:
+    the loops const int wtarow, const int ttarow have a positive data reuse ratio: a factor 28.44444444
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1462,4,<36,63>,<36,67>): For vals[wtarow,ttarow + 8]:
+  For dimension 1:
+    the loops const int wtarow, const int ttarow have a positive data reuse ratio: a factor 25.6
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1873,4,<45,50>,<45,54>): For vals[wtarow,ttarow + 1]:
+  For dimension 1:
+    the loops const int wtarow, const int ttarow have a positive data reuse ratio: a factor 31.03030303
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(193,3,<14,8>,<14,11>): An example value for air is needed for performance evaluation
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1439,4,<36,40>,<36,44>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1744,4,<42,63>,<42,67>): instruction vals[wtarow,ttarow + 2] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1698,4,<42,17>,<42,21>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1603,4,<39,63>,<39,67>): instruction vals[wtarow,ttarow + 4] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1297,4,<33,40>,<33,44>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1274,4,<33,17>,<33,21>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1873,4,<45,50>,<45,54>): instruction vals[wtarow,ttarow + 1] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1557,4,<39,17>,<39,21>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1080,4,<29,20>,<29,24>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1320,4,<33,63>,<33,67>): instruction vals[wtarow,ttarow + 16] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(951,4,<27,16>,<27,20>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1462,4,<36,63>,<36,67>): instruction vals[wtarow,ttarow + 8] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1103,4,<29,43>,<29,47>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1850,4,<45,27>,<45,31>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1721,4,<42,40>,<42,44>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1416,4,<36,17>,<36,21>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+INFO at |project://mcl/input/programs/sparsemv-cc_2_0-v1.mcl|(1580,4,<39,40>,<39,44>): instruction vals[wtarow,ttarow] has 0 bank conflicts
+
+openCL.run(NDRange(65536, 32), NDRange(32, 32)
+pre                      : avg = 4.66 ms, total =   14 ms, count =         3
+
+sparsemvKernel           : avg = 4.64 ms, total = 4.64 ms, count =         1
+
+sparsemvKernel           : avg = 4.64 ms, total = 9.29 ms, count =         2
+
+sparsemvKernel           : avg = 4.65 ms, total =   14 ms, count =         3
+
+sparsemvKernel           : avg = 4.66 ms, total = 18.6 ms, count =         4
+
+sparsemvKernel           : avg = 4.66 ms, total = 23.3 ms, count =         5
+
+Bandwidth: 13.939 GB/s
+
+*/

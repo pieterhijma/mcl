@@ -1,0 +1,171 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module matrixmultiplication
+
+
+import perfect;
+import mic;
+import xeon_phi;
+
+
+
+xeon_phi void matmul(const int n, const int m, const int p, float[n,m] c, const 
+        float[n,p] a, const float[p,m] b) {
+        
+    const int nrElsM = 1;
+    const int nrVectorsM = mic.hierarchy.threads.thread.vectors.nr_units;
+    const int nrThreadsM = m / (nrElsM * nrVectorsM);
+    const int nrElsN = 128;
+    const int nrThreadsN = n / nrElsN;
+    
+    const int nrElsP = 16;
+    const int nrBlocksP = p / nrElsP;
+    
+    c as float[nrThreadsN,nrThreadsM][nrElsN,nrElsM][1,nrVectorsM] c2;
+    a as float[nrThreadsN,nrBlocksP][nrElsN,nrElsP] a2;
+    b as float[nrBlocksP,nrThreadsM][nrElsP,nrElsM][1,nrVectorsM] b2;
+    
+    foreach (const int ti in nrThreadsN threads) {
+        foreach (const int tj in nrThreadsM threads) {
+            foreach (const int vj in nrVectorsM vectors) {
+                for (int ej = 0; ej < nrElsM; ej++) {
+                
+	                dev float[nrElsN] cTemp;
+	                
+	                for (int ei = 0; ei < nrElsN; ei++) {
+	                	cTemp[ei] = 0.0;
+	                }
+                    
+                	for (int bk = 0; bk < nrBlocksP; bk++) {
+                    	dev float[nrElsP] bTemp;
+	                    
+	                    for (int ek = 0; ek < nrElsP; ek++) {
+	                        bTemp[ek] = b2[bk,tj][ek, ej][0,vj];
+	                    }
+		                for (int ei = 0; ei < nrElsN; ei++) {
+	                        float sum = 0.0;
+	                        for (int ek = 0; ek < nrElsP; ek++) {
+	                            sum += a2[ti,bk][ei,ek] * bTemp[ek];
+	                        }
+	                        cTemp[ei] += sum;
+	                    }
+	                }
+                    
+                    for (int ei = 0; ei < nrElsN; ei++) {
+                        c2[ti,tj][ei,ej][0,vj] += cTemp[ei];
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/*
+
+
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1616,2,<46,41>,<46,43>): Data reuse: a2[ti,bk][ei,ek] is accessed inside for-loop with index ej but does not depend on it.
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1616,2,<46,41>,<46,43>): Data reuse: a2[ti,bk][ei,ek] is accessed for nrThreadsM threads tj.
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1616,2,<46,41>,<46,43>): Data reuse: a2[ti,bk][ei,ek] is accessed for nrVectorsM vectors vj.
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1366,2,<41,37>,<41,39>): Data reuse: b2[bk,tj][ek,ej][0,vj] is accessed for nrThreadsN threads ti.
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1635,5,<46,60>,<46,65>): Data reuse: bTemp[ek] is accessed inside for-loop with index ei but does not depend on it.
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1796,5,<49,37>,<49,42>): Data reuse: For cTemp[ei]:
+    the loops int bk = 0, int ei = 0 may have a positive data reuse ratio: p / 16
+
+
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1233,5,<38,39>,<38,44>): for declaration bTemp with size 4 * nrElsP bytes, if possible, try to adjust the size in relation to:
+  for cache l1_cache:
+    the capacity: 32 kB
+    the cache line size: 64 B
+  for cache l2_cache:
+    the capacity: 512 kB
+    the cache line size: 64 B
+
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(981,5,<31,35>,<31,40>): for declaration cTemp with size 4 * nrElsN bytes, if possible, try to adjust the size in relation to:
+  for cache l1_cache:
+    the capacity: 32 kB
+    the cache line size: 64 B
+  for cache l2_cache:
+    the capacity: 512 kB
+    the cache line size: 64 B
+
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1366,2,<41,37>,<41,39>): Var b2[bk,tj][ek,ej][0,vj]:
+  in loop ek:
+    may benefit from cache l2_cache:
+      best case: m cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1616,2,<46,41>,<46,43>): Var a2[ti,bk][ei,ek]:
+  in loop ek:
+    may benefit from cache l1_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1616,2,<46,41>,<46,43>): Var a2[ti,bk][ei,ek]:
+  in loop ek:
+    may benefit from cache l2_cache:
+      best case: 1 cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1958,2,<54,24>,<54,26>): Var c2[ti,tj][ei,ej][0,vj]:
+  in loop ei:
+    may benefit from cache l2_cache:
+      best case: 8 * m cache line fetches
+      worst case: 128 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1958,2,<54,24>,<54,26>): Var c2[ti,tj][ei,ej][0,vj]:
+  in loop ei:
+    may benefit from cache l1_cache:
+      best case: 8 * m cache line fetches
+      worst case: 128 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/mm_xeon_phi-v3.mcl|(1366,2,<41,37>,<41,39>): Var b2[bk,tj][ek,ej][0,vj]:
+  in loop ek:
+    may benefit from cache l1_cache:
+      best case: m cache line fetches
+      worst case: 16 cache line fetches
+  in foreach loop vj:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+
+
+
+matmulKernel             : avg = 36.3 ms, total =  181 ms, count =         5
+
+#GFLOPS: 488.11 GFLOPS
+Effective Bandwidth: 1888.5 GB/s
+Bandwidth: 1.2914 GB/s
+
+
+
+
+*/

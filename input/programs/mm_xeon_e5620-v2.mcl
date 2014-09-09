@@ -1,0 +1,104 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module matrixmultiplication
+
+
+
+import perfect;
+import cpu;
+import xeon_e5620;
+
+
+
+
+
+
+
+
+
+
+xeon_e5620 void matmul(const int n = 2048, const int m = 2048, const int p = 2048, main float[n,m] c,
+         const main float[n,p] a, const main float[p,m] b) {
+
+    const int nrElsM = 1;
+    const int nrVectorsM = cpu.hierarchy.threads.thread.vectors.nr_units;
+    const int nrThreadsM = m / (nrElsM * nrVectorsM);
+    const int nrElsN = 128;
+    const int nrThreadsN = n / nrElsN;
+    const int nrElsP = 16;
+    const int nrBlocksP = p / nrElsP;
+
+    c as float[nrThreadsN,nrThreadsM][nrElsN,nrElsM][1,nrVectorsM] c2;
+    a as float[nrThreadsN,nrBlocksP][nrElsN,nrElsP] a2;
+    b as float[nrBlocksP,nrThreadsM][nrElsP,nrElsM][1,nrVectorsM] b2;
+
+    foreach (const int ti in nrThreadsN threads) {
+        foreach (const int tj in nrThreadsM threads) {
+            foreach (const int vj in nrVectorsM vectors) {
+                for (reg int ej = 0; ej < nrElsM; ej++) {
+
+                    main float[nrElsN] cTemp;
+
+                    for (reg int ei = 0; ei < nrElsN; ei++) {
+                        cTemp[ei] = 0.0;
+                    }
+
+					for (int bk = 0; bk < nrBlocksP; bk++) {
+                    	main float[nrElsP] bTemp;
+						for (int ek = 0; ek < nrElsP; ek++) {
+							bTemp[ek] = b2[bk,tj][ek,ej][0,vj];	
+						}
+						
+                        for (reg int ei = 0; ei < nrElsN; ei++) {
+                        	float sum = 0.0;
+                        	
+                        	for (int ek = 0; ek < nrElsP; ek++) {
+                        		sum += a2[ti,bk][ei,ek] * bTemp[ek];
+                        	}
+                            cTemp[ei] += sum;
+                        }
+					}
+					
+                    for (int ei = 0; ei < nrElsN; ei++) {
+                        c2[ti,tj][ei,ej][0,vj] += cTemp[ei];
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
+
+So, it's basically the kernel from the xeon phi, with vector size 4 instead of 16. 
+
+Can't get it faster than:
+
+matmulKernel             : avg =  387 ms, total = 1.94  s, count =         5
+
+#GFLOPS: 45.755 GFLOPS
+
+
+Perhaps a bandwidth issue between the two sockets?
+
+
+*/

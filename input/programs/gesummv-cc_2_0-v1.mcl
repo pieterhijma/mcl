@@ -1,0 +1,278 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module gesummv
+
+
+import perfect;
+import accelerator;
+import gpu;
+import nvidia;
+import cc_2_0;
+
+
+
+
+/*
+This version tries to use the cache lines for arrays a and b, by having
+multiple threads running over rows of a and b, with increments of 32, so that
+a warp accesses 32 consecutive elements of a and b simultaneously.
+This is supposed to also avoid the bank conflicts.
+*/
+
+cc_2_0 void gesummv(const int n = 4096, const float[n,n] a, const float[n,n] b, 
+        const float[n] x, float[n] y, const float alpha, const float beta) {
+    const int nrThreadsN = 128;		// number of threads per block
+    const int nrThreadsLine = cc_2_0.hierarchy.blocks.block.warps.warp.threads.nr_units;	// number of threads used per element of y
+    const int elementsPerIteration = n/8;
+    const int nrWarpsNrThreadsN = nrThreadsN / (1 * nrThreadsLine);
+    const int nrBlocksN = n / nrWarpsNrThreadsN;	// total number of blocks
+
+    foreach (const int bi in nrBlocksN blocks) {
+        shared float[elementsPerIteration] xcopy;
+		shared float[nrWarpsNrThreadsN, nrThreadsLine] sum1;
+		shared float[nrWarpsNrThreadsN, nrThreadsLine] sum2;
+        foreach (const int wti in nrWarpsNrThreadsN warps) {
+            foreach (const int tti in nrThreadsLine threads) {
+                const int i = bi * nrWarpsNrThreadsN + wti;
+ 				float s1 = 0;
+ 				float s2 = 0;
+                for (local int iter = 0; iter < n / elementsPerIteration; iter++) {
+                    for (local int l = wti * nrThreadsLine + tti; l < elementsPerIteration; l += nrThreadsN) {
+                        xcopy[l] = x[iter * elementsPerIteration + l];
+                    }
+                    barrier(shared);
+                    for (local int k = tti; k < elementsPerIteration; k += nrThreadsLine) {
+                        s1 = s1 + a[i,k + iter * elementsPerIteration] * xcopy[k];
+                        s2 = s2 + b[i,k + iter * elementsPerIteration] * xcopy[k];
+                    }
+                }
+                sum1[wti, tti] = s1;
+                sum2[wti, tti] = s2;
+				barrier(shared);
+				// Silly reduction ...
+				if (tti == 0) {
+				    for (local int k = 1; k < nrThreadsLine; k++) {
+						s1 = s1 + sum1[wti, k];
+						s2 = s2 + sum2[wti, k];
+				    }
+				    y[i] = alpha * s1 + beta * s2;
+				}
+            }
+        }
+    }
+}
+/*
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2244,1,<56,8>,<56,9>): Var y[i]:
+  in foreach loop tti:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1796,1,<43,34>,<43,35>): Var a[i,k + iter * elementsPerIteration]:
+  in loop k:
+    does not benefit from cache l2_cache:
+      -1 * tti / 32 + 16 cache line fetches
+  in foreach loop tti:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1796,1,<43,34>,<43,35>): Var a[i,k + iter * elementsPerIteration]:
+  in loop k:
+    does not benefit from cache l1_cache:
+      -1 * tti / 32 + 16 cache line fetches
+  in foreach loop tti:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1918,5,<44,73>,<44,78>): instruction xcopy[k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2182,4,<53,16>,<53,20>): Data reuse ratio:
+  4063232 / nrThreadsLine
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2244,1,<56,8>,<56,9>): Var y[i]:
+  in foreach loop tti:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2021,4,<48,16>,<48,20>): instruction sum2[wti,tti] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2021,4,<48,16>,<48,20>): Data reuse ratio:
+  131072 / nrThreadsLine
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1575,1,<39,35>,<39,36>): Data reuse ratio:
+  ((4194304) + (-262144 * wti) + (-8192 * tti)) / n
+  (numerator is the same order of magnitude, but smaller)
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1575,1,<39,35>,<39,36>): Var x[iter * elementsPerIteration + l]:
+  in loop l:
+    may benefit from cache l2_cache:
+      best case: -1 * wti + (-1 * tti / 32 + 16) cache line fetches
+      worst case: ((-32 * wti) + (-1 * tti)) / 128 + 4 cache line fetches
+  in foreach loop tti:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2244,1,<56,8>,<56,9>): Data reuse ratio:
+  131072 / n
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1835,5,<43,73>,<43,78>): instruction xcopy[k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2212,4,<54,16>,<54,20>): instruction sum2[wti,k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1879,1,<44,34>,<44,35>): Memory access pattern of b[i,k + iter * elementsPerIteration] is optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1918,5,<44,73>,<44,78>): Data reuse ratio:
+  ((-32768 * tti) + (16777216)) / elementsPerIteration
+  (numerator is the same order of magnitude, but smaller)
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1984,4,<47,16>,<47,20>): instruction sum1[wti,tti] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1984,4,<47,16>,<47,20>): Data reuse ratio:
+  131072 / nrThreadsLine
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1796,1,<43,34>,<43,35>): Memory access pattern of a[i,k + iter * elementsPerIteration] is optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1564,5,<39,24>,<39,29>): instruction xcopy[l] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2212,4,<54,16>,<54,20>): Data reuse ratio:
+  4063232 / nrThreadsLine
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1575,1,<39,35>,<39,36>): Var x[iter * elementsPerIteration + l]:
+  in loop l:
+    may benefit from cache l1_cache:
+      best case: -1 * wti + (-4 * tti / 128 + 16) cache line fetches
+      worst case: ((-32 * wti) + (-1 * tti)) / 128 + 4 cache line fetches
+  in foreach loop tti:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1575,1,<39,35>,<39,36>): Memory access pattern of x[iter * elementsPerIteration + l] is optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1796,1,<43,34>,<43,35>): Data reuse ratio:
+  ((16777216) + (-32768 * tti)) / n
+  (numerator is the same order of magnitude, but smaller)
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2244,1,<56,8>,<56,9>): Memory access pattern of y[i] is not optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2182,4,<53,16>,<53,20>): instruction sum1[wti,k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1879,1,<44,34>,<44,35>): Var b[i,k + iter * elementsPerIteration]:
+  in loop k:
+    does not benefit from cache l2_cache:
+      -1 * tti / 32 + 16 cache line fetches
+  in foreach loop tti:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1879,1,<44,34>,<44,35>): Var b[i,k + iter * elementsPerIteration]:
+  in loop k:
+    does not benefit from cache l1_cache:
+      -1 * tti / 32 + 16 cache line fetches
+  in foreach loop tti:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1879,1,<44,34>,<44,35>): Data reuse ratio:
+  ((-32768 * tti) + (16777216)) / n
+  (numerator is the same order of magnitude, but smaller)
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1835,5,<43,73>,<43,78>): Data reuse ratio:
+  ((16777216) + (-32768 * tti)) / elementsPerIteration
+  (numerator is the same order of magnitude, but smaller)
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1564,5,<39,24>,<39,29>): Data reuse ratio:
+  ((4194304) + (-8192 * tti) + (-262144 * wti)) / elementsPerIteration
+  (numerator is the same order of magnitude, but smaller)
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1564,5,<39,24>,<39,29>): instruction xcopy[l] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1796,1,<43,34>,<43,35>): Memory access pattern of a[i,k + iter * elementsPerIteration] is optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1918,5,<44,73>,<44,78>): instruction xcopy[k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2021,4,<48,16>,<48,20>): instruction sum2[wti,tti] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1575,1,<39,35>,<39,36>): Memory access pattern of x[iter * elementsPerIteration + l] is optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1835,5,<43,73>,<43,78>): instruction xcopy[k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2244,1,<56,8>,<56,9>): Memory access pattern of y[i] is not optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2182,4,<53,16>,<53,20>): instruction sum1[wti,k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2212,4,<54,16>,<54,20>): instruction sum2[wti,k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1879,1,<44,34>,<44,35>): Memory access pattern of b[i,k + iter * elementsPerIteration] is optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1984,4,<47,16>,<47,20>): instruction sum1[wti,tti] has 0 bank conflicts
+done  
+
+openCL.run(NDRange(65536, 4), NDRange(32, 4)
+gesummvKernel            : avg = 3.56 ms, total = 3.56 ms, count =         1
+
+#GFLOPS: 80.28 GFLOPS
+Effective Bandwidth: 158.46 GB/s
+Bandwidth: 140.62 GB/s
+
+Dramatic performance improvement, factor 20 or so. Even with the silly recuction ...
+*/
+
+
+
+
+/* 
+
+new feedback:
+
+
+running pass getDataReuse
+THIS SHOULD GO IN A MESSAGE, BUT NOT YET IMPLEMENTED:
+THIS PASS IS APPROXIMATE!
+{<"depends on loop",|project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1215,3,<33,31>,<33,34>)>}
+
+
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2244,1,<56,8>,<56,9>): Var y[i]:
+  in foreach loop tti:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1918,5,<44,73>,<44,78>): instruction xcopy[k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1796,1,<43,34>,<43,35>): Var a[i,k + iter * elementsPerIteration]:
+  in loop k:
+    does not benefit from cache l1_cache:
+      16 cache line fetches
+ (may not be approximate: depends on loop at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1215,3,<33,31>,<33,34>))
+  in foreach loop tti:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2021,4,<48,16>,<48,20>): instruction sum2[wti,tti] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1796,1,<43,34>,<43,35>): Var a[i,k + iter * elementsPerIteration]:
+  in loop k:
+    does not benefit from cache l2_cache:
+      16 cache line fetches
+ (may not be approximate: depends on loop at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1215,3,<33,31>,<33,34>))
+  in foreach loop tti:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1835,5,<43,73>,<43,78>): instruction xcopy[k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2212,4,<54,16>,<54,20>): instruction sum2[wti,k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1879,1,<44,34>,<44,35>): Memory access pattern of b[i,k + iter * elementsPerIteration] is optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1984,4,<47,16>,<47,20>): instruction sum1[wti,tti] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1564,5,<39,24>,<39,29>): instruction xcopy[l] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1796,1,<43,34>,<43,35>): Memory access pattern of a[i,k + iter * elementsPerIteration] is optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(386,7,<20,12>,<20,19>): Memory regs is shared by more than one warp, carefully consider the usage of memory spaces {}
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1575,1,<39,35>,<39,36>): Memory access pattern of x[iter * elementsPerIteration + l] is optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(386,7,<20,12>,<20,19>): Memory on_chip is shared by more than one block, carefully consider the usage of memory spaces {"shared"}
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2244,1,<56,8>,<56,9>): Memory access pattern of y[i] is not optimal
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(2182,4,<53,16>,<53,20>): instruction sum1[wti,k] has 0 bank conflicts
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1879,1,<44,34>,<44,35>): Var b[i,k + iter * elementsPerIteration]:
+  in loop k:
+    does not benefit from cache l1_cache:
+      16 cache line fetches
+ (may not be approximate: depends on loop at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1215,3,<33,31>,<33,34>))
+  in foreach loop tti:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1575,1,<39,35>,<39,36>): Var x[iter * elementsPerIteration + l]:
+  in loop l:
+    does not benefit from cache l2_cache:
+      4 cache line fetches
+ (may not be approximate: depends on loop at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1150,3,<32,27>,<32,30>), depends on loop at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1215,3,<33,31>,<33,34>))
+  in foreach loop tti:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1575,1,<39,35>,<39,36>): Var x[iter * elementsPerIteration + l]:
+  in loop l:
+    does not benefit from cache l1_cache:
+      4 cache line fetches
+ (may not be approximate: depends on loop at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1150,3,<32,27>,<32,30>), depends on loop at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1215,3,<33,31>,<33,34>))
+  in foreach loop tti:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1879,1,<44,34>,<44,35>): Var b[i,k + iter * elementsPerIteration]:
+  in loop k:
+    does not benefit from cache l2_cache:
+      16 cache line fetches
+ (may not be approximate: depends on loop at |project://mcl/input/programs/gesummv-cc_2_0-v1.mcl|(1215,3,<33,31>,<33,34>))
+  in foreach loop tti:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+
+*/

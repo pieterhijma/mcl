@@ -1,0 +1,204 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+hardware_description cc_1_0 
+
+specializes nvidia;
+
+parallelism hierarchy {
+    memory_space global {
+		consistency = barrier;
+		default;
+    }
+
+    memory_space constant {
+		consistency = full;
+		read_only;
+    }
+
+    par_group blocks {
+		max_nr_units = 65000;
+	
+		par_unit block {
+	
+		    memory_space shared {
+				consistency = barrier;
+		    }
+	
+		    par_group warps {
+				max_nr_units = 32;
+		
+				par_unit warp {
+		
+				    par_group threads {
+						nr_units = 32;
+		
+						par_unit thread {
+						    memory_space reg {
+								consistency = full;
+								default;
+						    }
+						    memory_space local {
+								consistency = full;
+						    }
+						}
+				    }
+				}
+		    }
+		}
+    }
+}
+
+device host {
+}
+
+interconnect pcie {
+    connects(host, cc_2_0.device_mem);
+    latency = 1000 cycles;
+    bandwidth = 8 GB/s;
+}
+
+device cc_2_0 {
+    device_mem;
+    ic1;
+    constant_cache;
+    l2_cache;
+    ic2;
+    smps;
+}
+
+memory device_mem {
+    space(global);
+    space(local);
+    space(constant);
+    capacity = 2 GB;
+}
+
+interconnect ic1 {
+    connects(device_mem, constant_cache);
+    connects(device_mem, l2_cache);
+    latency = 800 cycles;
+    clock_frequency = 3696 MHz;
+    width = 384 bits;
+}
+
+cache constant_cache {
+    space(constant);
+    capacity = 64 kB;
+}
+
+cache l2_cache {
+	space(global);
+	space(local);
+	capacity = 768 kB;
+	cache_line_size = 128 B;
+}
+
+interconnect ic2 {
+    connects(constant_cache, smps.smp[*]);
+    connects(l2_cache, smps.smp[*]);
+    latency = 20 cycles;
+    bandwidth = 100 GB/s;
+}
+
+execution_group smps {
+    nr_units = 16;
+
+    execution_unit smp {
+		slots(block, 8);
+		slots(warp, 48);
+	
+		on_chip;
+		l1_cache;
+		regs;
+		alus;
+		special_units;
+		load_store_units;
+    }
+}
+
+memory on_chip {
+    space(shared);
+    capacity = 48 kB;
+    nr_banks = 32;
+}
+
+cache l1_cache {
+	space(global);
+	space(local);
+	capacity = 16 kB;
+	cache_line_size = 128B;
+}
+
+memory regs {
+    space(reg);
+    addressable = false;
+    capacity = 32768 * 32 bit;
+}
+
+simd_group alus {
+    nr_units = 32;
+
+    slots(warp, 1);
+
+    simd_unit alu {
+		slots(thread, 1);
+	
+		instructions ops {
+			op((+), 1);
+		}
+    }
+}
+
+simd_group special_units {
+    nr_units = 4;
+
+    slots(warp, 1);
+
+    simd_unit special_unit {
+		slots(thread, 1);
+	
+		instructions special_ops {
+		    op("log", 1);
+		}
+    }
+}
+
+load_store_group load_store_units {
+    nr_units = 16;
+
+    slots(warp, 1);
+    
+    performance_feedback("load_store_optimality");
+
+    connects(regs, l1_cache);
+    connects(regs, constant_cache);
+    connects(regs, on_chip);
+
+    load_store_unit ls_unit {
+		slots(thread, 1);
+	
+		instructions ls_ops {
+		    op("load", 1);
+		    op("store", 1);
+		}
+    }
+}

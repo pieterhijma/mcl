@@ -1,0 +1,58 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module matrixmultiplication
+
+
+import perfect;
+import cpu;
+
+
+
+
+cpu void matmul(const int n, const int m, const int p, main float[n,m] c, const 
+        main float[n,p] a, const main float[p,m] b) {
+    const int nrVectorsM = cpu.hierarchy.threads.thread.vectors.nr_units;
+    const int nrThreadsM = m / (1 * nrVectorsM);
+    foreach (const int i in n threads) {
+        foreach (const int tj in nrThreadsM threads) {
+            foreach (const int vj in nrVectorsM vectors) {
+                const int j = tj * (1 * nrVectorsM) + vj;
+                reg float sum = 0.0;
+                for (reg int k = 0; k < p; k++) {
+                    sum += a[i,k] * b[k,j];
+                }
+                c[i,j] += sum;
+            }
+        }
+    }
+}
+
+
+/*
+
+INFO at |project://mcl/input/programs/mm_cpu.mcl|(661,1,<20,41>,<20,42>): Data reuse: b[k,j] is accessed for n threads i.
+INFO at |project://mcl/input/programs/mm_cpu.mcl|(652,1,<20,32>,<20,33>): Data reuse: a[i,k] is accessed for nrVectorsM vectors vj.
+INFO at |project://mcl/input/programs/mm_cpu.mcl|(652,1,<20,32>,<20,33>): Data reuse: a[i,k] is accessed for nrThreadsM threads tj.
+INFO at |project://mcl/input/programs/mm_cpu.mcl|(133,1,<10,71>,<10,72>): It may be beneficial to consider computing more than one element of c per vector.
+
+acting on the last one, leading to mm_cpu-v1.
+*/

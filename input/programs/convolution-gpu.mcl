@@ -1,0 +1,93 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module convolution
+
+import gpu;
+
+// The result of translating convolution.mcl to "gpu" level.
+
+gpu void convolve(const int outputHeight, const int outputWidth, const int 
+        filterHeight, const int filterWidth, float[outputHeight,outputWidth] 
+        output, const float[outputHeight + filterHeight / 2 * 2,outputWidth + 
+        filterWidth / 2 * 2] input, const float[filterHeight,filterWidth] 
+        filter) {
+
+    const int nrThreadsOutputWidth = 
+            gpu.hierarchy.blocks.block.threads.max_nr_units;
+    const int nrBlocksOutputWidth = outputWidth / nrThreadsOutputWidth;
+    foreach (const int i in outputHeight blocks) {  
+        foreach (const int bj in nrBlocksOutputWidth blocks) {       
+            foreach (const int tj in nrThreadsOutputWidth threads) {            
+                const int j = bj * nrThreadsOutputWidth + tj;
+                float sum = 0.0;
+                for (int y = 0; y < filterHeight; y++) {               
+                    for (int x = 0; x < filterWidth; x++) {                  
+                        sum = sum + filter[y,x] * input[i + y,j + x];
+                    }
+                }
+                output[i,j] = sum / (filterHeight * filterWidth);
+            }
+        }
+    }
+}
+
+/*
+
+INFO at |project://mcl/input/programs/convolution-gpu.mcl|(257,6,<9,8>,<9,14>): It may be beneficial to consider computing more than one element of output per thread.
+
+INFO at |project://mcl/input/programs/convolution-gpu.mcl|(104,8,<7,9>,<7,17>): pcie transfers 8 * (filterHeight * filterWidth) + (4 * (filterHeight * outputWidth) + (4 * (filterWidth * outputHeight) + (4 * (outputHeight * outputWidth) + 16))) bytes from host to device
+INFO at |project://mcl/input/programs/convolution-gpu.mcl|(104,8,<7,9>,<7,17>): pcie transfers 4 * (outputHeight * outputWidth) bytes from device to host
+
+INFO at |project://mcl/input/programs/convolution-gpu.mcl|(1078,6,<23,36>,<23,42>): filter[y,x] is accessed for nrThreadsOutputWidth threads tj: memory space local may be leveraged
+
+INFO at |project://mcl/input/programs/convolution-gpu.mcl|(1078,6,<23,36>,<23,42>): Data reuse: filter[y,x] is accessed for outputHeight blocks i.
+INFO at |project://mcl/input/programs/convolution-gpu.mcl|(1078,6,<23,36>,<23,42>): Data reuse: filter[y,x] is accessed for nrBlocksOutputWidth blocks bj.
+INFO at |project://mcl/input/programs/convolution-gpu.mcl|(1078,6,<23,36>,<23,42>): Data reuse: filter[y,x] is accessed for nrThreadsOutputWidth threads tj.
+INFO at |project://mcl/input/programs/convolution-gpu.mcl|(1092,5,<23,50>,<23,55>): Data reuse: For input[i + y,j + x]:
+  For dimension 0:
+    the loops const int bj, int x = 0 may have a positive data reuse ratio: filterWidth * outputWidth / 1024
+    the loops const int i, const int tj  have a positive data reuse ratio: 1024
+    the loops const int tj, int y = 0  have a positive data reuse ratio: 1024
+    the loops const int bj, int y = 0 may have a positive data reuse ratio: outputWidth / 1024
+    the loops const int i, int y = 0 may have a positive data reuse ratio: filterHeight * outputHeight / (filterHeight + (outputHeight - 1))
+    the loops const int i, const int bj may have a positive data reuse ratio: outputWidth / 1024
+  For dimension 1:
+    the loops const int tj, int x = 0 may have a positive data reuse ratio: 1024 * filterWidth / (filterWidth + 1023)
+    the loops const int bj, int x = 0 may have a positive data reuse ratio: filterWidth * outputWidth / (filterWidth + (outputWidth - 1024)) / 1024
+    the loops const int bj, int y = 0 may have a positive data reuse ratio: filterHeight * outputWidth / (outputWidth - 1023) / 1024
+    the loops const int i, const int bj may have a positive data reuse ratio: outputHeight * outputWidth / (outputWidth - 1023) / 1024
+
+
+
+
+Solved by having each thread compute a 16 x 1 tyle, and having blocks of 64x4 threads, copying filter into local memory, and a (64, 64) block of the input data into local memory as well.
+--> convolution-gpu-v1.
+
+openCL.run(NDRange(128, 131072), NDRange(32, 32)
+convolveKernel           : avg = 21.2 ms, total = 21.2 ms, count =         1
+
+#GFLOPS: 129.96 GFLOPS
+Effective Bandwidth: 481.2 GB/s
+Bandwidth: 5.9173 GB/s
+
+
+*/

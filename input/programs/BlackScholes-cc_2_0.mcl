@@ -1,0 +1,117 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module blackscholes
+
+
+import perfect;
+import math;
+import gpu;
+import nvidia;
+import cc_2_0;
+
+
+// Result of translating BlackScholes-nvidia.mcl to "cc_2_0" level.
+
+
+cc_2_0 float cnd(const float d) {
+    const float a1 = 0.31938153;
+    const float a2 = 0 - 0.356563782;
+    const float a3 = 1.781477937;
+    const float a4 = 0 - 1.821255978;
+    const float a5 = 1.330274429;
+    const float rsqrt2pi = 0.39894228040143267793994605993438;
+    const float k = 1.0 / (1.0 + 0.2316419 * fabs(d));
+    const float cnd = rsqrt2pi * exp((0 - 0.5) * d * d) * (k * (a1 + k * (a2 + 
+            k * (a3 + k * (a4 + k * a5)))));
+    if (d > 0) return 1.0 - cnd;
+    return cnd;
+}
+
+
+cc_2_0 void blackscholes(const int size = 4194304, float[size] callresult, float[size] 
+        putresult, const float[size] stockprice, const float[size] optionstrike,
+         const float[size] optionyears, const float riskfree, const float 
+        volatility) {
+    const int nrThreadsSize = 128;
+    const int nrEntriesPerThread = 32;
+    const int nrBlocksSize = size / (1 * nrThreadsSize * nrEntriesPerThread);
+    foreach (const int bi in nrBlocksSize blocks) {
+        const int nrThreadsNrThreadsSize = 
+                // cc_2_0.hierarchy.blocks.block.warps.warp.threads.nr_units;
+                128;
+        const int nrWarpsNrThreadsSize = nrThreadsSize / (1 * 
+                nrThreadsNrThreadsSize);
+        foreach (const int wti in nrWarpsNrThreadsSize warps) {
+            foreach (const int tti in nrThreadsNrThreadsSize threads) {
+                const int ti = wti * (1 * nrThreadsNrThreadsSize) + tti;
+                for (local int ki = 0; ki < nrEntriesPerThread; ki++) {
+                    const int i = bi * (nrThreadsSize * nrEntriesPerThread) + 
+                            ti + ki * nrThreadsSize;
+                    const float s = stockprice[i];
+                    const float x = optionstrike[i];
+                    const float t = optionyears[i];
+                    const float r = riskfree;
+                    const float v = volatility;
+                    const float sqrtt = sqrt(t);
+                    const float d1 = (log(s / x) + (r + 0.5 * v * v) * t) / (v 
+                            * sqrtt);
+                    const float d2 = d1 - v * sqrtt;
+                    const float cndd1 = cnd(d1);
+                    const float cndd2 = cnd(d2);
+                    const float exprt = exp(0 - r * t);
+                    callresult[i] = s * cndd1 - x * exprt * cndd2;
+                    putresult[i] = x * exprt * (1.0 - cndd2) - s * (1.0 - 
+                            cndd1);
+                }
+            }
+        }
+    }
+}
+/*
+INFO at |project://mcl/input/programs/BlackScholes-cc_2_0.mcl|(2479,9,<60,20>,<60,29>): Var putresult[i]:
+  in loop ki:
+    does not benefit from cache l1_cache:
+      32 cache line fetches
+  in foreach loop tti:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/BlackScholes-cc_2_0.mcl|(2479,9,<60,20>,<60,29>): Var putresult[i]:
+  in loop ki:
+    does not benefit from cache l2_cache:
+      32 cache line fetches
+  in foreach loop tti:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+... et cetera ...
+INFO at |project://mcl/input/programs/BlackScholes-cc_2_0.mcl|(1918,11,<49,36>,<49,47>): Memory access pattern of optionyears[i] is optimal
+INFO at |project://mcl/input/programs/BlackScholes-cc_2_0.mcl|(2422,10,<59,20>,<59,30>): Memory access pattern of callresult[i] is optimal
+INFO at |project://mcl/input/programs/BlackScholes-cc_2_0.mcl|(2489,9,<60,20>,<60,29>): Memory access pattern of putresult[i] is optimal
+INFO at |project://mcl/input/programs/BlackScholes-cc_2_0.mcl|(1814,10,<47,36>,<47,46>): Memory access pattern of stockprice[i] is optimal
+INFO at |project://mcl/input/programs/BlackScholes-cc_2_0.mcl|(1865,12,<48,36>,<48,48>): Memory access pattern of optionstrike[i] is optimal     
+
+openCL.run(NDRange(32768, 4), NDRange(32, 4)
+blackscholesKernel       : avg =  670 us, total =  670 us, count =         1
+
+#GFLOPS: 432.25 GFLOPS
+Effective Bandwidth: 116.68 GB/s
+Bandwidth: 116.68 GB/s
+*/

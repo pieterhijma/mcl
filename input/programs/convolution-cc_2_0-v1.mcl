@@ -1,0 +1,204 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module convolution
+
+
+import gpu;
+import nvidia;
+import cc_2_0;
+
+
+
+
+
+cc_2_0 void convolve(const int outputHeight = 4096, const int outputWidth = 
+        4096, const int filterHeight = 9, const int filterWidth = 9, 
+        float[outputHeight,outputWidth] output, const float[outputHeight + 
+        filterHeight / 2 * 2,outputWidth + filterWidth / 2 * 2] input, const 
+        float[filterHeight,filterWidth] filter) {
+    const int tyleHeight = 16;
+    const int tyleWidth = 1;
+    const int nrThreadsX = 64;
+    const int nrThreadsY = 4;
+    const int nrBlocksOutputHeight = outputHeight / (nrThreadsY * tyleHeight);
+    const int nrBlocksOutputWidth = outputWidth / (nrThreadsX * tyleWidth);
+    const int filterSize = filterWidth * filterHeight;
+    const int fh = filterHeight / 2 * 2;
+    const int fw = filterWidth / 2 * 2;
+    const int ti_end = fh + nrThreadsY * tyleHeight;
+    const int tj_end = fw + nrThreadsX * tyleWidth;
+    foreach (const int bi in nrBlocksOutputHeight blocks) {
+        foreach (const int bj in nrBlocksOutputWidth blocks) {
+            shared float[filterHeight,filterWidth] f;
+            f as float[filterSize] f2;
+            filter as float[filterSize] filter2;
+            shared float[ti_end,tj_end] data;
+            const int nrThreadsNrThreadsX = 
+                    cc_2_0.hierarchy.blocks.block.warps.warp.threads.nr_units;
+            const int nrWarpsNrThreadsX = nrThreadsX / (1 * 
+                    nrThreadsNrThreadsX);
+            foreach (const int ti in nrThreadsY warps) {
+                foreach (const int wtj in nrWarpsNrThreadsX warps) {
+                    foreach (const int ttj in nrThreadsNrThreadsX threads) {
+                        const int tj = wtj * (1 * nrThreadsNrThreadsX) + ttj;
+                        const int yDataOffset = bi * (nrThreadsY * tyleHeight);
+                        const int xDataOffset = bj * (nrThreadsX * tyleWidth);
+                        const int j = xDataOffset + tj * tyleWidth;
+                        const int i = yDataOffset + ti * tyleHeight;
+                        local float[tyleHeight] sum;
+                        for (local int k = ti * nrThreadsX + tj; k < 
+                                filterSize; k += nrThreadsX * nrThreadsY) {
+                            f2[k] = filter2[k];
+                        }
+                        for (local int mti = ti; mti < ti_end; mti += 
+                                nrThreadsY) {
+                            for (local int mtj = tj; mtj < tj_end; mtj += 
+                                    nrThreadsX) {
+                                data[mti,mtj] = input[yDataOffset + mti,
+                                        xDataOffset + mtj];
+                            }
+                        }
+                        barrier(shared);
+                        for (local int k = 0; k < tyleHeight; k++) {
+                            sum[k] = 0;
+                        }
+                        for (local int y = 0; y < filterHeight; y++) {
+                            for (local int x = 0; x < filterWidth; x++) {
+                                for (local int k = 0; k < tyleHeight; k++) {
+                                    sum[k] = sum[k] + f[y,x] * data[ti 
+                                            * tyleHeight + y + k,tj + x];
+                                }
+                            }
+                        }
+                        for (local int k = 0; k < tyleHeight; k++) {
+                            output[i + k,j] = sum[k] / filterSize;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+/*
+
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(3504,3,<72,46>,<72,49>): Var sum[k]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: 1 / 2 cache line fetches
+      worst case: 16 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(3504,3,<72,46>,<72,49>): Var sum[k]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: 1 / 2 cache line fetches
+      worst case: 16 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(3198,3,<66,45>,<66,48>): Var sum[k]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: 1 / 2 cache line fetches
+      worst case: 16 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(3198,3,<66,45>,<66,48>): Var sum[k]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: 1 / 2 cache line fetches
+      worst case: 16 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(2893,3,<61,28>,<61,31>): Var sum[k]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: 1 / 2 cache line fetches
+      worst case: 16 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(2893,3,<61,28>,<61,31>): Var sum[k]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: 1 / 2 cache line fetches
+      worst case: 16 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(3486,6,<72,28>,<72,34>): Var output[i + k,j]:
+  in loop k:
+    does not benefit from cache l1_cache:
+      16 cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(3486,6,<72,28>,<72,34>): Var output[i + k,j]:
+  in loop k:
+    does not benefit from cache l2_cache:
+      16 cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(2614,5,<55,48>,<55,53>): Var input[yDataOffset + mti,xDataOffset + mtj]:
+  in loop mtj:
+    may benefit from cache l2_cache:
+      best case: -1 * wtj + (ttj / -32 + 73 / 32) cache line fetches
+      worst case: wtj / -2 + (ttj / -64 + 73 / 64) cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(2286,7,<49,36>,<49,43>): Var filter2[k]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: -1 * wtj + (-2 * ti + (ttj / -32 + 81 / 32)) cache line fetches
+      worst case: wtj / -8 + (ti / -4 + (ttj / -256 + 81 / 256)) cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(3189,3,<66,36>,<66,39>): Var sum[k]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: 1 / 2 cache line fetches
+      worst case: 16 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(2614,5,<55,48>,<55,53>): Var input[yDataOffset + mti,xDataOffset + mtj]:
+  in loop mtj:
+    may benefit from cache l1_cache:
+      best case: -1 * wtj + (ttj / -32 + 73 / 32) cache line fetches
+      worst case: wtj / -2 + (ttj / -64 + 73 / 64) cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(3189,3,<66,36>,<66,39>): Var sum[k]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: 1 / 2 cache line fetches
+      worst case: 16 cache line fetches
+INFO at |project://mcl/input/programs/convolution-cc_2_0-v1.mcl|(2286,7,<49,36>,<49,43>): Var filter2[k]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: -1 * wtj + (-2 * ti + (ttj / -32 + 648 / 256)) cache line fetches
+      worst case: wtj / -8 + (ti / -4 + (ttj / -256 + 81 / 256)) cache line fetches
+  in foreach loop ttj:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+      
+      
+      
+      
+
+convolveKernel           : avg = 9.11 ms, total = 45.6 ms, count =         5
+
+#GFLOPS: 301.89 GFLOPS
+Effective Bandwidth: 15.915 GB/s
+Bandwidth: 13.745 GB/s
+
+
+*/

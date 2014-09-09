@@ -1,0 +1,90 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module matrixmultiplication
+
+
+import perfect;
+import cpu;
+
+
+
+
+
+cpu void matmul(const int n, const int m, const int p, float[n,m] c, const 
+        float[n,p] a, const float[p,m] b) {
+        
+    int nrElsM = 8;
+    int nrVectorsM = cpu.hierarchy.threads.thread.vectors.nr_units;
+    int nrThreadsM = m / (nrElsM * nrVectorsM);
+    
+    int nrElsN = 8;
+    int nrThreadsN = n / nrElsN;
+    
+    c as float[nrThreadsN, nrThreadsM][nrElsN, nrElsM][1, nrVectorsM] c2;
+    a as float[nrThreadsN, p][nrElsN, 1] a2;
+    b as float[p, nrThreadsM][1, nrElsM][1, nrVectorsM] b2;
+    
+    foreach (const int ti in nrThreadsN threads) {
+        foreach (const int tj in nrThreadsM threads) {
+            foreach (const int vj in nrVectorsM vectors) {
+            	for (int ej = 0; ej < nrElsM; ej++) {
+            	    float[p] bTemp;
+            	    float[nrElsN] sums;
+            		
+            	    for (int ei = 0; ei < nrElsN; ei++) {
+            		sums[ei] = 0.0;
+            	    }
+            		
+            	    for (int k = 0; k < p; k++) {
+            		bTemp[k] = b2[k, tj][0, ej][0, vj];
+            	    }
+            		
+               	    for (int k = 0; k < p; k++) {
+               	    	float bTemp2 = bTemp[k];
+               	    	
+               	    	for (int ei = 0; ei < nrElsN; ei++) {
+                    	    sums[ei] += a2[ti,k][ei, 0] * bTemp2;
+                	}
+                    }
+                    for (int ei = 0; ei < nrElsN; ei++) {
+                	c2[ti,tj][ei, ej][0, vj] += sums[ei];
+                    }
+            	}
+            }
+        }
+    }
+}
+
+/*
+matmulKernel             : avg =  662 ms, total = 3.31  s, count =         5
+
+#GFLOPS: 25.956 GFLOPS
+
+
+INFO at |project://mcl/input/programs/mm_cpu-v3.mcl|(1350,2,<44,47>,<44,49>): Data reuse: a2[ti,k][ei,0] is accessed inside for-loop with index ej but does not depend on it.
+INFO at |project://mcl/input/programs/mm_cpu-v3.mcl|(1350,2,<44,47>,<44,49>): Data reuse: a2[ti,k][ei,0] is accessed for nrVectorsM vectors vj.
+INFO at |project://mcl/input/programs/mm_cpu-v3.mcl|(1350,2,<44,47>,<44,49>): Data reuse: a2[ti,k][ei,0] is accessed for nrThreadsM threads tj.
+INFO at |project://mcl/input/programs/mm_cpu-v3.mcl|(1339,4,<44,36>,<44,40>): Data reuse: sums[ei] is accessed inside for-loop with index k but does not depend on it.
+INFO at |project://mcl/input/programs/mm_cpu-v3.mcl|(1067,2,<37,25>,<37,27>): Data reuse: b2[k,tj][0,ej][0,vj] is accessed for nrThreadsN threads ti.
+
+*/
+

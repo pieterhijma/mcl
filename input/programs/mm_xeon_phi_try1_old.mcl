@@ -1,0 +1,67 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module matrixmultiplication
+
+import xeon_phi;
+
+xeon_phi void matmul(const int n = 2048, const int m = 2048, const int p = 2048, float[n,m] c, const 
+        float[n,p] a, const float[p,m] b) {
+
+	const int nrBlocks = 128;
+    const int nrVectors = xeon_phi.hierarchy.threads.thread.vectors.nr_units;
+            
+    const int associativity = 8;
+    const int nrBlocksP = p / associativity;
+	
+	const int nrThreadsN = n / nrBlocks;
+	const int nrThreadsM = m / nrVectors;
+		
+	a as float[nrThreadsN, nrBlocksP][nrBlocks, associativity] a2;
+	b as float[nrBlocksP, nrThreadsM][associativity, nrVectors] b2;
+	c as float[nrThreadsN, nrThreadsM][nrBlocks, nrVectors] c2;
+
+	foreach (int iN in nrThreadsN threads) {
+		foreach (int jM in nrThreadsM threads) {
+			foreach (int vM in nrVectors vectors) {
+				reg float[nrBlocks] cTemp;
+				
+				for (int j = 0; j < nrBlocks; j++) {
+					cTemp[j] = 0.0;
+				}
+				
+				for (int jP = 0; jP < nrBlocksP; jP++) {
+					for (int j = 0; j < nrBlocks; j++) {
+						for (int l = 0; l < associativity; l++) {
+							cTemp[j] = cTemp[j] + 
+								a2[iN, jP][j, l] * 
+								b2[jP, jM][l, vM];
+						}
+					}
+				}
+				
+				for (int j = 0; j < nrBlocks; j++) {
+					c2[iN, jM][j, vM] = cTemp[j];
+				}
+			}
+		}
+	}
+}

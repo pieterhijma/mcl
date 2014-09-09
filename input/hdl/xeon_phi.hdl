@@ -1,0 +1,154 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+hardware_description xeon_phi 
+
+
+specializes mic;
+
+
+parallelism hierarchy {
+    memory_space dev {
+		consistency = full;
+		default;
+    }
+
+    par_group threads {
+		max_nr_units = countable;
+	
+		par_unit thread {
+		
+			par_group vectors {
+				nr_units = 16;
+			
+				par_unit vector {
+					memory_space reg {
+						consistency = full;
+						default;
+					}
+				}
+			}
+		}
+    }
+}
+
+
+device host {
+}
+
+
+interconnect pcie {
+    connects(host, mic.mem);
+    latency = 1000 cycle;
+    bandwidth = 8 GB/s;
+}
+
+
+device mic {
+    mem;
+    ring;
+    l2_caches;
+    cores;
+}
+
+
+memory mem {
+    space(dev);
+    capacity = 6 GB;
+}
+
+
+interconnect ring {
+    connects(mem, l2_cache[*]);
+    latency = 20 cycles;
+}
+
+device_group l2_caches {
+	nr_units = 59;
+	
+	device_unit bla {
+		l2_cache;
+	}
+}
+
+
+cache l2_cache {
+	space(dev);
+	capacity = 512 kB;
+	cache_line_size = 64B;
+}
+
+
+interconnect cache_interconnect {
+	connects(l2_cache, cores.core[*]);
+}
+
+
+cache l1_cache {
+	space(dev);
+	capacity = 32 kB;
+	cache_line_size = 64B;
+}
+
+
+memory regs {
+	space(reg);
+	capacity = 32 * 512 bit;
+	addressable = false;
+}
+
+
+execution_group cores {
+    nr_units = 59;
+
+    execution_unit core {
+		slots(thread, 4);
+		
+		//performance_feedback("load_store_optimality");
+
+		l1_cache;
+		regs;
+		ls_units;	
+		vector_group;
+    }
+}
+
+
+simd_group vector_group {
+	nr_units = 16;
+	
+	slots(vector, 16);
+	
+	mic.vector_group.vector_unit;
+}
+
+
+load_store_group ls_units {
+	nr_units = 16;
+	slots(vector, 16);
+	
+	load_store_unit ls_unit {
+		slots(vector, 1);
+		
+		perfect.ls_units.ls_unit.ls_ops;
+	}
+}
+

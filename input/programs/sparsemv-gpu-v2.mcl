@@ -1,0 +1,132 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module sparsemv
+
+
+import perfect;
+import gpu;
+
+
+// More than one element per thread.
+
+
+gpu void sparsemv(const int n, const int m, const int nz, const int[n + 1] air, 
+        const int[nz] ajc, const float[nz] avalues, const float[m] b, float[n] 
+        c) {
+    // const int nrThreadsN = gpu.hierarchy.blocks.block.threads.max_nr_units;
+    const int nrThreadsN = 32;
+    const int elementsPerThread = 32;
+    const int blockSize = nrThreadsN * elementsPerThread;
+    const int nrBlocksN = n / blockSize;
+    foreach (const int barow in nrBlocksN blocks) {
+		// local int[blockSize+1] airCopy;
+    	foreach (const int tarow in nrThreadsN threads) {
+    		// for (int i = 0; i < elementsPerThread; i++) {
+    		// 	airCopy[i * nrThreadsN + tarow] = air[barow * blockSize + i * nrThreadsN + tarow];
+    		// }
+    		// if (tarow == 0) {
+    		// 	airCopy[blockSize] = air[(barow + 1) * blockSize];
+    		// }
+	    	// barrier(local);
+	    	for (int el = 0; el < elementsPerThread; el++) {
+	    	    const int arow = barow * blockSize + tarow * elementsPerThread + el;
+	        	float sum = 0;
+	        	int start = air[arow];
+	        	int end = air[arow+1];
+	        	for (int i = start; i < end; i++) {
+	        		sum = sum + avalues[i] * b[ajc[i]];
+	            }
+	            c[arow] = sum;
+	        }
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(96,8,<11,9>,<11,17>): pcie transfers 4 * m + (4 * n + 8 * nz) + 16 bytes from host to device
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(96,8,<11,9>,<11,17>): pcie transfers 4 * n bytes from device to host
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(1244,3,<35,38>,<35,41>): Data reuse: For ajc[i]:
+    the loops const int barow, const int tarow may have a positive data reuse ratio: n / 32
+    the loops const int barow, int el = 0 may have a positive data reuse ratio: n / 32
+    the loops int el = 0, int i = start may have a positive data reuse ratio: (32 * end + -32 * start) / (end + -1 * start)
+    the loops const int tarow, int i = start may have a positive data reuse ratio: (32 * end + -32 * start) / (end + -1 * start)
+    the loops const int tarow, int el = 0  have a positive data reuse ratio: 1024
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(1242,1,<35,36>,<35,37>): Data reuse: For b[ajc[i]]:
+    the loops const int barow, const int tarow may have a positive data reuse ratio: n / (ajc[((i))] + 1) / 32
+    the loops const int barow, int el = 0 may have a positive data reuse ratio: n / (ajc[((i))] + 1) / 32
+    the loops int el = 0, int i = start may have a positive data reuse ratio: (32 * end + -32 * start) / (ajc[((i))] + 1)
+    the loops const int tarow, int i = start may have a positive data reuse ratio: (32 * end + -32 * start) / (ajc[((i))] + 1)
+    the loops const int tarow, int el = 0 may have a positive data reuse ratio: 1024 / (ajc[((i))] + 1)
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(1229,7,<35,23>,<35,30>): Data reuse: For avalues[i]:
+    the loops const int barow, const int tarow may have a positive data reuse ratio: n / 32
+    the loops const int barow, int el = 0 may have a positive data reuse ratio: n / 32
+    the loops int el = 0, int i = start may have a positive data reuse ratio: (32 * end + -32 * start) / (end + -1 * start)
+    the loops const int tarow, int i = start may have a positive data reuse ratio: (32 * end + -32 * start) / (end + -1 * start)
+    the loops const int tarow, int el = 0  have a positive data reuse ratio: 1024
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(1147,3,<33,20>,<33,23>): Data reuse: For air[arow + 1]:
+    the loops const int barow, const int tarow may have a positive data reuse ratio: n / (n - 30) / 32
+    the loops const int barow, int el = 0 may have a positive data reuse ratio: n / (n - 991) / 32
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(96,8,<11,9>,<11,17>): computation:
+  threads:
+    loads: 
+      dev: 2*elementsPerThread*nrBlocksN*nrThreadsN*(-start+end) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(531,5,<19,23>,<19,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(621,5,<21,24>,<21,29>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(950,2,<29,15>,<29,17>))
+    instructions: 
+      2*elementsPerThread*nrBlocksN*nrThreadsN*(-start+end) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(531,5,<19,23>,<19,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(621,5,<21,24>,<21,29>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(950,2,<29,15>,<29,17>))
+    stores: 
+      dev: elementsPerThread*nrBlocksN*nrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(531,5,<19,23>,<19,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(621,5,<21,24>,<21,29>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(950,2,<29,15>,<29,17>))
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(96,8,<11,9>,<11,17>): indexing:
+  threads:
+    loads: 
+      dev: elementsPerThread*nrBlocksN*nrThreadsN*(-start+end) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(531,5,<19,23>,<19,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(621,5,<21,24>,<21,29>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(950,2,<29,15>,<29,17>))
+    instructions: 
+      elementsPerThread*nrBlocksN*nrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(531,5,<19,23>,<19,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(621,5,<21,24>,<21,29>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(950,2,<29,15>,<29,17>))
+    stores: 
+      dev: 0 (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(531,5,<19,23>,<19,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(621,5,<21,24>,<21,29>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(950,2,<29,15>,<29,17>))
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(96,8,<11,9>,<11,17>): control flow:
+  threads:
+    loads: 
+      dev: 2*elementsPerThread*nrBlocksN*nrThreadsN
+    instructions: 
+      2*elementsPerThread*nrBlocksN*nrThreadsN*(-start+end)+6*elementsPerThread*nrBlocksN*nrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(531,5,<19,23>,<19,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(621,5,<21,24>,<21,29>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(950,2,<29,15>,<29,17>))
+  host:
+    instructions: 
+      2
+INFO at |project://mcl/input/programs/sparsemv-gpu-v2.mcl|(96,8,<11,9>,<11,17>): Arithmetic intensity: 2*elementsPerThread*nrBlocksN*nrThreadsN*(-start+end)*(2*elementsPerThread*nrBlocksN*nrThreadsN*(-start+end)+elementsPerThread*nrBlocksN*nrThreadsN)^(
+-1)
+
+openCL.run(NDRange(2048, 1), NDRange(32, 1)
+pre                      : avg = 12.2 ms, total = 36.5 ms, count =         3
+
+sparsemvKernel           : avg = 12.2 ms, total = 12.2 ms, count =         1
+
+sparsemvKernel           : avg = 12.2 ms, total = 24.4 ms, count =         2
+
+sparsemvKernel           : avg = 12.2 ms, total = 36.5 ms, count =         3
+
+sparsemvKernel           : avg = 12.2 ms, total = 48.7 ms, count =         4
+
+sparsemvKernel           : avg = 12.2 ms, total = 60.8 ms, count =         5
+
+Bandwidth: 5.3406 GB/s
+
+
+*/

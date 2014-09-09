@@ -1,0 +1,89 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module gesummv
+
+
+import perfect;
+import mic;
+import xeon_phi;
+
+
+
+
+
+xeon_phi void gesummv(const int n, const float[n,n] a, const float[n,n] b, 
+        const float[n] x, float[n] y, const float alpha, const float beta) {
+        
+    
+    const int nrElsN = 4;
+    const int nrThreadsN = n / nrElsN;
+    
+    const int m = n;
+    
+    const int nrVectorsM = mic.hierarchy.threads.thread.vectors.nr_units;
+    const int nrElsM = m / nrVectorsM;
+    
+    a as float[nrThreadsN, nrElsM][nrElsN, nrVectorsM] a2;
+    b as float[nrThreadsN, nrElsM][nrElsN, nrVectorsM] b2;
+    x as float[nrElsM][nrVectorsM] x2;
+    y as float[nrThreadsN][nrElsN] y2;
+    
+    float[nrThreadsN][nrVectorsM] sum1;
+    float[nrThreadsN][nrVectorsM] sum2; 
+    
+    
+    foreach (const int ti in nrThreadsN threads) {
+        foreach (const int vk in nrVectorsM vectors) {
+        
+        	/*
+            float[nrElsM][nrVectorsM] xCopy;
+            
+            for (int ek = 0; ek < nrElsM; ek++) {
+                xCopy[ek][vk] = x2[ek][vk];
+            }
+            */
+            
+            for (int ei = 0; ei < nrElsN; ei++) {
+    			sum1[ti][vk] = 0.0;
+    			sum2[ti][vk] = 0.0;
+                
+                for (int ek = 0; ek < nrElsN; ek++) {
+                    sum1[ti][vk] = sum1[ti][vk] + a2[ti,ek][ei,vk] * x2[ek][vk];
+                    sum2[ti][vk] = sum2[ti][vk] + b2[ti,ek][ei,vk] * x2[ek][vk];
+                }
+                if (vk == 0) {
+                	float s1 = 0.0;
+                	float s2 = 0.0;
+                	
+                	for (int vkk = 0; vkk < nrVectorsM; vkk++) {
+                		s1 = s1 + sum1[ti][vkk];
+                		s2 = s2 + sum2[ti][vkk];
+                	}
+                	
+                	y2[ti][ei] = alpha * s1 + beta * s2;
+                }
+            }
+        }
+    }
+}
+
+

@@ -1,0 +1,109 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module sparsemv
+
+
+import perfect;
+import gpu;
+
+
+// Avoid reuse of c[arow] by computing its value in a local "sum". Also avoid most of the air reuse.
+
+
+gpu void sparsemv(const int n, const int m, const int nz, const int[n + 1] air, 
+        const int[nz] ajc, const float[nz] avalues, const float[m] b, float[n] 
+        c) {
+    const int nrThreadsN = gpu.hierarchy.blocks.block.threads.max_nr_units;
+    const int nrBlocksN = n / (1 * nrThreadsN);
+    foreach (const int barow in nrBlocksN blocks) {
+        foreach (const int tarow in nrThreadsN threads) {
+            const int arow = barow * (1 * nrThreadsN) + tarow;
+            float sum = 0;
+            int begin = air[arow];
+            int end = air[arow+1];
+            for (int i = begin; i < end; i++) {
+                sum = sum + avalues[i] * b[ajc[i]];
+            }
+            c[arow] = sum;
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(126,8,<11,9>,<11,17>): pcie transfers 4 * m + (4 * n + 8 * nz) + 16 bytes from host to device
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(126,8,<11,9>,<11,17>): pcie transfers 4 * n bytes from device to host
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(776,3,<23,43>,<23,46>): Data reuse: For ajc[i]:
+    the loops const int tarow, int i = begin may have a positive data reuse ratio: (-1024 * begin + 1024 * end) / (-1 * begin + end)
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(774,1,<23,41>,<23,42>): Data reuse: For b[ajc[i]]:
+    the loops const int tarow, int i = begin may have a positive data reuse ratio: (-1024 * begin + 1024 * end) / (ajc[((i))] + 1)
+    the loops const int barow, const int tarow may have a positive data reuse ratio: n / (ajc[((i))] + 1)
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(761,7,<23,28>,<23,35>): Data reuse: For avalues[i]:
+    the loops const int tarow, int i = begin may have a positive data reuse ratio: (-1024 * begin + 1024 * end) / (-1 * begin + end)
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(672,3,<21,22>,<21,25>): Data reuse: For air[arow + 1]:
+    the loops const int barow, const int tarow may have a positive data reuse ratio: n / (n + 1)
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(126,8,<11,9>,<11,17>): computation:
+  threads:
+    loads: 
+      dev: 2*nrBlocksN*nrThreadsN*(end-begin) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(438,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(494,5,<17,27>,<17,32>))
+    instructions: 
+      2*nrBlocksN*nrThreadsN*(end-begin) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(438,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(494,5,<17,27>,<17,32>))
+    stores: 
+      dev: nrBlocksN*nrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(438,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(494,5,<17,27>,<17,32>))
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(126,8,<11,9>,<11,17>): indexing:
+  threads:
+    loads: 
+      dev: nrBlocksN*nrThreadsN*(end-begin) (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(438,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(494,5,<17,27>,<17,32>))
+    instructions: 
+      nrBlocksN*nrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(438,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(494,5,<17,27>,<17,32>))
+    stores: 
+      dev: 0 (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(438,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(494,5,<17,27>,<17,32>))
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(126,8,<11,9>,<11,17>): control flow:
+  threads:
+    loads: 
+      dev: 2*nrBlocksN*nrThreadsN
+    instructions: 
+      2*nrBlocksN*nrThreadsN*(end-begin)+3*nrBlocksN*nrThreadsN (may not be accurate: depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(438,5,<16,23>,<16,28>), depends on loop at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(494,5,<17,27>,<17,32>))
+  host:
+    instructions: 
+      2
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(126,8,<11,9>,<11,17>): Arithmetic intensity: 2*nrBlocksN*nrThreadsN*(end-begin)*(2*nrBlocksN*nrThreadsN*(end-begin)+nrBlocksN*nrThreadsN)^(
+-1)
+INFO at |project://mcl/input/programs/sparsemv-gpu-v1.mcl|(286,1,<13,8>,<13,9>): It may be beneficial to consider computing more than one element of c per thread.
+
+openCL.run(NDRange(2048, 32), NDRange(32, 32)
+pre                      : avg = 14.4 ms, total = 43.3 ms, count =         3
+
+sparsemvKernel           : avg = 14.4 ms, total = 14.4 ms, count =         1
+
+sparsemvKernel           : avg = 14.4 ms, total = 28.8 ms, count =         2
+
+sparsemvKernel           : avg = 14.4 ms, total = 43.3 ms, count =         3
+
+sparsemvKernel           : avg = 14.4 ms, total = 57.7 ms, count =         4
+
+sparsemvKernel           : avg = 14.4 ms, total = 72.1 ms, count =         5
+
+Bandwidth: 4.5066 GB/s
+
+Action: More than one element per thread.
+
+*/

@@ -1,0 +1,72 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module gesummv
+
+
+import perfect;
+import accelerator;
+import gpu;
+
+
+// Memory space local leveraged for x.
+
+
+gpu void gesummv(const int n, const float[n,n] a, const float[n,n] b, const 
+        float[n] x, float[n] y, const float alpha, const float beta) {
+    const int nrThreadsN = gpu.hierarchy.blocks.block.threads.max_nr_units;
+    const int nrBlocksN = n / (1 * nrThreadsN);
+    foreach (const int bi in nrBlocksN blocks) {
+    	local float[n] xcopy;
+        foreach (const int ti in nrThreadsN threads) {
+        	for (int l = ti; l < n; l += nrThreadsN) {
+        		xcopy[l] = x[l];
+        	}
+        	barrier(local);
+            const int i = bi * (1 * nrThreadsN) + ti;
+            float sum1 = 0.0;
+            float sum2 = 0.0;
+            for (int k = 0; k < n; k++) {
+                sum1 = sum1 + a[i,k] * xcopy[k];
+                sum2 = sum2 + b[i,k] * xcopy[k];
+            }
+            y[i] = alpha * sum1 + beta * sum2;
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/gesummv-gpu-v1.mcl|(584,1,<20,21>,<20,22>): Data reuse: x[l] is accessed for nrBlocksN blocks bi.
+*/
+
+
+
+/*
+openCL.run(NDRange(256, 32), NDRange(32, 32)
+gesummvKernel            : avg =  102 ms, total =  102 ms, count =         1
+
+#GFLOPS: 2.6305 GFLOPS
+Effective Bandwidth: 4.902 GB/s
+Bandwidth: 4.8999 GB/s
+
+Just a tiny improvement.
+
+*/

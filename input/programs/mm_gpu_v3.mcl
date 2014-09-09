@@ -1,0 +1,93 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module matrixmultiplication
+
+
+import gpu;
+
+
+gpu void matmul(const int n, const int m, const int p, float[n,m] c, const 
+        float[n,p] a, const float[p,m] b) {
+        
+    int nrElsN = 4;
+    int nrBlocksN = n / nrElsN;
+    const int nrThreadsM = gpu.hierarchy.blocks.block.threads.max_nr_units;
+    const int nrBlocksM = m / nrThreadsM;
+    
+    int nrLoadIters = p / nrThreadsM;
+    
+    a as float[nrBlocksN, nrLoadIters][nrElsN, nrThreadsM] a2;
+    c as float[nrBlocksN, nrBlocksM][nrElsN, nrThreadsM] c2;
+    
+    foreach (const int bi in nrBlocksN blocks) {
+    
+        foreach (const int bj in nrBlocksM blocks) {
+        
+        	local float[nrElsN][p] l_a as 
+        		float[nrElsN][nrLoadIters][nrThreadsM] l_a2;
+        
+            foreach (const int tj in nrThreadsM threads) {
+            	float[nrElsN] sums;
+            
+            	for (int ei = 0; ei < nrElsN; ei++) {
+	            	for (int l = 0; l < nrLoadIters; l++) {
+	            		l_a2[ei][l][tj] = a2[bi, l][ei, tj];
+	            	}
+	            	sums[ei] = 0.0;
+	            }
+            	
+            	barrier(local);
+            
+                const int j = bj * nrThreadsM + tj;
+                
+                for (int k = 0; k < p; k++) {
+                	float bkj = b[k, j];
+                	for (int ei = 0; ei < nrElsN; ei++) {
+                    	sums[ei] += l_a[ei][k] * bkj;
+                    }
+                }
+                
+                for (int ei = 0; ei < nrElsN; ei++) {
+	                c2[bi, bj][ei, tj] += sums[ei];
+	            }
+            }
+        }
+    }
+}
+
+
+/*
+INFO at |project://mcl/input/programs/mm_gpu_v3.mcl|(983,2,<32,33>,<32,35>): Data reuse: a2[bi,l][ei,tj] is accessed for nrBlocksM blocks bj.
+INFO at |project://mcl/input/programs/mm_gpu_v3.mcl|(1263,1,<42,29>,<42,30>): Data reuse: b[k,j] is accessed for nrBlocksN blocks bi.
+
+
+matmulKernel             : avg =   84 ms, total =  420 ms, count =         5
+
+#GFLOPS: 204.56 GFLOPS
+Effective Bandwidth: 95.812 GB/s
+Bandwidth: 0.55813 GB/s
+
+
+
+Nothing to be done. Translate this
+*/
+

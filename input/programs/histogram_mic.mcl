@@ -1,0 +1,95 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module histogram
+
+
+import perfect;
+import atomics;
+import mic;
+
+
+
+
+
+mic void histogram(const int nrBuckets, const int m, const int n, 
+        int[nrBuckets] hist, const int[m,n] data) {
+    const int nrVectorsN = mic.hierarchy.threads.thread.vectors.nr_units;
+    const int nrThreadsN = n / (1 * nrVectorsN);
+    foreach (const int i in m threads) {
+        foreach (const int tj in nrThreadsN threads) {
+            foreach (const int vj in nrVectorsN vectors) {
+                const int j = tj * (1 * nrVectorsN) + vj;
+                const int d = data[i,j];
+                atomicAdd(hist[d], 1);
+            }
+        }
+    }
+}
+
+
+
+
+/*
+
+
+INFO at |project://mcl/input/programs/histogram_mic.mcl|(77,9,<12,9>,<12,18>): computation:
+  vectors:
+    loads: 
+      main: m*nrThreadsN*nrVectorsN
+    instructions: 
+      m*nrThreadsN*nrVectorsN
+    stores: 
+      main: m*nrThreadsN*nrVectorsN
+INFO at |project://mcl/input/programs/histogram_mic.mcl|(590,4,<21,26>,<21,30>): Data reuse: For hist[d]:
+    the loops const int tj, const int vj may have a positive data reuse ratio: n / (d + 1)
+    the loops const int i, const int vj may have a positive data reuse ratio: 16 * m / (d + 1)
+    the loops const int i, const int tj may have a positive data reuse ratio: m * n / (d + 1) / 16
+INFO at |project://mcl/input/programs/histogram_mic.mcl|(77,9,<12,9>,<12,18>): Arithmetic intensity: 1/2
+INFO at |project://mcl/input/programs/histogram_mic.mcl|(437,2,<18,31>,<18,33>): It may be beneficial to consider doing more work per vector.
+INFO at |project://mcl/input/programs/histogram_mic.mcl|(77,9,<12,9>,<12,18>): control flow:
+  host:
+    instructions: 
+      2
+INFO at |project://mcl/input/programs/histogram_mic.mcl|(77,9,<12,9>,<12,18>): pcie transfers 4 * nrBuckets bytes from device to host
+INFO at |project://mcl/input/programs/histogram_mic.mcl|(77,9,<12,9>,<12,18>): Memory regs is shared by more than one thread, carefully consider the usage of memory spaces {}
+INFO at |project://mcl/input/programs/histogram_mic.mcl|(77,9,<12,9>,<12,18>): indexing:
+  vectors:
+    loads: 
+      dev: m*nrThreadsN*nrVectorsN
+    instructions: 
+      3*m*nrThreadsN*nrVectorsN
+INFO at |project://mcl/input/programs/histogram_mic.mcl|(77,9,<12,9>,<12,18>): pcie transfers 4 * (m * n) + 12 bytes from host to device
+
+
+
+
+
+computing more elements per thread.
+
+
+
+
+
+
+
+
+*/

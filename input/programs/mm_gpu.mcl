@@ -1,0 +1,75 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+
+module matrixmultiplication
+
+
+import gpu;
+
+
+
+
+
+gpu void matmul(const int n, const int m, const int p, float[n,m] c, const 
+        float[n,p] a, const float[p,m] b) {
+
+    const int nrThreadsM = gpu.hierarchy.blocks.block.threads.max_nr_units;
+    const int nrBlocksM = m / nrThreadsM;
+    foreach (const int i in n blocks) {
+    
+        foreach (const int bj in nrBlocksM blocks) {
+        
+            foreach (const int tj in nrThreadsM threads) {
+            
+                const int j = bj * nrThreadsM + tj;
+                float sum = 0.0;
+                for (int k = 0; k < p; k++) {
+                
+                    sum += a[i,k] * b[k,j];
+                }
+                c[i,j] += sum;
+            }
+        }
+    }
+}
+
+
+
+/*
+
+INFO at |project://mcl/input/programs/mm_gpu.mcl|(113,1,<10,66>,<10,67>): It may be beneficial to consider computing more than one element of c per thread.
+
+INFO at |project://mcl/input/programs/mm_gpu.mcl|(56,6,<10,9>,<10,15>): pcie transfers 4 * (m * p) + (4 * (n * p) + 12) bytes from host to device
+INFO at |project://mcl/input/programs/mm_gpu.mcl|(56,6,<10,9>,<10,15>): pcie transfers 4 * (m * n) bytes from device to host
+
+INFO at |project://mcl/input/programs/mm_gpu.mcl|(654,1,<25,41>,<25,42>): b[k,j] is accessed for n blocks i.
+INFO at |project://mcl/input/programs/mm_gpu.mcl|(645,1,<25,32>,<25,33>): a[i,k] is accessed for nrThreadsM threads tj: memory space local may be leveraged
+INFO at |project://mcl/input/programs/mm_gpu.mcl|(645,1,<25,32>,<25,33>): a[i,k] is accessed for nrBlocksM blocks bj.
+
+INFO at |project://mcl/input/programs/mm_gpu.mcl|(654,1,<25,41>,<25,42>): Data reuse: b[k,j] is accessed for n blocks i.
+INFO at |project://mcl/input/programs/mm_gpu.mcl|(645,1,<25,32>,<25,33>): Data reuse: a[i,k] is accessed for nrBlocksM blocks bj.
+INFO at |project://mcl/input/programs/mm_gpu.mcl|(645,1,<25,32>,<25,33>): Data reuse: a[i,k] is accessed for nrThreadsM threads tj.
+
+Using memory space local seems to be the most beneficial, so first do that.
+solution: load    a[i, *] into local memory. 
+
+This leads to version mm_gpu_v1
+*/
