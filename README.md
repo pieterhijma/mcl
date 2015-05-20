@@ -20,7 +20,7 @@ MCL is licensed under the Apache 2.0 license.
 
 # Copyright
 
-Copyright 2014 Pieter Hijma
+Copyright 2015 Pieter Hijma
 
 # Contributers
 
@@ -31,7 +31,7 @@ Affiliation: VU University Amsterdam, Department of Computer Science.
 
 # References
 
-[1] P.Hijma, R.V. van Nieuwpoort, C.J.H. Jacobs, and H.E. Bal. Under Review.
-    2014
-
-
+[1] Pieter Hijma, Rob V. van Nieuwpoort, Ceriel J.H. Jacobs, and Henri E. Bal:
+Stepwise-refinement for Performance: a methodology for many-core programming
+Concurrency and Computation: Practice and Experience, 2015
+[Early view](http://onlinelibrary.wiley.com/doi/10.1002/cpe.3416/abstract)
