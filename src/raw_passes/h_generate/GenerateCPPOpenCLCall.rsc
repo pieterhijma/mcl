@@ -63,7 +63,7 @@ str genOpenCLArgument(Exp ve, Decl formalParam, list[Exp] params,
 		list[Decl] formalParams, OutputBuilder b) {
 	bool isOut = const() notin formalParam.modifier;
 	bool isPrimitive = isPrimitive(formalParam);
-	Exp size = getSize(formalParam);
+	Exp size = getSize(formalParam, b);
 	size = convert(size, params, formalParams);
 	size = simplify(size);
 	debug = true;

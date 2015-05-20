@@ -1,0 +1,106 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module kmeans
+
+
+
+
+import perfect;
+import gpu;
+import amd;
+
+
+
+
+
+
+
+
+
+
+amd void kmeans_kernel(const int npoints, const int nclusters, const int 
+        nfeatures, const global float[nfeatures,npoints] points, const global 
+        float[nclusters,nfeatures] clusters, global int[npoints] 
+        pointsCluster) {
+    const int nPointsPerThread = 16;
+    const int nrThreadsNpoints = gpu.hierarchy.blocks.block.threads.
+            max_nr_units;
+    const int nrBlocksNpoints = (npoints + nrThreadsNpoints * nPointsPerThread 
+            - 1) / (1 * nrThreadsNpoints * nPointsPerThread);
+    foreach (const int bpid in nrBlocksNpoints workgroups) {
+        foreach (const int ttpid in nrThreadsNpoints workitems) {
+            const int tpid = bpid * (1 * nrThreadsNpoints * nPointsPerThread) 
+                    + ttpid;
+            for (reg int p = 0; p < nPointsPerThread; p++) {
+                const int pid = bpid * (1 * nrThreadsNpoints * 
+                        nPointsPerThread) + tpid * nPointsPerThread + p;
+                if (pid < npoints) {
+                    reg int ind = 0;
+                    reg float min_dist = 3.0E+38;
+                    for (reg int cluster = 0; cluster < nclusters; cluster++) {
+                        reg float dist = 0;
+                        for (reg int feature = 0; feature < nfeatures; 
+                                feature++) {
+                            const float d = points[feature,pid] - 
+                                    clusters[cluster,feature];
+                            dist = dist + d * d;
+                        }
+                        if (dist < min_dist) {
+                            min_dist = dist;
+                            ind = cluster;
+                        }
+                    }
+                    pointsCluster[pid] = ind;
+                }
+            }
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/kmeans-amd.mcl|(77,13,<19,9>,<19,22>): pcie transfers 4 * (nclusters * nfeatures) + 4 * (nfeatures * npoints) + 12 bytes from host to device
+INFO at |project://mcl/input/programs/kmeans-amd.mcl|(77,13,<19,9>,<19,22>): pcie transfers 4 * npoints bytes from device to host
+INFO at |project://mcl/input/programs/kmeans-amd.mcl|(77,13,<19,9>,<19,22>): computation:
+  workitems:
+    loads: 
+      global: 0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-amd.mcl|(1039,13,<35,20>,<35,33>))
+    instructions: 
+      nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-amd.mcl|(1039,13,<35,20>,<35,33>))
+    stores: 
+      global: nPointsPerThread*nrBlocksNpoints*nrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-amd.mcl|(1039,13,<35,20>,<35,33>))
+INFO at |project://mcl/input/programs/kmeans-amd.mcl|(77,13,<19,9>,<19,22>): control flow:
+  workitems:
+    loads: 
+      global: 2*nPointsPerThread*nclusters*nfeatures*nrBlocksNpoints*nrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-amd.mcl|(1039,13,<35,20>,<35,33>))
+    instructions: 
+      5*nPointsPerThread*nclusters*nfeatures*nrBlocksNpoints*nrThreadsNpoints+nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNpoints+
+      8*nPointsPerThread*nrBlocksNpoints*nrThreadsNpoints+4*nrBlocksNpoints*nrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-amd.mcl|(1039,13,<35,20>,<35,33>))
+    stores: 
+      global: 0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-amd.mcl|(1039,13,<35,20>,<35,33>))
+  host:
+    instructions: 
+      6
+INFO at |project://mcl/input/programs/kmeans-amd.mcl|(77,13,<19,9>,<19,22>): Arithmetic intensity: nclusters
+INFO at |project://mcl/input/programs/kmeans-amd.mcl|(77,13,<19,9>,<19,22>): Memory on_chip is shared by more than one workgroup, carefully consider the usage of memory spaces {"local"}
+
+Is useless feedback, as the application does not use local memory.
+Translate to hd7970.
+*/
+

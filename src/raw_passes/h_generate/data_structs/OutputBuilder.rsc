@@ -53,7 +53,8 @@ alias Funcs = tuple[
 		str(list[DeclModifier], OutputBuilder) genDeclModifier,
 		str(BasicDecl, OutputBuilder) genBasicDecl,
 		str(Exp, OutputBuilder) genExp,
-		tuple[str, Message](Call, OutputBuilder) genOpenCLCall
+		tuple[str, Message](Call, OutputBuilder) genOpenCLCall,
+		str(Var, OutputBuilder) genVar
 	];
 
 
@@ -66,6 +67,7 @@ data OutputBuilder = outputBuilder(
 						list[FuncID] inputKernels,
 						list[FuncID] normalFuncs,
 						list[tuple[str, int]] macros,
+						set[BasicDeclID] macrod,
 						Funcs funcs,
 						CodeGenInfo cgi,
 						CallGraph cg,
@@ -106,7 +108,7 @@ public OutputBuilder createOutputBuilderCPP(str baseFileName, CodeGenInfo cgi,
 	OutputFile kernels = createOutputFile(baseFileName, baseFileName, "cl");
 	
 	return outputBuilder(baseFileName, header, caller, kernels, [], [], [], 
-		funcs, cgi, cg, [], t);
+		{}, funcs, cgi, cg, [], t);
 }
 
 
@@ -121,7 +123,7 @@ public OutputBuilder createOutputBuilderJava(str baseFileName, str leafDevice,
 		baseFileName, "// <leafDevice>\n", "", "");
 	
 	return outputBuilder(baseFileName, header, caller, kernels, [], [], [], 
-		funcs, cgi, cg, [], t);
+		{}, funcs, cgi, cg, [], t);
 }
 
 

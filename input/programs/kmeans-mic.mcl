@@ -1,0 +1,93 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module kmeans
+
+
+
+
+import perfect;
+import mic;
+
+
+
+
+
+// Fixed generated code.
+
+
+
+mic void kmeans_kernel(const int npoints, const int nclusters, const int 
+        nfeatures, const dev float[nfeatures,npoints] points, const dev 
+        float[nclusters,nfeatures] clusters, dev int[npoints] pointsCluster) {
+    const int nrVectorsNpoints = mic.hierarchy.threads.thread.vectors.nr_units;
+    
+    // const int nrThreadsNpoints = npoints / (1 * nrVectorsNpoints);
+    const int nrThreadsNpoints = (npoints + nrVectorsNpoints - 1) / (1 * nrVectorsNpoints);	// FIX
+    foreach (const int tpid in nrThreadsNpoints threads) {
+        foreach (const int vpid in nrVectorsNpoints vectors) {
+            const int pid = tpid * (1 * nrVectorsNpoints) + vpid;
+            if (pid < npoints) {	// FIX
+            	reg int ind = 0;
+            	reg float min_dist = 3.0E+38;
+            	for (reg int cluster = 0; cluster < nclusters; cluster++) {
+                    reg float dist = 0;
+                    for (reg int feature = 0; feature < nfeatures; feature++) {
+                        const float d = points[feature,pid] - clusters[cluster,
+                            feature];
+                        dist += d * d;
+                    }
+                    if (dist < min_dist) {
+                        min_dist = dist;
+                        ind = cluster;
+                    }
+                }
+                pointsCluster[pid] = ind;
+            }
+        }
+    }
+}
+/*
+INFO at |project://mcl/input/programs/kmeans-mic.mcl|(88,13,<17,9>,<17,22>): pcie transfers 4 * (nclusters * nfeatures) + 4 * (nfeatures * npoints) + 12 bytes from host to device
+INFO at |project://mcl/input/programs/kmeans-mic.mcl|(88,13,<17,9>,<17,22>): pcie transfers 4 * npoints bytes from device to host
+INFO at |project://mcl/input/programs/kmeans-mic.mcl|(88,13,<17,9>,<17,22>): computation:
+  vectors:
+    loads: 
+      dev: 0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-mic.mcl|(763,13,<27,16>,<27,29>))
+    instructions: 
+      nclusters*nrThreadsNpoints*nrVectorsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-mic.mcl|(763,13,<27,16>,<27,29>))
+    stores: 
+      dev: nrThreadsNpoints*nrVectorsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-mic.mcl|(763,13,<27,16>,<27,29>))
+INFO at |project://mcl/input/programs/kmeans-mic.mcl|(88,13,<17,9>,<17,22>): control flow:
+  host:
+    instructions: 
+      4
+  vectors:
+    loads: 
+      dev: 2*nclusters*nfeatures*nrThreadsNpoints*nrVectorsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-mic.mcl|(763,13,<27,16>,<27,29>))
+    instructions: 
+      5*nclusters*nfeatures*nrThreadsNpoints*nrVectorsNpoints+nclusters*nrThreadsNpoints*nrVectorsNpoints+
+      3*nrThreadsNpoints*nrVectorsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-mic.mcl|(763,13,<27,16>,<27,29>))
+    stores: 
+      dev: 0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-mic.mcl|(763,13,<27,16>,<27,29>))
+INFO at |project://mcl/input/programs/kmeans-mic.mcl|(88,13,<17,9>,<17,22>): Arithmetic intensity: nclusters
+INFO at |project://mcl/input/programs/kmeans-mic.mcl|(288,13,<19,62>,<19,75>): It may be beneficial to consider computing more than one element of pointsCluster per vector.
+
+Compute more than one element per thread --> mic-v1.
+*/

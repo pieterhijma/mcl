@@ -27,27 +27,27 @@ import cc_2_0;
 cc_2_0 void matmul(const int n = 2048, const int m = 2048, const int p = 2048, 
         float[n,m] c, const float[n,p] a, const float[p,m] b) {
         
-    const int nrElsN = 32;
-    const int nrBlocksN = n / nrElsN;
+    const int nrElsN = 16;
+    const int nrBlocksN = n / nrElsN;	// 128
     
-    const int nrThreadsM = 64;
-    const int nrBlocksM = m / nrThreadsM;
+    const int nrThreadsM = 128;
+    const int nrBlocksM = m / nrThreadsM;	// 16
     const int nrThreadsNrThreadsM = 
-            cc_2_0.hierarchy.blocks.block.warps.warp.threads.nr_units;
-    const int nrWarpsNrThreadsM = nrThreadsM / (1 *  nrThreadsNrThreadsM);
+            cc_2_0.hierarchy.blocks.block.warps.warp.threads.nr_units;	// 32
+    const int nrWarpsNrThreadsM = nrThreadsM / (1 *  nrThreadsNrThreadsM);	// 4
     
-    const int nrLoadIters = p / nrThreadsM;
+    const int nrLoadIters = p / nrThreadsM;	// 16
     
     a as float[nrBlocksN,nrLoadIters][nrElsN,nrThreadsM] a2;
     c as float[nrBlocksN,nrBlocksM][nrElsN,nrThreadsM] c2;
     
-    foreach (const int bi in nrBlocksN blocks) {
-        foreach (const int bj in nrBlocksM blocks) {
+    foreach (const int bi in nrBlocksN blocks) {	// 128
+        foreach (const int bj in nrBlocksM blocks) {	// 16
         
             shared float[nrElsN][nrThreadsM] l_a;
             
-            foreach (const int wtj in nrWarpsNrThreadsM warps) {
-                foreach (const int ttj in nrThreadsNrThreadsM threads) {
+            foreach (const int wtj in nrWarpsNrThreadsM warps) {	// 4
+                foreach (const int ttj in nrThreadsNrThreadsM threads) { // 32
                     const int tj = wtj * (1 * nrThreadsNrThreadsM) + ttj;
                     
                     local float[nrElsN] sums;

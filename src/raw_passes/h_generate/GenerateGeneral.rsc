@@ -88,8 +88,12 @@ public str genExp(n:not(Exp e), OutputBuilder b) =
 	"!<brack(n, e, true, b.funcs.genExp(e, b))>";
 public str genExp(m:bitshl(Exp l, Exp r), OutputBuilder b) = 
 	"<brack(m, l, true, b.funcs.genExp(l, b))> \<\< <brack(m, r, false, b.funcs.genExp(r, b))>";
+public str genExp(m:bitshr(Exp l, Exp r), OutputBuilder b) = 
+	"<brack(m, l, true, b.funcs.genExp(l, b))> \>\> <brack(m, r, false, b.funcs.genExp(r, b))>";
 public str genExp(m:bitand(Exp l, Exp r), OutputBuilder b) = 
 	"<brack(m, l, true, b.funcs.genExp(l, b))> & <brack(m, r, false, b.funcs.genExp(r, b))>";
+public str genExp(m:bitor(Exp l, Exp r), OutputBuilder b) = 
+	"<brack(m, l, true, b.funcs.genExp(l, b))> | <brack(m, r, false, b.funcs.genExp(r, b))>";
 public str genExp(m:mul(Exp l, Exp r), OutputBuilder b) = 
 	"<brack(m, l, true, b.funcs.genExp(l, b))> * <brack(m, r, false, b.funcs.genExp(r, b))>";
 public str genExp(d:div(Exp l, Exp r), OutputBuilder b) = 
@@ -102,10 +106,16 @@ public str genExp(a:lt(Exp l, Exp r), OutputBuilder b) =
 	"<brack(a, l, true, b.funcs.genExp(l, b))> \< <brack(a, r, false, b.funcs.genExp(r, b))>";
 public str genExp(a:gt(Exp l, Exp r), OutputBuilder b) = 
 	"<brack(a, l, true, b.funcs.genExp(l, b))> \> <brack(a, r, false, b.funcs.genExp(r, b))>";
+public str genExp(a:le(Exp l, Exp r), OutputBuilder b) = 
+	"<brack(a, l, true, b.funcs.genExp(l, b))> \<= <brack(a, r, false, b.funcs.genExp(r, b))>";
+public str genExp(a:ge(Exp l, Exp r), OutputBuilder b) = 
+	"<brack(a, l, true, b.funcs.genExp(l, b))> \>= <brack(a, r, false, b.funcs.genExp(r, b))>";
 public str genExp(a:eq(Exp l, Exp r), OutputBuilder b) = 
 	"<brack(a, l, true, b.funcs.genExp(l, b))> == <brack(a, r, false, b.funcs.genExp(r, b))>";
 public str genExp(a:ne(Exp l, Exp r), OutputBuilder b) = 
 	"<brack(a, l, true, b.funcs.genExp(l, b))> != <brack(a, r, false, b.funcs.genExp(r, b))>";
+public str genExp(a:and(Exp l, Exp r), OutputBuilder b) = 
+	"<brack(a, l, true, b.funcs.genExp(l, b))> && <brack(a, r, false, b.funcs.genExp(r, b))>";
 
 
 public str genExpLong(Exp e, OutputBuilder b) {
@@ -131,7 +141,7 @@ public str genExpLong2(i:intConstant(_), OutputBuilder b) = genExp(i, b) + "l";
 
 
 public str genCall(astCall(Identifier id, list[Exp] es), OutputBuilder b) =
-	pp(id) + "(<gen(es, ", ", genExp, b)>)";
+	(id.string == "toFloat" ? "(float) " : pp(id)) + "(<gen(es, ", ", genExp, b)>)";
 
 
 public str genInc(i: astInc(_, str option), OutputBuilder b) = "<genVar(i.astVar, b)><option>";
@@ -190,55 +200,11 @@ bool writtenInCall(VarID vID, Table t) {
 	}
 }
 
-str dereference(Var v, VarID vID, DeclID dID, OutputBuilder b) {
-	Type typeDecl = getTypeDecl(dID, b.t);
-	Type typeVar = getTypeVar(vID, b.t);
-	
-	bool isParamDecl = isParam(dID, b.t);
-	bool isPrimitiveDecl = isPrimitive(typeDecl);
-	bool isWrittenDecl = b.t.decls[dID].written;
-	
-	bool isPrimitiveVar = isPrimitive(typeVar);
-	bool isWrittenInCall = writtenInCall(vID, b.t);
-	
-	bool ampersand = false;
-	bool star = false;
-	
-	if (isWrittenDecl && isPrimitiveVar && isWrittenInCall) {
-		ampersand = true;
-	}
-	
-	
-	if (isParamDecl && isPrimitiveDecl && isWrittenDecl && isPrimitiveVar) {
-		star = true;
-	}
-	
-	if (ampersand && star) {
-		ampersand = false;
-		star = false;
-	}
-	
-	str result = "";
-	result += ampersand ? "&" : "";
-	result += star ? "*" : "";
-	return result;
-}
 
 
-public str genVar(v:var(BasicVar bv), OutputBuilder b) {
-	BasicDeclID bdID = b.t.vars[v@key].declaredAt;
-	DeclID dID = b.t.basicDecls[bdID].decl;
-	Identifier primary = getPrimaryIdDecl(dID, b.t);
-	str arrayExpString;
-	if (isEmpty(bv.astArrayExps)) {
-		arrayExpString = "";
-	}
-	else {
-		arrayExpString = "[<gen(bv.astArrayExps[0], genExp, b)>]";
-	}
+
+public str genVar(Var v, OutputBuilder b) = b.funcs.genVar(v, b);
 	
-	return "<dereference(v, v@key, dID, b)><pp(primary)><arrayExpString>";
-}
 
 
 public str genStat(astAssignStat(Var v, Exp e), OutputBuilder b) {

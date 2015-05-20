@@ -101,16 +101,16 @@ tuple[list[BasicDecl], Builder2] define(list[BasicDecl] ts, &S s, Builder2 b) {
 */
 
 
-tuple[list[list[ExpID]], Builder2] insertNewExps(list[list[Exp]] es, Builder2 b) {
+tuple[list[list[ExpID]], Builder2] insertNewExps2(list[list[Exp]] es, Builder2 b) {
 	eIDLists = for (eList <- es) {
-		<eIDList, b> = insertNewExps(eList, b);
+		<eIDList, b> = insertNewExps1(eList, b);
 		append eIDList;
 	}
 	return <eIDLists, b>;
 }
 
 
-tuple[list[ExpID], Builder2] insertNewExps(list[Exp] es, Builder2 b) {
+tuple[list[ExpID], Builder2] insertNewExps1(list[Exp] es, Builder2 b) {
 	eIDs = for (e <- es) {
 		<eID, b> = insertNewExp(e, b);
 		append eID;
@@ -177,7 +177,7 @@ default tuple[Type, Builder2] insertNewType(Type t, Builder2 b) = <t, b>;
 tuple[Type, Builder2] insertNewType(astCustomType(Identifier id, 
 		list[Exp] params), Builder2 b) {
 	
-	<newParams, b> = insertNewExps(params, b);
+	<newParams, b> = insertNewExps1(params, b);
 	Type newType = customType(id, newParams);
 	try {
 		TypeDef td = resolveType(id, b);
@@ -236,7 +236,7 @@ tuple[VarID, Builder2] insertNewVarNormal(v:var(astBasicVar(Identifier id,
 	
 	b = pushKey(vKey, b);
 	
-	<eIDs, b> = insertNewExps(es, b);
+	<eIDs, b> = insertNewExps2(es, b);
 	v.basicVar = basicVar(id, eIDs);
 	bdID = resolveVar(id, decls, b);
 	
@@ -257,7 +257,7 @@ tuple[VarID, Builder2] insertNewVarNormal(d:astDot(astBasicVar(Identifier id,
 	
 	b = pushKey(vKey, b);
 	
-	<eIDs, b> = insertNewExps(es, b);
+	<eIDs, b> = insertNewExps2(es, b);
 	BasicVar bv = basicVar(id, eIDs);
 	bdID = resolveVar(id, decls, b);
 	set[BasicDeclID] decls = getDeclsType(bdID, b);
@@ -394,7 +394,17 @@ tuple[Exp, Builder2] insertNewExp2(e:bitand(Exp l, Exp r), b) {
 	<e.r, b> = insertNewExp2(r, b);
 	return <e, b>;
 }
+tuple[Exp, Builder2] insertNewExp2(e:bitor(Exp l, Exp r), b) {
+	<e.l, b> = insertNewExp2(l, b);
+	<e.r, b> = insertNewExp2(r, b);
+	return <e, b>;
+}
 tuple[Exp, Builder2] insertNewExp2(e:bitshl(Exp l, Exp r), b) {
+	<e.l, b> = insertNewExp2(l, b);
+	<e.r, b> = insertNewExp2(r, b);
+	return <e, b>;
+}
+tuple[Exp, Builder2] insertNewExp2(e:bitshr(Exp l, Exp r), b) {
 	<e.l, b> = insertNewExp2(l, b);
 	<e.r, b> = insertNewExp2(r, b);
 	return <e, b>;
@@ -429,12 +439,27 @@ tuple[Exp, Builder2] insertNewExp2(e:gt(Exp l, Exp r), b) {
 	<e.r, b> = insertNewExp2(r, b);
 	return <e, b>;
 }
+tuple[Exp, Builder2] insertNewExp2(e:le(Exp l, Exp r), b) {
+	<e.l, b> = insertNewExp2(l, b);
+	<e.r, b> = insertNewExp2(r, b);
+	return <e, b>;
+}
+tuple[Exp, Builder2] insertNewExp2(e:ge(Exp l, Exp r), b) {
+	<e.l, b> = insertNewExp2(l, b);
+	<e.r, b> = insertNewExp2(r, b);
+	return <e, b>;
+}
 tuple[Exp, Builder2] insertNewExp2(e:eq(Exp l, Exp r), b) {
 	<e.l, b> = insertNewExp2(l, b);
 	<e.r, b> = insertNewExp2(r, b);
 	return <e, b>;
 }
 tuple[Exp, Builder2] insertNewExp2(e:ne(Exp l, Exp r), b) {
+	<e.l, b> = insertNewExp2(l, b);
+	<e.r, b> = insertNewExp2(r, b);
+	return <e, b>;
+}
+tuple[Exp, Builder2] insertNewExp2(e:and(Exp l, Exp r), b) {
 	<e.l, b> = insertNewExp2(l, b);
 	<e.r, b> = insertNewExp2(r, b);
 	return <e, b>;
@@ -657,7 +682,7 @@ tuple[CallID, Builder2] insertNewCall(astCall(Identifier id, list[Exp] es), Buil
 	
 	b = pushKey(callKey, b);
 	
-	<eIDs, b> = insertNewExps(es, b);
+	<eIDs, b> = insertNewExps1(es, b);
 	
 	b = popKey(b);
 	

@@ -39,7 +39,9 @@ import raw_passes::e_prettyPrint::PrettyPrint;
 
 
 
-private rel[Type, Type] assignTable = {<\int(), float()>, <\int(), index()>, <index(), \int()>, <\int(), byte()>};
+private rel[Type, Type] assignTable = 
+	{<\int(), float()>, <\int(), index()>, <index(), \int()>,
+	<\int(), byte()>, <\int(), uint()>, <uint(), \int()>};
 
 
 /*

@@ -25,33 +25,6 @@ module passes::GetInfo
 
 import PassData;
 
-//import data_structs::level_03::ASTModule;
-//import data_structs::level_03::ASTCommon;
-
-/*
-import raw_passes::d_prettyPrint::PrettyPrint;
-import raw_passes::e_convertAST::ConvertAST;
-
-import passes::CleanForEach;
-import passes::ChooseFirstOption;
-import passes::ExpandOptions;
-import passes::ExplicitMemorySpace;
-import passes::FlattenTypes;
-import passes::FoldConstants;
-import passes::InlineFunctionParameters;
-import passes::CreateVectorTypes;
-*/
-/*
-import passes::SpecializeCalls;
-import passes::UnrollLoops;
-*/
-/*
-import passes::RemoveAsDeclarations;
-import passes::RemoveHardwareVars;
-import passes::RemoveParameterConstants;
-import passes::Translate;
-*/
-
 import passes::GetTransfers;
 import passes::SemanticAnalysis;
 import passes::ShowOperationStats;
@@ -77,24 +50,6 @@ public set[str] OPTIONS = {
 		passes::GetCacheFeedback::NAME,
 		passes::GetHDLFeedback::NAME
 		
-		
-		
-		/*
-		passes::CleanForEach::NAME,
-		passes::ChooseFirstOption::NAME,
-		passes::CreateVectorTypes::NAME,
-		passes::ExpandOptions::NAME,
-		passes::ExplicitMemorySpace::NAME,
-		passes::FlattenTypes::NAME,
-		passes::FoldConstants::NAME,
-		passes::InlineFunctionParameters::NAME,
-		passes::RemoveAsDeclarations::NAME,
-		passes::RemoveParameterConstants::NAME,
-		passes::RemoveHardwareVars::NAME,
-		passes::Translate::NAME
-		passes::SpecializeCalls::NAME,
-		passes::UnrollLoops::NAME
-		*/
 	};
 public set[set[str]] AT_MOST_ONE = {};
 

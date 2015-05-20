@@ -73,7 +73,7 @@ map[str, Exp] getCount("loads", acc("load", _, str ms), _) = (ms:intConstant(1))
 map[str, Exp] getCount("loads", op(_, _), _) = ("none":intConstant(0));
 
 map[str, Exp] getCount("instructions", op(str name, _), _) {
-	if (name in {"add", "mul", "cmp", "div", "sub"}) {
+	if (name in {"add", "mul", "bit", "cmp", "div", "sub"}) {
 		return ("none":intConstant(1));
 	}
 	else {

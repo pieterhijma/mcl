@@ -1,0 +1,183 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module barnes
+
+
+
+
+import perfect;
+import math;
+import accelerator;
+import gpu;
+import nvidia;
+
+
+
+
+// Allow more blocks
+
+
+
+
+
+nvidia void computeAcceleration(const int start, const int nCompute, const int 
+        nBodies, const global float[nBodies,3] positions, const global 
+        float[nBodies] mass, global float[nCompute,3] accel, const float 
+        softsq) {
+    // const int nrThreadsNCompute = gpu.hierarchy.blocks.block.threads.
+    //         max_nr_units;
+    const int nrThreadsNCompute = 128;
+    const int nrBlocksNCompute = (nCompute + nrThreadsNCompute - 1) / (1 * 
+            nrThreadsNCompute);
+    foreach (const int bbody in nrBlocksNCompute blocks) {
+        shared float[nrThreadsNCompute] xcopy;
+        shared float[nrThreadsNCompute] ycopy;
+        shared float[nrThreadsNCompute] zcopy;
+        shared float[nrThreadsNCompute] mcopy;
+        foreach (const int tbody in nrThreadsNCompute threads) {
+            const int body = bbody * (1 * nrThreadsNCompute) + tbody;
+            const int bodyOffset = body + start;
+            if (bodyOffset < nBodies) {
+                local float acc0 = 0.0;
+                local float acc1 = 0.0;
+                local float acc2 = 0.0;
+                const float pos0 = positions[bodyOffset,0];
+                const float pos1 = positions[bodyOffset,1];
+                const float pos2 = positions[bodyOffset,2];
+                const int l = nBodies / nrThreadsNCompute * nrThreadsNCompute;
+                for (local int k = 0; k < l; k += nrThreadsNCompute) {
+                    xcopy[tbody] = positions[k + tbody,0];
+                    ycopy[tbody] = positions[k + tbody,1];
+                    zcopy[tbody] = positions[k + tbody,2];
+                    mcopy[tbody] = mass[k + tbody];
+                    barrier(shared);
+                    for (local int i = 0; i < nrThreadsNCompute; i++) {
+                        const float diff_x = xcopy[i] - pos0;
+                        const float diff_y = ycopy[i] - pos1;
+                        const float diff_z = zcopy[i] - pos2;
+                        const float distsq = diff_x * diff_x + diff_y * diff_y 
+                                + diff_z * diff_z + softsq;
+                        const float factor = mcopy[i] / (distsq * 
+                                sqrt(distsq));
+                        acc0 = acc0 + diff_x * factor;
+                        acc1 = acc1 + diff_y * factor;
+                        acc2 = acc2 + diff_z * factor;
+                    }
+                    barrier(shared);
+                }
+                if (l < nBodies) {
+                    const int amount = nBodies - l;
+                    if (tbody < amount) {
+                        xcopy[tbody] = positions[l + tbody,0];
+                        ycopy[tbody] = positions[l + tbody,1];
+                        zcopy[tbody] = positions[l + tbody,2];
+                        mcopy[tbody] = mass[l + tbody];
+                    }
+                    barrier(shared);
+                    for (local int i = 0; i < amount; i++) {
+                        const float diff_x = xcopy[i] - pos0;
+                        const float diff_y = ycopy[i] - pos1;
+                        const float diff_z = zcopy[i] - pos2;
+                        const float distsq = diff_x * diff_x + diff_y * diff_y 
+                                + diff_z * diff_z + softsq;
+                        const float factor = mcopy[i] / (distsq * 
+                                sqrt(distsq));
+                        acc0 = acc0 + diff_x * factor;
+                        acc1 = acc1 + diff_y * factor;
+                        acc2 = acc2 + diff_z * factor;
+                    }
+                    barrier(shared);
+                }
+                accel[body,0] = acc0;
+                accel[body,1] = acc1;
+                accel[body,2] = acc2;
+            }
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(136,19,<21,12>,<21,31>): pcie transfers 16 * nBodies + 16 bytes from host to device
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(136,19,<21,12>,<21,31>): pcie transfers 12 * nCompute bytes from device to host
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(3423,5,<81,45>,<81,50>): Data reuse: For mcopy[i]: 
+    the loops local int i = 0  have a positive data reuse ratio: 0
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(3221,5,<78,45>,<78,50>): Data reuse: For zcopy[i]: 
+    the loops local int i = 0  have a positive data reuse ratio: 0
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(3159,5,<77,45>,<77,50>): Data reuse: For ycopy[i]: 
+    the loops local int i = 0  have a positive data reuse ratio: 0
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(3097,5,<76,45>,<76,50>): Data reuse: For xcopy[i]: 
+    the loops local int i = 0  have a positive data reuse ratio: 0
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1363,9,<44,35>,<44,44>): Data reuse: For positions[bodyOffset,2]:
+  For dimension 0:
+    the loops const int bbody, const int tbody may have a positive data reuse ratio: (nCompute + 127) / (nCompute + start + 127)
+  For dimension 1:
+    the loops const int bbody, const int tbody may have a positive data reuse ratio: (nCompute + 127) / 3
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1303,9,<43,35>,<43,44>): Data reuse: For positions[bodyOffset,1]:
+  For dimension 0:
+    the loops const int bbody, const int tbody may have a positive data reuse ratio: (nCompute + 127) / (nCompute + start + 127)
+  For dimension 1:
+    the loops const int bbody, const int tbody may have a positive data reuse ratio: (nCompute + 127) / 2
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1243,9,<42,35>,<42,44>): Data reuse: For positions[bodyOffset,0]:
+  For dimension 0:
+    the loops const int bbody, const int tbody may have a positive data reuse ratio: (nCompute + 127) / (nCompute + start + 127)
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(136,19,<21,12>,<21,31>): computation:
+  threads:
+    loads: 
+      local: 3*l*nrBlocksNCompute*nrThreadsNCompute+3*amount*nrBlocksNCompute*nrThreadsNCompute+
+      3*nrBlocksNCompute*nrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>))
+      main: l*nrBlocksNCompute*nrThreadsNCompute+amount*nrBlocksNCompute*nrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>))
+      shared: 4*l*nrBlocksNCompute*nrThreadsNCompute+4*amount*nrBlocksNCompute*nrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2669,14,<68,24>,<68,38>))
+      global: 7*nrBlocksNCompute*nrThreadsNCompute+4*l*nrBlocksNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2669,14,<68,24>,<68,38>))
+    instructions: 
+      18*l*nrBlocksNCompute*nrThreadsNCompute+18*amount*nrBlocksNCompute*nrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2669,14,<68,24>,<68,38>))
+    stores: 
+      local: 3*l*nrBlocksNCompute*nrThreadsNCompute+3*amount*nrBlocksNCompute*nrThreadsNCompute+
+      3*nrBlocksNCompute*nrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>))
+      main: l*nrBlocksNCompute*nrThreadsNCompute+amount*nrBlocksNCompute*nrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>))
+      shared: 4*nrBlocksNCompute*nrThreadsNCompute+4*l*nrBlocksNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2669,14,<68,24>,<68,38>))
+      global: 3*nrBlocksNCompute*nrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2669,14,<68,24>,<68,38>))
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(136,19,<21,12>,<21,31>): indexing:
+  threads:
+    loads: 
+      local: 4*l*nrBlocksNCompute*nrThreadsNCompute+4*amount*nrBlocksNCompute*nrThreadsNCompute+
+      4*l*nrBlocksNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>))
+    instructions: 
+      4*nrBlocksNCompute*nrThreadsNCompute+4*l*nrBlocksNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2669,14,<68,24>,<68,38>))
+    stores: 
+      local: 0 (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>))
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(136,19,<21,12>,<21,31>): control flow:
+  threads:
+    loads: 
+      local: 2*l*nrBlocksNCompute*nrThreadsNCompute+2*amount*nrBlocksNCompute*nrThreadsNCompute+
+      2*l*nrBlocksNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>))
+    instructions: 
+      2*l*nrBlocksNCompute*nrThreadsNCompute+2*amount*nrBlocksNCompute*nrThreadsNCompute+
+      7*nrBlocksNCompute*nrThreadsNCompute+2*l*nrBlocksNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>))
+    stores: 
+      local: l*nrBlocksNCompute*nrThreadsNCompute+amount*nrBlocksNCompute*nrThreadsNCompute+2*nrBlocksNCompute*nrThreadsNCompute+
+      2*l*nrBlocksNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(1064,20,<38,16>,<38,36>), control flow at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(2578,11,<66,20>,<66,31>))
+  host:
+    instructions: 
+      4
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(136,19,<21,12>,<21,31>): Arithmetic intensity: (18*l*nrBlocksNCompute*nrThreadsNCompute+18*amount*nrBlocksNCompute*nrThreadsNCompute)*(
+12*l*nrBlocksNCompute*nrThreadsNCompute+12*amount*nrBlocksNCompute*nrThreadsNCompute+
+20*nrBlocksNCompute*nrThreadsNCompute+8*l*nrBlocksNCompute)^(-1)
+INFO at |project://mcl/input/programs/barnes-nvidia-v1.mcl|(136,19,<21,12>,<21,31>): Memory on_chip is shared by more than one block, carefully consider the usage of memory spaces {"shared"}
+*/

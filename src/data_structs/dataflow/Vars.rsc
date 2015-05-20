@@ -200,12 +200,15 @@ default rel[VarID, CFBlock] defVarType(Type t, CFBlock b, Table table) {
     iprintln(t);
     throw "defVarType(Type, CFBlock, Table)";
 }
+rel[VarID, CFBlock] defVarType(customType(_, list[ExpID] eIDs), CFBlock b, Table table) =
+	( {} | it + defVarExp(eID, b, table) | eID <- eIDs);
 rel[VarID, CFBlock] defVarType(arrayType(Type t, list[ArraySize] ass), 
 		CFBlock b, Table table) = 
 	defVarType(t, b, table) + 
 	( {} | it + defVarArraySize(as, b, table) | as <- ass );
 rel[VarID, CFBlock] defVarType(byte(), CFBlock b, Table t) = {};
 rel[VarID, CFBlock] defVarType(\int(), CFBlock b, Table t) = {};
+rel[VarID, CFBlock] defVarType(uint(), CFBlock b, Table t) = {};
 rel[VarID, CFBlock] defVarType(\float(), CFBlock b, Table t) = {};
 
 

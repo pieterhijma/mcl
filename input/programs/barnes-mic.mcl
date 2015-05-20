@@ -1,0 +1,110 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module barnes
+
+
+
+
+import perfect;
+import math;
+import accelerator;
+import mic;
+
+
+
+
+
+
+
+
+
+
+mic void computeAcceleration(const int start, const int nCompute, const int 
+        nBodies, const dev float[nBodies,3] positions, const dev float[nBodies] 
+        mass, dev float[nCompute,3] accel, const float softsq) {
+    const int nrVectorsNCompute = mic.hierarchy.threads.thread.vectors.
+            nr_units;
+    const int nrThreadsNCompute = (nCompute + nrVectorsNCompute - 1) / (1 * nrVectorsNCompute);
+    foreach (const int tbody in nrThreadsNCompute threads) {
+        foreach (const int vbody in nrVectorsNCompute vectors) {
+            const int body = tbody * (1 * nrVectorsNCompute) + vbody;
+            const int bodyOffset = body + start;
+            if (bodyOffset < nBodies) {
+                reg float acc0 = 0.0;
+                reg float acc1 = 0.0;
+                reg float acc2 = 0.0;
+                const float pos0 = positions[bodyOffset,0];
+                const float pos1 = positions[bodyOffset,1];
+                const float pos2 = positions[bodyOffset,2];
+                for (reg int i = 0; i < nBodies; i++) {
+                    const float diff_x = positions[i,0] - pos0;
+                    const float diff_y = positions[i,1] - pos1;
+                    const float diff_z = positions[i,2] - pos2;
+                    const float distsq = diff_x * diff_x + diff_y * diff_y + 
+                            diff_z * diff_z + softsq;
+                    const float factor = mass[i] / (distsq * sqrt(distsq));
+                    acc0 = acc0 + diff_x * factor;
+                    acc1 = acc1 + diff_y * factor;
+                    acc2 = acc2 + diff_z * factor;
+                }
+                accel[body,0] = acc0;
+                accel[body,1] = acc1;
+                accel[body,2] = acc2;
+            }
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/barnes-mic.mcl|(98,19,<20,9>,<20,28>): pcie transfers 16 * nBodies + 16 bytes from host to device
+INFO at |project://mcl/input/programs/barnes-mic.mcl|(98,19,<20,9>,<20,28>): pcie transfers 12 * nCompute bytes from device to host
+INFO at |project://mcl/input/programs/barnes-mic.mcl|(1056,9,<36,35>,<36,44>): Data reuse: For positions[bodyOffset,2]:
+  For dimension 0:
+    the loops const int tbody, const int vbody may have a positive data reuse ratio: (nCompute + 15) / (nCompute + start + 15)
+INFO at |project://mcl/input/programs/barnes-mic.mcl|(996,9,<35,35>,<35,44>): Data reuse: For positions[bodyOffset,1]:
+  For dimension 0:
+    the loops const int tbody, const int vbody may have a positive data reuse ratio: (nCompute + 15) / (nCompute + start + 15)
+  For dimension 1:
+    the loops const int tbody, const int vbody may have a positive data reuse ratio: (nCompute + 15) / 2
+INFO at |project://mcl/input/programs/barnes-mic.mcl|(936,9,<34,35>,<34,44>): Data reuse: For positions[bodyOffset,0]:
+  For dimension 0:
+    the loops const int tbody, const int vbody may have a positive data reuse ratio: (nCompute + 15) / (nCompute + start + 15)
+INFO at |project://mcl/input/programs/barnes-mic.mcl|(98,19,<20,9>,<20,28>): computation:
+  vectors:
+    loads: 
+      main: nBodies*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-mic.mcl|(763,20,<30,16>,<30,36>))
+      dev: 4*nBodies*nrThreadsNCompute*nrVectorsNCompute+3*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-mic.mcl|(763,20,<30,16>,<30,36>))
+    instructions: 
+      18*nBodies*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-mic.mcl|(763,20,<30,16>,<30,36>))
+    stores: 
+      main: nBodies*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-mic.mcl|(763,20,<30,16>,<30,36>))
+      dev: 3*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-mic.mcl|(763,20,<30,16>,<30,36>))
+INFO at |project://mcl/input/programs/barnes-mic.mcl|(98,19,<20,9>,<20,28>): control flow:
+  host:
+    instructions: 
+      4
+  vectors:
+    instructions: 
+      2*nBodies*nrThreadsNCompute*nrVectorsNCompute+4*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-mic.mcl|(763,20,<30,16>,<30,36>))
+INFO at |project://mcl/input/programs/barnes-mic.mcl|(98,19,<20,9>,<20,28>): Arithmetic intensity: 18*nBodies*nrThreadsNCompute*nrVectorsNCompute*(6*nBodies*nrThreadsNCompute*nrVectorsNCompute+
+6*nrThreadsNCompute*nrVectorsNCompute)^(-1)
+*/
+
+

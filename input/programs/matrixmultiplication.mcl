@@ -116,5 +116,15 @@ Bandwidth: 0.10901 GB/s
 	
 #GFLOPS: 5.1719 GFLOPS
 	
+	
+	
+	
+2048 x 2048 x 2048
+	hd7970
+	
+	matmulKernel             : avg =  125 ms, total =  624 ms, count =         5
+
+#GFLOPS: 137.78 GFLOPS
+	
 
 */  

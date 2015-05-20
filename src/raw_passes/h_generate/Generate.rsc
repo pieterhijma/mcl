@@ -79,12 +79,22 @@ map[str, Funcs] FUNCS = (
 
 
 
-OutputBuilder generate(TopDecl td, OutputBuilder ob) {
-	throw "TODO: generate(TopDecl, OutputBuilder)";
+OutputBuilder generateTopDeclJava(TopDecl td, OutputBuilder ob) {
+	str result = genTopDeclCPP(td, ob);
+	ob.kernels.header += result;
 	return ob;
 }
 
+OutputBuilder generateTopDecls(list[TopDecl] tds, OutputBuilder b,
+		OutputBuilder(TopDecl td, OutputBuilder b2) f) {
+	return (b | f(td2, it) | td2 <- tds);
+}
 
+OutputBuilder generateTopDeclCPP(TopDecl td, OutputBuilder ob) {
+	str result = genTopDeclCPP(td, ob);
+	ob.header.contents += result;
+	return ob;
+}
 /*
 OutputBuilder generate(Func f, OutputBuilder ob) {
 	Symbol fdSymbol = resolve(f.funcDescription, ob.t);
@@ -264,7 +274,7 @@ private list[Message] generateCPP(FuncID fID, Module m, Table t, str target) {
 	ob = replaceBuiltinCalls(ob);
 	
 	
-	//ob = generate(m.topDecls, ob);
+	ob = generateTopDecls(m.code.topDecls, ob, generateTopDeclCPP);
 	ob.funcs = FUNCS[ob.cgi.output];
 	if (ob.cgi.output == "opencl") {
 		ob = (ob | generateOpenCL(fID, it) | FuncID fID <- ob.inputKernels);
@@ -303,7 +313,7 @@ private list[Message] generateJava(FuncID fID, Module m, Table t, str target) {
 	ob = replaceBuiltinCalls(ob);
 	
 	
-	//ob = generate(m.topDecls, ob);
+	ob = generateTopDecls(m.code.topDecls, ob, generateTopDeclJava);
 	ob.funcs = FUNCS[ob.cgi.output];
 	if (ob.cgi.output == "opencl") {
 		ob = (ob | generateOpenCL(fID, it) | FuncID fID <- ob.inputKernels);

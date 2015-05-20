@@ -119,11 +119,25 @@ Exp check(Exp root, Table t) {
 			e@evalType = e2@evalType;
 			insert e;
 		}
+		case e:and(Exp l, Exp r): {
+			check(l, {boolean()});
+			check(r, {boolean()});
+			e@evalType = l@evalType;
+			insert e;
+		}
 		case e:bitshl(Exp lhs, Exp rhs): {
 			e@evalType = computeASTTypeNumericOp(lhs, rhs, t);
 			insert e;
 		}
+		case e:bitshr(Exp lhs, Exp rhs): {
+			e@evalType = computeASTTypeNumericOp(lhs, rhs, t);
+			insert e;
+		}
 		case e:bitand(Exp lhs, Exp rhs): {
+			e@evalType = computeASTTypeNumericOp(lhs, rhs, t);
+			insert e;
+		}
+		case e:bitor(Exp lhs, Exp rhs): {
 			e@evalType = computeASTTypeNumericOp(lhs, rhs, t);
 			insert e;
 		}
@@ -150,6 +164,18 @@ Exp check(Exp root, Table t) {
 			insert e;
 		}
 		case e:gt(Exp lhs, Exp rhs): {
+			checkNumericType(lhs);
+			checkNumericType(rhs);
+			e@evalType = boolean();
+			insert e;
+		}
+		case e:ge(Exp lhs, Exp rhs): {
+			checkNumericType(lhs);
+			checkNumericType(rhs);
+			e@evalType = boolean();
+			insert e;
+		}
+		case e:le(Exp lhs, Exp rhs): {
 			checkNumericType(lhs);
 			checkNumericType(rhs);
 			e@evalType = boolean();
@@ -185,6 +211,10 @@ Exp check(Exp root, Table t) {
 			check(r, {\int()});
 			e@evalType = \int();
 			insert e;
+		}
+		case Exp e: {
+			iprintln(e);
+			throw "unkown expression";
 		}
 	}
 	return root;

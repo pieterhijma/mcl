@@ -91,7 +91,7 @@ public void generateCode(str s, str target) {
 	passes["chooseFirstOption"].on = true;
 	passes["foldConstants"].on = true;
 	passes["translate"].on = true;
-	passes["computeOperationStats"].on = true;
+	//passes["computeOperationStats"].on = true;
 	
 	main(s, "generateCode", 
 		("translate":[target], "generateCode":["cpp", target]), passes, true);
@@ -217,3 +217,139 @@ public void getInfo() {
 	main("matrixmultiplication", "getInfo", (), passes, true);
 }
 
+
+
+// generateCashmereCode
+alias CashmereInfo = tuple[str target, str callCode, str fromTarget, str javaCode, str m ];
+
+
+list[str] TARGETS = [ "xeon_e5620", "xeon_phi", "cc_2_0", "hd7970" ];
+
+
+private CashmereInfo createCashmereInfo(str target, list[Message] ms, str m) {
+	iprintln(ms);
+	str fromTarget = ms[0].msg;
+	str callCode = "kl.launch(<ms[1].msg>);";
+	str javaCode = ms[2].msg;
+	
+	return <target, callCode, fromTarget, javaCode, m>;
+}
+
+
+private list[CashmereInfo] runPass(loc l, str pass, Params params, 
+		map[str, Pass] passes, bool debug, str target) {
+	Module m = getAST(l);
+	list[Message] ms = runPass(pass, params, passes, m, debug);
+	if (hasErrors(ms) || hasWarnings(ms)) {
+		printMessages(ms);
+		throw "error";
+	}
+	if (size(ms) != 3) {
+		return [];
+	}
+
+	return [createCashmereInfo(target, ms, m.id.string)];
+}
+
+
+public list[CashmereInfo] generateCashmereCode(str fileName, str target) {
+	map[str, Pass] passes = registerPasses();
+	passes["chooseFirstOption"].on = true;
+	passes["foldConstants"].on = true;
+	passes["translate"].on = true;
+	
+	return runPass(getLocation(fileName), "generateCode", 
+		("translate":[target], "generateCode":["java", target]), passes, true, target);
+}
+
+
+private list[CashmereInfo] generateCashmereCode(str fileName) =
+	( [] | it + generateCashmereCode(fileName, target) | target <- TARGETS );
+	
+	
+private bool hwDescBetter(str hwd1, str hwd2) {
+	Graph[str] hierarchy = {
+		<"perfect", "cpu">,
+		<"cpu", "xeon_e5620">,
+		<"perfect", "accelerator">,
+		<"accelerator", "gpu">,
+		<"accelerator", "mic">,
+		<"gpu", "nvidia">,
+		<"nvidia", "cc_2_0">,
+		<"nvidia", "cc_1_0">,
+		<"mic", "xeon_phi">,
+		<"gpu", "amd">,
+		<"amd", "hd7970"> };
+	list[str] topOrder = order(hierarchy);
+	return indexOf(topOrder, hwd1) > indexOf(topOrder, hwd2);
+}
+	
+
+private CashmereInfo chooseBestCode(set[CashmereInfo] codes) { 
+	list[CashmereInfo] codeList = toList(codes);
+	codeList = sort(codeList, bool(CashmereInfo si1, CashmereInfo si2) {
+		return hwDescBetter(si1.fromTarget, si2.fromTarget);
+	});
+	return codeList[0];
+}
+
+	
+private list[CashmereInfo] chooseBestCodes(list[CashmereInfo] codes) {
+	list[CashmereInfo] newCodes = [];
+	rel[str, CashmereInfo] r = { <sc.target, sc> | sc <- codes };
+	set[str] targets = domain(r);
+	
+	return [chooseBestCode(r[target]) | target <- targets];
+}
+
+
+private void generateJavaCode(list[CashmereInfo] codes) {
+	str javaCode = codes[0].javaCode; // should be the same for each one
+	// kernels have already been generated
+	
+	int i = 0;
+	while (i < size(codes)) {
+		CashmereInfo si = codes[i];
+		str ifConstruct = i == 0 ? "if" : "else if";
+		javaCode += 
+			"        <ifConstruct> (kl.getDeviceName().equals(\"<si.target>\")) {
+			'            <si.callCode>
+			'        }
+			'";
+		i += 1;
+	}
+	javaCode += "        else {
+				'            throw new MCCashmereNotAvailable(\"no compatible device found\");
+				'        }
+				'    }
+				'}";
+	
+	str outputDir = getEnvironmentVariable(MCL_OUTPUT_DIR);
+	loc outputFile = |home:///| + outputDir;
+	outputFile += codes[0].m;
+	outputFile += "MCL.java";
+	writeFile(outputFile, javaCode);
+}
+
+// assumes that each file has the same module
+// also assumes that either all leave codes are provided or a general file
+// when mixing "matrixmultiplication" and "mm_cc_2_0" for example, 
+// make sure that the most general file is listed first.
+// The issue is that generateCode just writes a file, so it writes files for
+// "matrixmultiplication" for the provided targets and then it overwrites the 
+// files with more specialized ones.
+// TODO: make sure that only the files that are really needed are written.
+public void generateCashmereCode(list[str] fileNames) {
+	//try {
+        list[CashmereInfo] codes = ( [] | it + generateCashmereCode(fileName) |
+            fileName <- fileNames);
+                
+        codes = chooseBestCodes(codes);
+                
+        generateJavaCode(codes);
+	//}
+	//catch str s: {
+	//	println("there were errors or warnings");
+	//	println(s);
+	//}
+}

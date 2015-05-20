@@ -47,16 +47,16 @@ int findIndexLastSeparator(str s, int position) {
 	//println("s: |<s>|");
 	set[tuple[int, int]] unbreakableParts = getUnbreakableParts(s);
 	
-	 set[str] separators = {" ", ",", "."};
-	// Removed "." from separators, since it is part of floating point constants. --Ceriel
-	//set[str] separators = {" ", ","};
 	int i = position;
-	while (i >= 0) {
-		str lastChar = substring(s, i, i + 1);
-		if (lastChar in separators && !inUnbreakableZone(i, unbreakableParts)) {
-			//println("indexLastSeparator: <i>");
-			//println("");
-			return i;
+	while (i >= 2) {
+		str lastSubString = substring(s, i-2, i + 1);
+		int iToLookFor = i-1;
+		if (!inUnbreakableZone(iToLookFor, unbreakableParts)) {
+			if (/. ./ := lastSubString ||
+				/.,./ := lastSubString ||
+				/[a-zA-Z]\.[a-zA-Z]/ := lastSubString) {
+				return iToLookFor;
+			}
 		}
 		i = i - 1;
 	}

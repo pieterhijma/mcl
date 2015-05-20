@@ -92,9 +92,16 @@ public str pp(ol:overlap(Exp l, Exp s, Exp r)) = "<pp(l)>|<pp(s)>|<pp(r)>";
 
 public str pp(b:bitshl(Exp l, Exp r)) = 
 	"<brack(b, l, true, pp(l))> \<\< <brack(b, r, false, pp(r))>";
+public str pp(b:bitshr(Exp l, Exp r)) = 
+	"<brack(b, l, true, pp(l))> \>\> <brack(b, r, false, pp(r))>";
 
 public str pp(b:bitand(Exp l, Exp r)) = 
 	"<brack(b, l, true, pp(l))> & <brack(b, r, false, pp(r))>";
+public str pp(b:bitor(Exp l, Exp r)) = 
+	"<brack(b, l, true, pp(l))> | <brack(b, r, false, pp(r))>";
+
+public str pp(b:and(Exp l, Exp r)) = 
+	"<brack(b, l, true, pp(l))> && <brack(b, r, false, pp(r))>";
 
 public str pp(m:mul(Exp l, Exp r)) = 
 	"<brack(m, l, true, pp(l))> * <brack(m, r, false, pp(r))>";
@@ -113,6 +120,12 @@ public str pp(m:lt(Exp l, Exp r)) =
 
 public str pp(m:gt(Exp l, Exp r)) = 
 	"<brack(m, l, true, pp(l))> \> <brack(m, r, false, pp(r))>";
+
+public str pp(m:le(Exp l, Exp r)) = 
+	"<brack(m, l, true, pp(l))> \<= <brack(m, r, false, pp(r))>";
+
+public str pp(m:ge(Exp l, Exp r)) = 
+	"<brack(m, l, true, pp(l))> \>= <brack(m, r, false, pp(r))>";
 
 public str pp(m:eq(Exp l, Exp r)) = 
 	"<brack(m, l, true, pp(l))> == <brack(m, r, false, pp(r))>";
@@ -220,9 +233,7 @@ public str pp(astIfStat(Exp e, Stat s, list[Stat] ss)) {
 	if (size(ss) == 0) {
 		return "if (<pp(e)>) <pp(s)>";
 	}
-	return  "if (<pp(e)>) <pp(s)> else {
-			'	<pp(ss)>
-			'}";
+	return  "if (<pp(e)>) <pp(s)> else <pp(ss)>";
 }
 
 public str pp(astDeclStat(Decl decl)) = "<pp(decl)>;";
@@ -275,6 +286,7 @@ public default str pp(Type t) {
 	switch (t) {
 		case byte(): return "byte";
 		case \int(): return "int";
+		case uint(): return "uint";
 		case \int2(): return "int2";
 		case \int4(): return "int4";
 		case \int8(): return "int8";

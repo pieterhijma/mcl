@@ -1,0 +1,360 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module barnes
+
+
+
+
+import perfect;
+import math;
+import accelerator;
+import gpu;
+import nvidia;
+import cc_2_0;
+
+
+
+
+
+
+
+
+
+
+cc_2_0 void computeAcceleration(const int start, const int nCompute, const int 
+        nBodies, const global float[nBodies,3] positions, const global 
+        float[nBodies] mass, global float[nCompute,3] accel, const float 
+        softsq) {
+    const int nrThreadsNCompute = 128;
+    const int nrBlocksNCompute = (nCompute + nrThreadsNCompute - 1) / (1 * 
+            nrThreadsNCompute);
+    foreach (const int bbody in nrBlocksNCompute blocks) {
+        shared float[nrThreadsNCompute] xcopy;
+        shared float[nrThreadsNCompute] ycopy;
+        shared float[nrThreadsNCompute] zcopy;
+        shared float[nrThreadsNCompute] mcopy;
+        const int nrThreadsNrThreadsNCompute = cc_2_0.hierarchy.blocks.block.
+                warps.warp.threads.nr_units;
+        const int nrWarpsNrThreadsNCompute = nrThreadsNCompute / (1 * 
+                nrThreadsNrThreadsNCompute);
+        foreach (const int wtbody in nrWarpsNrThreadsNCompute warps) {
+            foreach (const int ttbody in nrThreadsNrThreadsNCompute threads) {
+                const int tbody = wtbody * (1 * nrThreadsNrThreadsNCompute) + 
+                        ttbody;
+                const int body = bbody * (1 * nrThreadsNCompute) + tbody;
+                const int bodyOffset = body + start;
+                if (bodyOffset < nBodies) {
+                    local float acc0 = 0.0;
+                    local float acc1 = 0.0;
+                    local float acc2 = 0.0;
+                    const float pos0 = positions[bodyOffset,0];
+                    const float pos1 = positions[bodyOffset,1];
+                    const float pos2 = positions[bodyOffset,2];
+                    const int l = nBodies / nrThreadsNCompute * 
+                            nrThreadsNCompute;
+                    for (local int k = 0; k < l; k += nrThreadsNCompute) {
+                        xcopy[tbody] = positions[k + tbody,0];
+                        ycopy[tbody] = positions[k + tbody,1];
+                        zcopy[tbody] = positions[k + tbody,2];
+                        mcopy[tbody] = mass[k + tbody];
+                        barrier(shared);
+                        for (local int i = 0; i < nrThreadsNCompute; i++) {
+                            const float diff_x = xcopy[i] - pos0;
+                            const float diff_y = ycopy[i] - pos1;
+                            const float diff_z = zcopy[i] - pos2;
+                            const float distsq = diff_x * diff_x + diff_y * 
+                                    diff_y + diff_z * diff_z + softsq;
+                            const float factor = mcopy[i] / (distsq * 
+                                    sqrt(distsq));
+                            acc0 = acc0 + diff_x * factor;
+                            acc1 = acc1 + diff_y * factor;
+                            acc2 = acc2 + diff_z * factor;
+                        }
+                        barrier(shared);
+                    }
+                    if (l < nBodies) {
+                        const int amount = nBodies - l;
+                        if (tbody < amount) {
+                            xcopy[tbody] = positions[l + tbody,0];
+                            ycopy[tbody] = positions[l + tbody,1];
+                            zcopy[tbody] = positions[l + tbody,2];
+                            mcopy[tbody] = mass[l + tbody];
+                        }
+                        barrier(shared);
+                        for (local int i = 0; i < amount; i++) {
+                            const float diff_x = xcopy[i] - pos0;
+                            const float diff_y = ycopy[i] - pos1;
+                            const float diff_z = zcopy[i] - pos2;
+                            const float distsq = diff_x * diff_x + diff_y * 
+                                    diff_y + diff_z * diff_z + softsq;
+                            const float factor = mcopy[i] / (distsq * 
+                                    sqrt(distsq));
+                            acc0 = acc0 + diff_x * factor;
+                            acc1 = acc1 + diff_y * factor;
+                            acc2 = acc2 + diff_z * factor;
+                        }
+                        barrier(shared);
+                    }
+                    accel[body,0] = acc0;
+                    accel[body,1] = acc1;
+                    accel[body,2] = acc2;
+                }
+            }
+        }
+    }
+}
+/*
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(4407,5,<98,20>,<98,25>): Var accel[body,2]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(4365,5,<97,20>,<97,25>): Var accel[body,1]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(4323,5,<96,20>,<96,25>): Var accel[body,0]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3420,4,<79,43>,<79,47>): Var mass[l + tbody]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(2167,4,<57,39>,<57,43>): Var mass[k + tbody]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: nBodies / 32 cache line fetches
+      worst case: nBodies / 128 cache line fetches
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3219,9,<76,43>,<76,52>): Var positions[l + tbody,0]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(2104,9,<56,39>,<56,48>): Var positions[k + tbody,2]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: 12 * nBodies / 128 cache line fetches
+      worst case: nBodies / 128 cache line fetches
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3353,9,<78,43>,<78,52>): Var positions[l + tbody,2]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(2041,9,<55,39>,<55,48>): Var positions[k + tbody,1]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: 3 * nBodies / 32 cache line fetches
+      worst case: nBodies / 128 cache line fetches
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1727,9,<50,39>,<50,48>): Var positions[bodyOffset,2]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1663,9,<49,39>,<49,48>): Var positions[bodyOffset,1]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3286,9,<77,43>,<77,52>): Var positions[l + tbody,1]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1599,9,<48,39>,<48,48>): Var positions[bodyOffset,0]:
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1978,9,<54,39>,<54,48>): Var positions[k + tbody,0]:
+  in loop k:
+    may benefit from cache l1_cache:
+      best case: 12 * nBodies / 128 cache line fetches
+      worst case: nBodies / 128 cache line fetches
+  in foreach loop ttbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(4407,5,<98,20>,<98,25>): Var accel[body,2]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(4365,5,<97,20>,<97,25>): Var accel[body,1]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(4323,5,<96,20>,<96,25>): Var accel[body,0]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3420,4,<79,43>,<79,47>): Var mass[l + tbody]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(2167,4,<57,39>,<57,43>): Var mass[k + tbody]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: nBodies / 32 cache line fetches
+      worst case: nBodies / 128 cache line fetches
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      1 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3219,9,<76,43>,<76,52>): Var positions[l + tbody,0]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(2104,9,<56,39>,<56,48>): Var positions[k + tbody,2]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: 12 * nBodies / 128 cache line fetches
+      worst case: nBodies / 128 cache line fetches
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3353,9,<78,43>,<78,52>): Var positions[l + tbody,2]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(2041,9,<55,39>,<55,48>): Var positions[k + tbody,1]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: 3 * nBodies / 32 cache line fetches
+      worst case: nBodies / 128 cache line fetches
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1727,9,<50,39>,<50,48>): Var positions[bodyOffset,2]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1663,9,<49,39>,<49,48>): Var positions[bodyOffset,1]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3286,9,<77,43>,<77,52>): Var positions[l + tbody,1]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1599,9,<48,39>,<48,48>): Var positions[bodyOffset,0]:
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1978,9,<54,39>,<54,48>): Var positions[k + tbody,0]:
+  in loop k:
+    may benefit from cache l2_cache:
+      best case: 12 * nBodies / 128 cache line fetches
+      worst case: nBodies / 128 cache line fetches
+  in foreach loop ttbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(131,19,<22,12>,<22,31>): pcie transfers 16 * nBodies + 16 bytes from host to device
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(131,19,<22,12>,<22,31>): pcie transfers 12 * nCompute bytes from device to host
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3964,5,<88,49>,<88,54>): Data reuse: For mcopy[i]: 
+    the loops local int i = 0  have a positive data reuse ratio: 0
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3750,5,<85,49>,<85,54>): Data reuse: For zcopy[i]: 
+    the loops local int i = 0  have a positive data reuse ratio: 0
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3684,5,<84,49>,<84,54>): Data reuse: For ycopy[i]: 
+    the loops local int i = 0  have a positive data reuse ratio: 0
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3618,5,<83,49>,<83,54>): Data reuse: For xcopy[i]: 
+    the loops local int i = 0  have a positive data reuse ratio: 0
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1727,9,<50,39>,<50,48>): Data reuse: For positions[bodyOffset,2]:
+  For dimension 0:
+    the loops const int wtbody, const int ttbody may have a positive data reuse ratio: 128 / (start + 128)
+    the loops const int bbody, const int ttbody may have a positive data reuse ratio: (nCompute + 127) / (nCompute + start + 31) / 4
+    the loops const int bbody, const int wtbody may have a positive data reuse ratio: (nCompute + 127) / (nCompute + start + 96) / 32
+  For dimension 1:
+    the loops const int wtbody, const int ttbody  have a positive data reuse ratio: 42.66666667
+    the loops const int bbody, const int ttbody may have a positive data reuse ratio: (nCompute + 127) / 12
+    the loops const int bbody, const int wtbody may have a positive data reuse ratio: (nCompute + 127) / 96
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1663,9,<49,39>,<49,48>): Data reuse: For positions[bodyOffset,1]:
+  For dimension 0:
+    the loops const int wtbody, const int ttbody may have a positive data reuse ratio: 128 / (start + 128)
+    the loops const int bbody, const int ttbody may have a positive data reuse ratio: (nCompute + 127) / (nCompute + start + 31) / 4
+    the loops const int bbody, const int wtbody may have a positive data reuse ratio: (nCompute + 127) / (nCompute + start + 96) / 32
+  For dimension 1:
+    the loops const int wtbody, const int ttbody  have a positive data reuse ratio: 64
+    the loops const int bbody, const int ttbody may have a positive data reuse ratio: (nCompute + 127) / 8
+    the loops const int bbody, const int wtbody may have a positive data reuse ratio: (nCompute + 127) / 64
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1599,9,<48,39>,<48,48>): Data reuse: For positions[bodyOffset,0]:
+  For dimension 0:
+    the loops const int wtbody, const int ttbody may have a positive data reuse ratio: 128 / (start + 128)
+    the loops const int bbody, const int ttbody may have a positive data reuse ratio: (nCompute + 127) / (nCompute + start + 31) / 4
+    the loops const int bbody, const int wtbody may have a positive data reuse ratio: (nCompute + 127) / (nCompute + start + 96) / 32
+  For dimension 1:
+    the loops const int wtbody, const int ttbody  have a positive data reuse ratio: 128
+    the loops const int bbody, const int ttbody may have a positive data reuse ratio: (nCompute + 127) / 4
+    the loops const int bbody, const int wtbody may have a positive data reuse ratio: (nCompute + 127) / 32
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(131,19,<22,12>,<22,31>): computation:
+  threads:
+    loads: 
+      local: 3*l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+3*amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      3*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+      main: l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+      shared: 4*l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+4*amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3158,14,<75,28>,<75,42>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+      global: 4*l*nrBlocksNCompute*nrThreadsNCompute^(-1)*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      7*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3158,14,<75,28>,<75,42>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+    instructions: 
+      18*l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+18*amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3158,14,<75,28>,<75,42>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+    stores: 
+      local: 3*l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+3*amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      3*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+      main: l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+      shared: 4*l*nrBlocksNCompute*nrThreadsNCompute^(-1)*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      4*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3158,14,<75,28>,<75,42>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+      global: 3*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3158,14,<75,28>,<75,42>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(131,19,<22,12>,<22,31>): indexing:
+  threads:
+    loads: 
+      local: 4*l*nrBlocksNCompute*nrThreadsNCompute^(-1)*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      4*l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+4*amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+    instructions: 
+      4*l*nrBlocksNCompute*nrThreadsNCompute^(-1)*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      4*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3158,14,<75,28>,<75,42>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+    stores: 
+      local: 0 (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(131,19,<22,12>,<22,31>): control flow:
+  threads:
+    loads: 
+      local: 2*l*nrBlocksNCompute*nrThreadsNCompute^(-1)*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      2*l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+2*amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+    instructions: 
+      2*l*nrBlocksNCompute*nrThreadsNCompute^(-1)*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      2*l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+2*amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      10*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+    stores: 
+      local: 2*l*nrBlocksNCompute*nrThreadsNCompute^(-1)*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+      2*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1404,20,<44,20>,<44,40>), control flow at |project://mcl/input/programs/barnes-cc_2_0.mcl|(3059,11,<73,24>,<73,35>))
+  host:
+    instructions: 
+      4
+  blocks:
+    instructions: 
+      2*nrBlocksNCompute
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(131,19,<22,12>,<22,31>): Arithmetic intensity: (18*l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+18*amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute)*(
+8*l*nrBlocksNCompute*nrThreadsNCompute^(-1)*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+12*l*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+12*amount*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute+
+20*nrBlocksNCompute*nrThreadsNrThreadsNCompute*nrWarpsNrThreadsNCompute)^(-1)
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(131,19,<22,12>,<22,31>): Memory on_chip is shared by more than one block, carefully consider the usage of memory spaces {"shared"}
+INFO at |project://mcl/input/programs/barnes-cc_2_0.mcl|(1727,9,<50,39>,<50,48>): For positions[bodyOffset,2]:
+  For dimension 1:
+    the loops const int wtbody, const int ttbody have a positive data reuse ratio: a factor 42.66666667
+      memory space shared may be leveraged
+*/

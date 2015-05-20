@@ -49,6 +49,8 @@ rel[ExpID, CFBlock] genBasicVar(basicVar(_, list[list[ExpID]] es), CFBlock b,
 }
 
 
+rel[ExpID, CFBlock] genVar(VarID vID, dot(BasicVar bv, VarID vID2), CFBlock b, Table t) =
+	genBasicVar(bv, b, t) + genVar(vID2, getVar(vID2, t), b, t);
 rel[ExpID, CFBlock] genVar(VarID vID, var(BasicVar bv), CFBlock b, Table t) =
 	genBasicVar(bv, b, t);
 
@@ -71,6 +73,7 @@ rel[ExpID, CFBlock] genType(boolean(), CFBlock b, Table table) = {};
 rel[ExpID, CFBlock] genType(float(), CFBlock b, Table table) = {};
 rel[ExpID, CFBlock] genType(\void(), CFBlock b, Table table) = {};
 rel[ExpID, CFBlock] genType(\int(), CFBlock b, Table table) = {};
+rel[ExpID, CFBlock] genType(uint(), CFBlock b, Table table) = {};
 rel[ExpID, CFBlock] genType(byte(), CFBlock b, Table table) = {};
 
 default rel[ExpID, CFBlock] genType(Type t, CFBlock b, Table table) {

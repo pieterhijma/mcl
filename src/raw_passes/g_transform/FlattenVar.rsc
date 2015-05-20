@@ -21,6 +21,7 @@
 
 module raw_passes::g_transform::FlattenVar
 import IO;
+import Print;
 import raw_passes::d_prettyPrint::PrettyPrint;
 import data_structs::table::TableConsistency;
 
@@ -60,6 +61,11 @@ public Table flattenVar(VarID vID, Table table) =
 	flattenVar(vID, -1, table);
 	
 public Table flattenVar(VarID vID, int dimension, Table table) {
+	Var v = getVar(vID, table);
+	if (dot(_, VarID vID2) := v) {
+		table = flattenVar(vID2, dimension, table);
+	}
+
 	BasicDeclID bdID = table.vars[vID].declaredAt;
 	BasicDecl bd = getBasicDecl(bdID, table);
 	Builder2 b = <table, {}, [], [varID(vID)] + table.vars[vID].at, [], (), {}, {}>;
@@ -70,7 +76,6 @@ public Table flattenVar(VarID vID, int dimension, Table table) {
 	Type concreteT = makeConcrete(convertAST(t, b.t), b.t);
 	Var old = getVar(vID, b.t);
 	Var oldAST = convertAST(old, b.t);
-	Var v;
 	if (dimension == -1) {
 		v = flattenVar(oldAST, concreteT, b.t);
 	}
@@ -78,12 +83,18 @@ public Table flattenVar(VarID vID, int dimension, Table table) {
 		v = flattenVar(oldAST, concreteT, dimension, b.t);
 	}
 	
-	if (!isEmpty(v.basicVar.astArrayExps) &&
-			!(v.basicVar.astArrayExps[0][0]@key)?) {
-		Exp e = convertBack(v.basicVar.astArrayExps[0][0]);
-		<eID, b> = insertNewExp(e, b);
-		v.basicVar.astArrayExps[0][0] = convertAST(getExp(eID, b.t), b.t);
+	v = visit (v) {
+		case bv:astBasicVar(_, _): {
+        	if (!isEmpty(bv.astArrayExps) &&
+                        !(bv.astArrayExps[0][0]@key)?) {
+                Exp e = convertBack(bv.astArrayExps[0][0]);
+                <eID, b> = insertNewExp(e, b);
+                bv.astArrayExps[0][0] = convertAST(getExp(eID, b.t), b.t);
+            }
+            insert bv;
+		}
 	}
+	
 	v = convertBack(v);
 		
 	<new, b> = copyVar(v, b);

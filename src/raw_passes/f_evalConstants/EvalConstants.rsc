@@ -38,7 +38,7 @@ import raw_passes::e_convertAST::ConvertAST;
 public tuple[&T, set[VarID]] evalConstants(&T t, &S s, Exp(Exp, &S) f) {
 	set[VarID] vIDs = {};
 	t = innermost visit (t) {
-		case v:varExp(_): {
+		case v:varExp(VarID vID): {
 			try {
 				Exp e = f(v, s);
 				<e, _> = evalConstants(e, s, f);

@@ -87,6 +87,10 @@ public str genJavaCPPStat(r:returnStat(_), OutputBuilder b) = genStat(r, b);
 public str genJavaCPPCall(Call call, OutputBuilder b) {
 	FuncID calledFunc = b.t.calls[call@key].calledFunc;
 	if (calledFunc in b.inputKernels && calledFunc notin b.normalFuncs) {
+		//println("the call:");
+		//iprintln(call);
+		//println();
+
 		<s, _> = b.funcs.genOpenCLCall(call, b);
 		return s;
 	}

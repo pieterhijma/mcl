@@ -1,0 +1,87 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+
+module barnes
+
+
+
+
+import perfect;
+import math;
+import accelerator;
+
+
+
+
+
+
+
+
+
+
+accelerator void computeAcceleration(const int start, const int nCompute, const 
+        int nBodies, const dev float[nBodies,3] positions, const dev 
+        float[nBodies] mass, dev float[nCompute,3] accel, const float softsq) {
+    foreach (const int body in nCompute threads) {
+        const int bodyOffset = body + start;
+        if (bodyOffset < nBodies) {
+	        reg float acc0 = 0.0;
+	        reg float acc1 = 0.0;
+	        reg float acc2 = 0.0;
+	        const float pos0 = positions[bodyOffset,0];
+	        const float pos1 = positions[bodyOffset,1];
+	        const float pos2 = positions[bodyOffset,2];
+	        for (reg int i = 0; i < nBodies; i++) {
+	            const float diff_x = positions[i,0] - pos0;
+	            const float diff_y = positions[i,1] - pos1;
+	            const float diff_z = positions[i,2] - pos2;
+	            const float distsq = diff_x * diff_x + diff_y * diff_y + diff_z * 
+	                    diff_z + softsq;
+	            const float factor = mass[i] / (distsq * sqrt(distsq));
+	            acc0 = acc0 + diff_x * factor;
+	            acc1 = acc1 + diff_y * factor;
+	            acc2 = acc2 + diff_z * factor;
+	        }
+	        accel[body,0] = acc0;
+	        accel[body,1] = acc1;
+	        accel[body,2] = acc2;
+	}
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/barnes-acc.mcl|(94,19,<19,17>,<19,36>): pcie transfers 16 * nBodies + 16 bytes from host to device
+INFO at |project://mcl/input/programs/barnes-acc.mcl|(94,19,<19,17>,<19,36>): pcie transfers 12 * nCompute bytes from device to host
+INFO at |project://mcl/input/programs/barnes-acc.mcl|(94,19,<19,17>,<19,36>): computation:
+  threads:
+    loads: 
+      main: nBodies*nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-acc.mcl|(416,20,<24,12>,<24,32>))
+      dev: 4*nBodies*nCompute+3*nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-acc.mcl|(416,20,<24,12>,<24,32>))
+    instructions: 
+      18*nBodies*nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-acc.mcl|(416,20,<24,12>,<24,32>))
+    stores: 
+      main: nBodies*nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-acc.mcl|(416,20,<24,12>,<24,32>))
+      dev: 3*nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-acc.mcl|(416,20,<24,12>,<24,32>))
+INFO at |project://mcl/input/programs/barnes-acc.mcl|(94,19,<19,17>,<19,36>): control flow:
+  threads:
+    instructions: 
+      2*nBodies*nCompute+nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-acc.mcl|(416,20,<24,12>,<24,32>))
+INFO at |project://mcl/input/programs/barnes-acc.mcl|(94,19,<19,17>,<19,36>): Arithmetic intensity: 18*nBodies*nCompute*(6*nBodies*nCompute+6*nCompute)^(-1)
+*/

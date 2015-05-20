@@ -136,14 +136,19 @@ set[DeclID] getIndexingDecls(Exp e, Table t) {
 }
 
 
-set[DeclID] getIndexingDeclsVar(var(basicVar(_, list[list[ExpID]] eIDs)), 
-		Table t) {
+set[DeclID] getIndexingDeclsBasicVar(basicVar(_, list[list[ExpID]] eIDs), Table t) {
 	set[ExpID] es2 = { eID | l <- eIDs, eID <- l };
 	// That is not good enough. Go into the expressions, to catch cases like a[b[i]].
 	es2 = ( es2 | it + genExps(e, t) | e <- es2 );
 	
 	return ( {} | it + getIndexingDecls(getExp(eID, t), t) | eID <- es2 );
 }
+
+set[DeclID] getIndexingDeclsVar(dot(BasicVar bv, VarID vID), Table t) =
+	getIndexingDeclsBasicVar(bv, t) + getIndexingDeclsVar(getVar(vID, t), t);
+
+set[DeclID] getIndexingDeclsVar(var(BasicVar bv), Table t) =
+	getIndexingDeclsBasicVar(bv, t);
 
 
 set[DeclID] getIndexingDeclsVar(VarID vID, Table t) {

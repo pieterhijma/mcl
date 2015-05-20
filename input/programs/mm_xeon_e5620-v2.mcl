@@ -56,14 +56,14 @@ xeon_e5620 void matmul(const int n = 2048, const int m = 2048, const int p = 204
             foreach (const int vj in nrVectorsM vectors) {
                 for (reg int ej = 0; ej < nrElsM; ej++) {
 
-                    main float[nrElsN] cTemp;
+                    float[nrElsN] cTemp;
 
                     for (reg int ei = 0; ei < nrElsN; ei++) {
                         cTemp[ei] = 0.0;
                     }
 
 					for (int bk = 0; bk < nrBlocksP; bk++) {
-                    	main float[nrElsP] bTemp;
+                    	float[nrElsP] bTemp;
 						for (int ek = 0; ek < nrElsP; ek++) {
 							bTemp[ek] = b2[bk,tj][ek,ej][0,vj];	
 						}

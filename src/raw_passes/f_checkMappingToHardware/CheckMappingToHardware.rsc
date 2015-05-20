@@ -131,7 +131,7 @@ Builder checkMods(DeclID dID, Decl d, HDLDescription hwd, Builder b) {
 }
 
 Builder checkDecl(DeclID dID, Builder b) {
-	if (isTopDecl(dID, b.t)) {
+	if (isTopDecl(dID, b.t) || isTypeDefDecl(dID, b.t)) {
 		return b;
 	}
 	

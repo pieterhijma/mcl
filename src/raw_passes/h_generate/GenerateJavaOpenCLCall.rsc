@@ -70,7 +70,7 @@ str genOpenCLArgument(Exp ve, Decl formalParam, list[Exp] params,
 	DeclID dID = formalParam@key;
 	bool isRead = b.t.decls[dID].read;
 	bool isPrimitive = isPrimitive(formalParam);
-	Exp size = getSize(formalParam);
+	Exp size = getSize(formalParam, b);
 	size = convert(size, params, formalParams);
 	size = simplify(size);
 	debug = true;
@@ -163,11 +163,11 @@ public tuple[str, Message] genOpenCLCallJava(Call call, OutputBuilder b) {
 	Message rangeArgs = info(outputRangeArgs, f.id@location);
 	
 	str output = 
-		"    static void launch<fName>(KernelLaunch kl, <gen(formalParams, ", ", genParamJava, b)>) throws MCSatinNotAvailable {
+		"    static void launch<fName>(KernelLaunch kl, <gen(formalParams, ", ", genParamJava, b)>) throws MCCashmereNotAvailable {
 		'        launch<fName>(kl, <genLaunchArgExps(call.astParams, formalParams, b)>);
 		'    }
 		'
-		'    static void launch<fName>(KernelLaunch kl, <gen(formalParams, ", ", genParamJavaSpecial, b)>) throws MCSatinNotAvailable {
+		'    static void launch<fName>(KernelLaunch kl, <gen(formalParams, ", ", genParamJavaSpecial, b)>) throws MCCashmereNotAvailable {
 		'        <genOpenCLArgs(call.astParams, formalParams, b, genOpenCLArgument)>
 		'";
 		

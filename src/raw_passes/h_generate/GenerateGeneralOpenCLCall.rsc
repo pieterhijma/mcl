@@ -43,6 +43,7 @@ import data_structs::hdl::QueryHDL;
 import raw_passes::e_convertAST::ConvertAST;
 
 import raw_passes::f_checkTypes::GetSize;
+import raw_passes::f_checkTypes::MakeConcrete;
 import raw_passes::f_evalConstants::EvalConstants;
 import raw_passes::f_simplify::Simplify;
 
@@ -60,6 +61,17 @@ import raw_passes::f_interpret::EvalConstants;
 
 @javaClass{symbolic_execution.Evaluate}
 java str eval(str s);
+
+
+
+
+Exp getSize(Decl d, OutputBuilder b) {
+	Type t = getTypeDecl(d);
+	t = makeConcrete(t, b.t);
+	return getSize(t);
+}
+
+
 
 
 //str genOpenCLOutput(ve:varExp(_), Decl formalParam, OutputBuilder b) {
@@ -362,7 +374,7 @@ str genBandwidth(Func f, list[Exp] params, list[Decl] formalParams,
 	list[Decl] bandwidthParams = [ d | Decl d <- formalParams, 
 		!memorySpaceDisallowed(d),
 		getMemorySpaceDecl(d@key, b.t) == b.cgi.bandwidthMemorySpace ];
-	Exp e = ( intConstant(0) | add(it, getSize(d)) | d <- bandwidthParams );
+	Exp e = ( intConstant(0) | add(it, getSize(d, b)) | d <- bandwidthParams );
 	e = convert(e, params, formalParams);
 	try {
 		return genOperationString(params, formalParams, "Bandwidth", 

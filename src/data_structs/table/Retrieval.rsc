@@ -102,8 +102,12 @@ public DeclID getDeclVar(VarID vID, Table t) {
 
 public BasicDeclID getBasicDeclVar(VarID vID, Table t) = t.vars[vID].declaredAt;
 
+public bool inTypeDefDecl(DeclID dID, Table t) =
+	/typeDefID(_) := t.decls[dID].at;
+
 public bool memorySpaceDisallowedDecl(DeclID dID, Table t) =
-	isConstant(getDecl(dID, t)) && isPrimitive(getTypeDecl(dID, t));
+	inTypeDefDecl(dID, t) ||
+	(isConstant(getDecl(dID, t)) && isPrimitive(getTypeDecl(dID, t)));
 
 public bool memorySpaceDisallowedVar(VarID vID, Table t) =
 	memorySpaceDisallowedDecl(getDeclVar(vID, t), t);
@@ -219,7 +223,14 @@ public bool isConstant(VarID vID, Table t) {
 
 public Identifier getIdVar(VarID vID, Table t) {
 	Var v = getVar(vID, t);
-	return getIdVar(v);
+	switch (v) {
+		case var(_): {
+			return getIdVar(v);
+		}
+		case dot(_, VarID vID2): {
+			return getIdVar(vID2, t);
+		}
+	}
 }
 
 
@@ -276,7 +287,18 @@ public Exp tryGetConstantExp(e:varExp(VarID vID), bool inParams, Table t) {
 		Decl d = getDecl(dID, t);
 		if (assignDecl(list[DeclModifier] mods, _, ExpID eID) := d &&
 				const() in mods) {
-			return getExp(eID, t);
+			Exp e = getExp(eID, t);
+			if (varExp(VarID vID) := e) {
+				if (isHardwareVar(vID, t)) {
+					HWResolution r = resolveHardwareVar(vID, t);
+					return intConstant(getIntValue(r));
+				}
+				DeclID dID = getDeclVar(vID, t);
+				if (t.decls[dID].written) {
+					throw "replacement is written";
+				}
+			}
+			return e;
 		}
 		else {
 			throw "not a constant";
@@ -476,7 +498,7 @@ bool isBoundedLoop(Iterator i) {
 bool isBoundedLoop(forLoop(DeclID dID, ExpID eID, Increment i, _), Table t) {
 	Exp e = getExp(eID, t);
 
-	if (lt(_, _) := e || gt(_, _) := e) {
+	if (lt(_, _) := e || gt(_, _) := e || ge(_, _) := e) {
 		return varExp(VarID vID) := e.l && getDeclVar(vID, t) == dID &&
 			getDeclVar(i.var, t) == dID;
 	}
@@ -660,6 +682,11 @@ bool isTopDeclVar(VarID vID, Table t) {
 
 bool isTopDecl(DeclID dID, Table t) = isEmpty(t.decls[dID].at);
 
+bool isTypeDefDecl(DeclID dID, Table t) = /typeDefID(_) := t.decls[dID].at;
+bool isTypeDefVar(VarID vID, Table t) {
+	DeclID dID = getDeclVar(vID, t);
+	return isTypeDefDecl(dID, t);
+}
 
 
 bool isPrimitive(DeclID dID, Table t) = isPrimitive(getTypeDecl(dID, t));

@@ -67,6 +67,10 @@ default list[list[Exp]] getSizes(Type t) {
 	throw -1;
 }
 
+list[list[Exp]] getSizes(astConcreteCustomType(_, list[tuple[Identifier, Type]] types)) {
+	return [[( intConstant(0) | add(it, getSize(t[1])) | t <- types)]];
+}
+
 list[Exp] getSizes(list[ArraySize] arraySizes) {
 	return for (ArraySize as <- arraySizes) {
 		if (astArraySize(Exp e, []) := as) {
@@ -194,6 +198,11 @@ BasicVar flatten(BasicVar bv, Type t) {
 
 tuple[Exp, Exp] computeOffset(Identifier fieldId, astConcreteCustomType(_, 
 		list[tuple[Identifier, Type]] types)) {
+	
+	// assuming that the types inside a struct are not mixed
+	
+	Type bt = getBaseType(types[0][1]);
+	Exp baseSize = getSize(bt);
 		
 	Exp size = intConstant(0);
 	size@evalType = \int();
@@ -203,7 +212,7 @@ tuple[Exp, Exp] computeOffset(Identifier fieldId, astConcreteCustomType(_,
 			position = size;
 		}
 		Type t = size@evalType;
-		size = add(size, getSize(tup[1]));
+		size = add(size, div(getSize(tup[1]), baseSize));
 		size@evalType = t;
 	}
 	
@@ -269,7 +278,9 @@ public Var flattenVar(d:astDot(BasicVar bv, Var v), Type t, Table table) {
 	
 	v = flattenVar(v, dotType, table);
 	
-	return var(combine(bv, v, t));
+	d.astBasicVar = bv;
+	d.astVar = v;
+	return d;
 }
 
 

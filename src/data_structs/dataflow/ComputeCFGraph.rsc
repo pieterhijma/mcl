@@ -26,6 +26,7 @@ import Print;
 
 import Relation;
 import List;
+import Set;
 
 import analysis::graphs::Graph;
 
@@ -54,8 +55,17 @@ CFGraph getControlFlow(list[CFBlock] l, Table t) {
 	CFGraph cfs1 = getControlFlow(head(l), t);
 	if (size(tail(l)) != 0) {
 		CFGraph cfs2 = getControlFlow(tail(l), t);
-		return <cfs1.entry, 
-			cfs1.graph + cfs2.graph + (cfs1.exit * cfs2.entry), cfs2.exit>;
+
+		// the cfgraph does not take into account return statements
+		// the following makes a return the end of the graph.
+		if (blStat(returnStat(_)) := getOneFrom(cfs1.entry)) {
+			return <cfs1.entry, 
+				cfs1.graph + cfs2.graph, {}>;
+		}
+		else {
+            return <cfs1.entry, 
+                cfs1.graph + cfs2.graph + (cfs1.exit * cfs2.entry), cfs2.exit>;
+		}
 	}
 	else {
 		return cfs1;

@@ -1,0 +1,232 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module kmeans
+
+
+
+
+import perfect;
+import gpu;
+import amd;
+import hd7970;
+
+
+
+
+
+// This version turns out to be MUCH slower than the hd7970-v1 version.
+
+
+
+
+hd7970 void kmeans_kernel(const int npoints, const int nclusters, const int 
+        nfeatures, const global float[nfeatures,npoints] points, const global 
+        float[nclusters,nfeatures] clusters, global int[npoints] 
+        pointsCluster) {
+    const int nPointsPerThread = 1;
+    const int nrThreadsNpoints = gpu.hierarchy.blocks.block.threads.
+            max_nr_units;
+    const int nrBlocksNpoints = (npoints + nrThreadsNpoints * nPointsPerThread 
+            - 1) / (1 * nrThreadsNpoints * nPointsPerThread);
+    const int clusterBlockSize = 2048/nfeatures;
+    const int nClusterBlocks = (nclusters + clusterBlockSize - 1) / clusterBlockSize;
+    clusters as float[nclusters*nfeatures] clusters2;
+
+    foreach (const int bpid in nrBlocksNpoints workgroups) {
+        const int nrWorkitemsNrThreadsNpoints = hd7970.hierarchy.workgroups.
+                workgroup.wavefronts.wavefront.workitems.nr_units;
+        const int nrWavefrontsNrThreadsNpoints = nrThreadsNpoints / (1 * 
+                nrWorkitemsNrThreadsNpoints);
+	local float[clusterBlockSize, nfeatures] clusterBlock;
+	clusterBlock as float[clusterBlockSize * nfeatures] clusterBlock2;
+        foreach (const int wttpid0 in nrWavefrontsNrThreadsNpoints wavefronts) {
+            foreach (const int wttpid in nrWorkitemsNrThreadsNpoints 
+                    workitems) {
+                const int ttpid = wttpid0 * (1 * nrWorkitemsNrThreadsNpoints * nPointsPerThread) 
+                        + wttpid;
+
+		int[nPointsPerThread] ind;
+		float[nPointsPerThread] min_dist;
+
+		for (int i = 0; i < nPointsPerThread; i++) {
+		    ind[i] = 0;
+		    min_dist[i] = 3.0E+38;
+		}
+
+		for (int clusterIter = 0; clusterIter < nClusterBlocks; clusterIter++) {
+		    // Initialize clusterBlock
+		    int cbsz = clusterBlockSize;
+		    int cboffset = clusterIter * clusterBlockSize;
+		    if (nclusters < cboffset + clusterBlockSize) {
+			cbsz = nclusters - cboffset;
+		    }
+
+		    for (int i = wttpid0 * nrWorkitemsNrThreadsNpoints + ttpid; i < cbsz * nfeatures; i += nrWorkitemsNrThreadsNpoints * nrWavefrontsNrThreadsNpoints) {
+			clusterBlock2[i] = clusters2[i + nfeatures * cboffset];
+		    }
+
+		    barrier(local);
+		    for (reg int p = 0; p < nPointsPerThread; p++) {
+			const int pid = bpid * (1 * nrThreadsNpoints * 
+				nPointsPerThread) + p * nrWorkitemsNrThreadsNpoints + ttpid;
+			if (pid < npoints) {
+			    float[nfeatures] point;
+			    for (reg int feature = 0; feature < nfeatures; 
+				feature++) {
+				point[feature] = points[feature, pid]; 
+			    }
+			    for (reg int cluster = 0; cluster < nclusters; 
+				    cluster++) {
+				reg float dist = 0;
+				for (reg int feature = 0; feature < nfeatures; 
+					feature++) {
+				    const float d = point[feature] - 
+					    clusters[cluster,feature];
+				    dist = dist + d * d;
+				}
+				if (dist < min_dist[p]) {
+				    min_dist[p] = dist;
+				    ind[p] = cluster + clusterIter * clusterBlockSize;
+				}
+			    }
+			}
+		    }
+		    barrier(local);
+		}
+
+		for (reg int p = 0; p < nPointsPerThread; p++) {
+		    const int pid = bpid * (1 * nrThreadsNpoints * 
+			    nPointsPerThread) + p * nrWorkitemsNrThreadsNpoints + ttpid;
+
+		    if (pid < npoints) {
+			pointsCluster[pid] = ind[p];
+		    }
+		}
+	    }
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(3270,13,<100,3>,<100,16>): Var pointsCluster[pid]:
+  in loop p:
+    does not benefit from cache l2_cache:
+      16 cache line fetches
+  in foreach loop wttpid:
+    does benefit from cache l2_cache:
+      4 cache line fetches
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2192,9,<63,22>,<63,31>): Var clusters2[i + nfeatures * cboffset]:
+  in loop i:
+    may benefit from cache l2_cache:
+      best case: cbsz * nfeatures / 16 cache line fetches
+      worst case: cbsz * nfeatures / 1024 cache line fetches
+ (may not be accurate: depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1355,6,<41,31>,<41,37>), depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1736,11,<54,11>,<54,22>), depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1270,7,<40,27>,<40,34>))
+  in foreach loop wttpid:
+    the array index depends on the loop index, but not directly. Cache behaviour cannot be predicted.
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2832,8,<82,9>,<82,17>): Var clusters[cluster,feature]:
+  in loop feature:
+    may benefit from cache l2_cache:
+      best case: nfeatures / 16 cache line fetches
+      worst case: nfeatures cache line fetches
+  in foreach loop wttpid:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2579,6,<74,21>,<74,27>): Var points[feature,pid]:
+  in loop feature:
+    may benefit from cache l2_cache:
+      best case: nfeatures * npoints / 16 cache line fetches
+      worst case: nfeatures cache line fetches
+  in foreach loop wttpid:
+    does benefit from cache l2_cache:
+      4 cache line fetches
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(3270,13,<100,3>,<100,16>): Var pointsCluster[pid]:
+  in loop p:
+    does not benefit from cache l1_cache:
+      16 cache line fetches
+  in foreach loop wttpid:
+    does benefit from cache l1_cache:
+      4 cache line fetches
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2192,9,<63,22>,<63,31>): Var clusters2[i + nfeatures * cboffset]:
+  in loop i:
+    may benefit from cache l1_cache:
+      best case: cbsz * nfeatures / 16 cache line fetches
+      worst case: cbsz * nfeatures / 1024 cache line fetches
+ (may not be accurate: depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1355,6,<41,31>,<41,37>), depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1736,11,<54,11>,<54,22>), depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1270,7,<40,27>,<40,34>))
+  in foreach loop wttpid:
+    the array index depends on the loop index, but not directly. Cache behaviour cannot be predicted.
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2832,8,<82,9>,<82,17>): Var clusters[cluster,feature]:
+  in loop feature:
+    may benefit from cache l1_cache:
+      best case: nfeatures / 16 cache line fetches
+      worst case: nfeatures cache line fetches
+  in foreach loop wttpid:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2579,6,<74,21>,<74,27>): Var points[feature,pid]:
+  in loop feature:
+    may benefit from cache l1_cache:
+      best case: nfeatures * npoints / 16 cache line fetches
+      worst case: nfeatures cache line fetches
+  in foreach loop wttpid:
+    does benefit from cache l1_cache:
+      4 cache line fetches
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(95,13,<20,12>,<20,25>): pcie transfers 4 * (nclusters * nfeatures) + 4 * (nfeatures * npoints) + 12 bytes from host to device
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(95,13,<20,12>,<20,25>): pcie transfers 4 * npoints bytes from device to host
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(95,13,<20,12>,<20,25>): computation:
+  workitems:
+    loads: 
+      global: 0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(3250,13,<99,10>,<99,23>))
+    instructions: 
+      3*nClusterBlocks*nPointsPerThread*nclusters*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+nClusterBlocks*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2902,18,<85,8>,<85,26>), control flow at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(3250,13,<99,10>,<99,23>), control flow at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2438,13,<70,7>,<70,20>))
+    stores: 
+      global: nPointsPerThread*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(3250,13,<99,10>,<99,23>))
+  host:
+    instructions: 
+      1
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(95,13,<20,12>,<20,25>): indexing:
+  workitems:
+    instructions: 
+      2*cbsz*nClusterBlocks*nfeatures*nrBlocksNpoints (may not be accurate: depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1355,6,<41,31>,<41,37>), depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1736,11,<54,11>,<54,22>), depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1270,7,<40,27>,<40,34>))
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(95,13,<20,12>,<20,25>): control flow:
+  workitems:
+    loads: 
+      global: nClusterBlocks*nPointsPerThread*nclusters*nfeatures*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+nClusterBlocks*nPointsPerThread*nfeatures*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2438,13,<70,7>,<70,20>))
+    instructions: 
+      5*nClusterBlocks*nPointsPerThread*nclusters*nfeatures*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+
+      2*nClusterBlocks*nPointsPerThread*nfeatures*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+nClusterBlocks*nPointsPerThread*nclusters*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+
+      8*nClusterBlocks*nPointsPerThread*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+
+      10*nPointsPerThread*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+
+      5*nClusterBlocks*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+
+      4*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+4*cbsz*nClusterBlocks*nfeatures*nrBlocksNpoints (may not be accurate: depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1355,6,<41,31>,<41,37>), depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1736,11,<54,11>,<54,22>), depends on loop at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1270,7,<40,27>,<40,34>), control flow at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(1931,39,<58,10>,<58,49>), control flow at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2438,13,<70,7>,<70,20>))
+    stores: 
+      global: 0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(2438,13,<70,7>,<70,20>))
+  host:
+    instructions: 
+      9
+  workgroups:
+    instructions: 
+      2*nrBlocksNpoints
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(95,13,<20,12>,<20,25>): Arithmetic intensity: (3*nClusterBlocks*nPointsPerThread*nclusters*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints+nClusterBlocks*nrBlocksNpoints*nrWavefrontsNrThreadsNpoints*nrWorkitemsNrThreadsNpoints)*nPointsPerThread^(
+-1)*nrBlocksNpoints^(-1)*nrWavefrontsNrThreadsNpoints^(-1)*nrWorkitemsNrThreadsNpoints^(
+-1)
+INFO at |project://mcl/input/programs/kmeans-hd7970-v2.mcl|(95,13,<20,12>,<20,25>): Memory on_chip is shared by more than one workgroup, carefully consider the usage of memory spaces {"local"}
+
+*/
+

@@ -371,15 +371,20 @@ CTBuilder checkExp(boolConstant(_), CTBuilder b) = b;
 CTBuilder checkExp(callExp(CallID cID), CTBuilder b) = checkCall(cID, b);
 CTBuilder checkExp(varExp(VarID vID), CTBuilder b) = checkVar(vID, b);
 CTBuilder checkExp(bitshl(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
+CTBuilder checkExp(bitshr(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(bitand(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
+CTBuilder checkExp(bitor(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(mul(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(div(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(add(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(sub(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(lt(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(gt(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
+CTBuilder checkExp(le(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
+CTBuilder checkExp(ge(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(eq(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(ne(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
+CTBuilder checkExp(and(Exp l, Exp r), CTBuilder b) = checkBinaryExp(l, r, b);
 CTBuilder checkExp(oneof(list[Exp] es), CTBuilder b) = 
 	(b | checkExp(e, it) | e <- es);
 CTBuilder checkExp(minus(Exp e), CTBuilder b) = checkExp(e, b);
@@ -427,6 +432,7 @@ default CTBuilder checkType(Type t, CTBuilder b) {
 
 CTBuilder checkType(byte(), CTBuilder b) = b;
 CTBuilder checkType(\int(), CTBuilder b) = b;
+CTBuilder checkType(uint(), CTBuilder b) = b;
 CTBuilder checkType(\int2(), CTBuilder b) = b;
 CTBuilder checkType(\int4(), CTBuilder b) = b;
 CTBuilder checkType(\int8(), CTBuilder b) = b;
@@ -692,6 +698,7 @@ void throwErrors(set[str] ms) {
 		for (s <- ms) {
 			messages += "<s>\n";
 		}
+		println(messages);
 		throw "UNEXPECTED: table is inconsistent\n<messages>";
 	}
 }
@@ -714,9 +721,12 @@ void checkReferences(Table t) {
 CTBuilder checkTypeDef(typeDef(Identifier id, list[DeclID] params, 
 		list[DeclID] fields), CTBuilder b) {
 	b = addTypeDef(id, b);
+	b = push(typeDefID(id), b);
 	
 	b = (b | checkDecl(dID, it) | dID <- params);
 	b = (b | checkDecl(dID, it) | dID <- fields);
+
+	b = pop(b);
 	
 	return b;
 }

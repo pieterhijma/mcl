@@ -121,6 +121,7 @@ public &T convertBack(&T t) {
 		case astBasicVar(Identifier id, list[list[Exp]] eLists) =>
 			basicVar(id, [[e@key | e <- eList] | eList <- eLists])
 		case astBasicVar(Identifier id, []) => basicVar(id, [])
+		case ad:astDot(BasicVar bv, Var v) => setAnno(dot(bv, v@key), ad)
 		case astCustomType(Identifier id, list[Exp] es) =>
 			customType(id, [e@key | e <- es])
 		case aad:astAssignDecl(list[DeclModifier] mods, BasicDecl bd, Exp e) =>

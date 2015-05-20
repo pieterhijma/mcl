@@ -36,6 +36,8 @@ import data_structs::level_02::ASTCommonAST;
 import data_structs::level_03::ASTModule;
 import data_structs::level_03::ASTCommon;
 
+import data_structs::level_04::ASTConcreteCustomType;
+
 import data_structs::table::Table;
 import data_structs::table::Retrieval;
 import data_structs::table::Keys;
@@ -50,6 +52,8 @@ import raw_passes::f_interpret::EvalConstants;
 import raw_passes::d_prettyPrint::PrettyPrint;
 import raw_passes::e_convertAST::ConvertAST;
 
+import raw_passes::f_checkTypes::MakeConcrete;
+
 import raw_passes::h_generate::data_structs::OutputBuilder;
 import raw_passes::h_generate::data_structs::CodeGenInfo;
 
@@ -59,9 +63,15 @@ import raw_passes::h_generate::GenerateJavaOpenCLCall;
 
 
 public Funcs getFuncsJava() {
-	return <genDeclModifierJava, genBasicDecl, genExp, genOpenCLCallJava>;
+	return <genDeclModifierJava, genBasicDecl, genExp, genOpenCLCallJava, genVarJava>;
 }
 
+
+// this is probably not right in general, but for the generated Cashmere
+// code it should be sufficient.
+public str genVarJava(astDot(BasicVar bv, _), OutputBuilder b) = pp(bv);
+public str genVarJava(var(BasicVar bv), OutputBuilder b) = pp(bv);
+	
 
 public str genDeclModifierJava(list[DeclModifier] dm, OutputBuilder b) {
 	if (const() in dm) {
@@ -72,15 +82,33 @@ public str genDeclModifierJava(list[DeclModifier] dm, OutputBuilder b) {
 	}
 }
 
+default Type getPrimitiveType(Type t, Table table) = t;
 
+Type getPrimitiveType(at:arrayType(Type bt, _), Table t) = 
+	getPrimitiveType(bt, t);
+
+Type getPrimitiveType(act:astConcreteCustomType(_, types), Table t) {
+	return getPrimitiveType(types[0][1], t);
+}
+
+Type getPrimitiveType(act:astCustomType(_, _), Table t) {
+	Type concrete = makeConcrete(act, t);
+	return getPrimitiveType(concrete, t);
+}
+
+default str genPrimitiveJavaType(Type t, OutputBuilder b) = genType(t, b);
+str genPrimitiveJavaType(uint(), OutputBuilder b) = "int";
+
+default str printJavaType(Type t) = pp(t);
+str printJavaType(uint()) = "int";
 
 
 str genParamJava(BasicDecl bd, bool isConst, bool special, OutputBuilder b) {
 	if (isPrimitive(bd.\type) && isConst) {
-		return "<genType(bd.\type, b)> <bd.id.string>";
+		return "<genPrimitiveJavaType(bd.\type, b)> <bd.id.string>";
 	}
 	else {
-		return "<pp(getBaseType(bd.\type))>[] <bd.id.string>" + 
+		return "<printJavaType(getPrimitiveType(getBaseType(bd.\type), b.t))>[] <bd.id.string>" + 
 			(special ? ", boolean copy<bd.id.string>" : "");
 	}
 }
@@ -101,7 +129,7 @@ public OutputBuilder generateJava(FuncID fID, OutputBuilder ob) {
 	Func f = convertAST(getFunc(fID, ob.t), ob.t);
 	//str fNameCap = getFunctionNameCamel(f.id.string);
 	//str funcHeader = "    static void launch<fNameCap>(KernelLaunch kl, " +
-	//					"<gen(f.astParams, ", ", genParamJava, ob)>) throws MCSatinNotAvailable {";
+	//					"<gen(f.astParams, ", ", genParamJava, ob)>) throws MCCashmereNotAvailable {";
 	
 	visit (f) {
 		case Call call: {
@@ -118,9 +146,9 @@ public OutputBuilder generateJava(FuncID fID, OutputBuilder ob) {
 
 
 public OutputBuilder initCallerJava(OutputBuilder ob) {
-	ob.caller.header = "import ibis.satin.many_core.Argument;
-						'import ibis.satin.many_core.KernelLaunch;
-						'import ibis.satin.many_core.MCSatinNotAvailable;
+	ob.caller.header = "import ibis.cashmere.many_core.Argument;
+						'import ibis.cashmere.many_core.KernelLaunch;
+						'import ibis.cashmere.many_core.MCCashmereNotAvailable;
 						'
 						'class MCL {";
 	return ob;

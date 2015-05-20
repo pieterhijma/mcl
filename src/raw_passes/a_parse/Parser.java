@@ -93,197 +93,437 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     
     
     
-    _putDontNest(result, 2306, 2319);
+    _putDontNest(result, 2318, 2331);
     
-    _putDontNest(result, 2306, 2326);
+    _putDontNest(result, 2318, 2338);
     
-    _putDontNest(result, 2306, 2334);
+    _putDontNest(result, 2318, 2346);
     
-    _putDontNest(result, 2306, 2341);
+    _putDontNest(result, 2318, 2353);
     
-    _putDontNest(result, 2306, 2349);
+    _putDontNest(result, 2318, 2360);
     
-    _putDontNest(result, 2306, 2356);
+    _putDontNest(result, 2318, 2368);
     
-    _putDontNest(result, 2306, 2363);
+    _putDontNest(result, 2318, 2375);
     
-    _putDontNest(result, 2306, 2370);
+    _putDontNest(result, 2318, 2382);
     
-    _putDontNest(result, 2311, 2319);
+    _putDontNest(result, 2318, 2389);
     
-    _putDontNest(result, 2311, 2326);
+    _putDontNest(result, 2318, 2397);
     
-    _putDontNest(result, 2311, 2334);
+    _putDontNest(result, 2318, 2404);
     
-    _putDontNest(result, 2311, 2341);
+    _putDontNest(result, 2318, 2411);
     
-    _putDontNest(result, 2311, 2349);
+    _putDontNest(result, 2318, 2425);
     
-    _putDontNest(result, 2311, 2356);
+    _putDontNest(result, 2323, 2331);
     
-    _putDontNest(result, 2311, 2363);
+    _putDontNest(result, 2323, 2338);
     
-    _putDontNest(result, 2311, 2370);
+    _putDontNest(result, 2323, 2346);
     
-    _putDontNest(result, 2315, 2334);
+    _putDontNest(result, 2323, 2353);
     
-    _putDontNest(result, 2315, 2341);
+    _putDontNest(result, 2323, 2360);
     
-    _putDontNest(result, 2315, 2349);
+    _putDontNest(result, 2323, 2368);
     
-    _putDontNest(result, 2315, 2356);
+    _putDontNest(result, 2323, 2375);
     
-    _putDontNest(result, 2315, 2363);
+    _putDontNest(result, 2323, 2382);
     
-    _putDontNest(result, 2315, 2370);
+    _putDontNest(result, 2323, 2389);
     
-    _putDontNest(result, 2319, 2319);
+    _putDontNest(result, 2323, 2397);
     
-    _putDontNest(result, 2319, 2326);
+    _putDontNest(result, 2323, 2404);
     
-    _putDontNest(result, 2319, 2334);
+    _putDontNest(result, 2323, 2411);
     
-    _putDontNest(result, 2319, 2341);
+    _putDontNest(result, 2323, 2425);
     
-    _putDontNest(result, 2319, 2349);
+    _putDontNest(result, 2327, 2346);
     
-    _putDontNest(result, 2319, 2356);
+    _putDontNest(result, 2327, 2353);
     
-    _putDontNest(result, 2319, 2363);
+    _putDontNest(result, 2327, 2360);
     
-    _putDontNest(result, 2319, 2370);
+    _putDontNest(result, 2327, 2368);
     
-    _putDontNest(result, 2322, 2334);
+    _putDontNest(result, 2327, 2375);
     
-    _putDontNest(result, 2322, 2341);
+    _putDontNest(result, 2327, 2382);
     
-    _putDontNest(result, 2322, 2349);
+    _putDontNest(result, 2327, 2389);
     
-    _putDontNest(result, 2322, 2356);
+    _putDontNest(result, 2327, 2397);
     
-    _putDontNest(result, 2322, 2363);
+    _putDontNest(result, 2327, 2404);
     
-    _putDontNest(result, 2322, 2370);
+    _putDontNest(result, 2327, 2411);
     
-    _putDontNest(result, 2326, 2319);
+    _putDontNest(result, 2327, 2425);
     
-    _putDontNest(result, 2326, 2326);
+    _putDontNest(result, 2331, 2331);
     
-    _putDontNest(result, 2326, 2334);
+    _putDontNest(result, 2331, 2338);
     
-    _putDontNest(result, 2326, 2341);
+    _putDontNest(result, 2331, 2346);
     
-    _putDontNest(result, 2326, 2349);
+    _putDontNest(result, 2331, 2353);
     
-    _putDontNest(result, 2326, 2356);
+    _putDontNest(result, 2331, 2360);
     
-    _putDontNest(result, 2326, 2363);
+    _putDontNest(result, 2331, 2368);
     
-    _putDontNest(result, 2326, 2370);
+    _putDontNest(result, 2331, 2375);
     
-    _putDontNest(result, 2330, 2349);
+    _putDontNest(result, 2331, 2382);
     
-    _putDontNest(result, 2330, 2356);
+    _putDontNest(result, 2331, 2389);
     
-    _putDontNest(result, 2330, 2363);
+    _putDontNest(result, 2331, 2397);
     
-    _putDontNest(result, 2330, 2370);
+    _putDontNest(result, 2331, 2404);
     
-    _putDontNest(result, 2334, 2334);
+    _putDontNest(result, 2331, 2411);
     
-    _putDontNest(result, 2334, 2341);
+    _putDontNest(result, 2331, 2425);
     
-    _putDontNest(result, 2334, 2349);
+    _putDontNest(result, 2334, 2346);
     
-    _putDontNest(result, 2334, 2356);
+    _putDontNest(result, 2334, 2353);
     
-    _putDontNest(result, 2334, 2363);
+    _putDontNest(result, 2334, 2360);
     
-    _putDontNest(result, 2334, 2370);
+    _putDontNest(result, 2334, 2368);
     
-    _putDontNest(result, 2337, 2349);
+    _putDontNest(result, 2334, 2375);
     
-    _putDontNest(result, 2337, 2356);
+    _putDontNest(result, 2334, 2382);
     
-    _putDontNest(result, 2337, 2363);
+    _putDontNest(result, 2334, 2389);
     
-    _putDontNest(result, 2337, 2370);
+    _putDontNest(result, 2334, 2397);
     
-    _putDontNest(result, 2341, 2334);
+    _putDontNest(result, 2334, 2404);
     
-    _putDontNest(result, 2341, 2341);
+    _putDontNest(result, 2334, 2411);
     
-    _putDontNest(result, 2341, 2349);
+    _putDontNest(result, 2334, 2425);
     
-    _putDontNest(result, 2341, 2356);
+    _putDontNest(result, 2338, 2331);
     
-    _putDontNest(result, 2341, 2363);
+    _putDontNest(result, 2338, 2338);
     
-    _putDontNest(result, 2341, 2370);
+    _putDontNest(result, 2338, 2346);
     
-    _putDontNest(result, 2345, 2349);
+    _putDontNest(result, 2338, 2353);
     
-    _putDontNest(result, 2345, 2356);
+    _putDontNest(result, 2338, 2360);
     
-    _putDontNest(result, 2345, 2363);
+    _putDontNest(result, 2338, 2368);
     
-    _putDontNest(result, 2345, 2370);
+    _putDontNest(result, 2338, 2375);
     
-    _putDontNest(result, 2349, 2349);
+    _putDontNest(result, 2338, 2382);
     
-    _putDontNest(result, 2349, 2356);
+    _putDontNest(result, 2338, 2389);
     
-    _putDontNest(result, 2349, 2363);
+    _putDontNest(result, 2338, 2397);
     
-    _putDontNest(result, 2349, 2370);
+    _putDontNest(result, 2338, 2404);
     
-    _putDontNest(result, 2352, 2349);
+    _putDontNest(result, 2338, 2411);
     
-    _putDontNest(result, 2352, 2356);
+    _putDontNest(result, 2338, 2425);
     
-    _putDontNest(result, 2352, 2363);
+    _putDontNest(result, 2342, 2360);
     
-    _putDontNest(result, 2352, 2370);
+    _putDontNest(result, 2342, 2368);
     
-    _putDontNest(result, 2356, 2349);
+    _putDontNest(result, 2342, 2375);
     
-    _putDontNest(result, 2356, 2356);
+    _putDontNest(result, 2342, 2382);
     
-    _putDontNest(result, 2356, 2363);
+    _putDontNest(result, 2342, 2389);
     
-    _putDontNest(result, 2356, 2370);
+    _putDontNest(result, 2342, 2397);
     
-    _putDontNest(result, 2359, 2349);
+    _putDontNest(result, 2342, 2404);
     
-    _putDontNest(result, 2359, 2356);
+    _putDontNest(result, 2342, 2411);
     
-    _putDontNest(result, 2359, 2363);
+    _putDontNest(result, 2342, 2425);
     
-    _putDontNest(result, 2359, 2370);
+    _putDontNest(result, 2346, 2346);
     
-    _putDontNest(result, 2363, 2349);
+    _putDontNest(result, 2346, 2353);
     
-    _putDontNest(result, 2363, 2356);
+    _putDontNest(result, 2346, 2360);
     
-    _putDontNest(result, 2363, 2363);
+    _putDontNest(result, 2346, 2368);
     
-    _putDontNest(result, 2363, 2370);
+    _putDontNest(result, 2346, 2375);
     
-    _putDontNest(result, 2366, 2349);
+    _putDontNest(result, 2346, 2382);
     
-    _putDontNest(result, 2366, 2356);
+    _putDontNest(result, 2346, 2389);
     
-    _putDontNest(result, 2366, 2363);
+    _putDontNest(result, 2346, 2397);
     
-    _putDontNest(result, 2366, 2370);
+    _putDontNest(result, 2346, 2404);
     
-    _putDontNest(result, 2370, 2349);
+    _putDontNest(result, 2346, 2411);
     
-    _putDontNest(result, 2370, 2356);
+    _putDontNest(result, 2346, 2425);
     
-    _putDontNest(result, 2370, 2363);
+    _putDontNest(result, 2349, 2360);
     
-    _putDontNest(result, 2370, 2370);
+    _putDontNest(result, 2349, 2368);
+    
+    _putDontNest(result, 2349, 2375);
+    
+    _putDontNest(result, 2349, 2382);
+    
+    _putDontNest(result, 2349, 2389);
+    
+    _putDontNest(result, 2349, 2397);
+    
+    _putDontNest(result, 2349, 2404);
+    
+    _putDontNest(result, 2349, 2411);
+    
+    _putDontNest(result, 2349, 2425);
+    
+    _putDontNest(result, 2353, 2346);
+    
+    _putDontNest(result, 2353, 2353);
+    
+    _putDontNest(result, 2353, 2360);
+    
+    _putDontNest(result, 2353, 2368);
+    
+    _putDontNest(result, 2353, 2375);
+    
+    _putDontNest(result, 2353, 2382);
+    
+    _putDontNest(result, 2353, 2389);
+    
+    _putDontNest(result, 2353, 2397);
+    
+    _putDontNest(result, 2353, 2404);
+    
+    _putDontNest(result, 2353, 2411);
+    
+    _putDontNest(result, 2353, 2425);
+    
+    _putDontNest(result, 2356, 2368);
+    
+    _putDontNest(result, 2356, 2375);
+    
+    _putDontNest(result, 2356, 2382);
+    
+    _putDontNest(result, 2356, 2389);
+    
+    _putDontNest(result, 2356, 2397);
+    
+    _putDontNest(result, 2356, 2404);
+    
+    _putDontNest(result, 2356, 2411);
+    
+    _putDontNest(result, 2356, 2425);
+    
+    _putDontNest(result, 2360, 2360);
+    
+    _putDontNest(result, 2360, 2368);
+    
+    _putDontNest(result, 2360, 2375);
+    
+    _putDontNest(result, 2360, 2382);
+    
+    _putDontNest(result, 2360, 2389);
+    
+    _putDontNest(result, 2360, 2397);
+    
+    _putDontNest(result, 2360, 2404);
+    
+    _putDontNest(result, 2360, 2411);
+    
+    _putDontNest(result, 2360, 2425);
+    
+    _putDontNest(result, 2364, 2368);
+    
+    _putDontNest(result, 2364, 2375);
+    
+    _putDontNest(result, 2364, 2382);
+    
+    _putDontNest(result, 2364, 2389);
+    
+    _putDontNest(result, 2364, 2397);
+    
+    _putDontNest(result, 2364, 2404);
+    
+    _putDontNest(result, 2364, 2411);
+    
+    _putDontNest(result, 2364, 2425);
+    
+    _putDontNest(result, 2368, 2368);
+    
+    _putDontNest(result, 2368, 2375);
+    
+    _putDontNest(result, 2368, 2382);
+    
+    _putDontNest(result, 2368, 2389);
+    
+    _putDontNest(result, 2368, 2397);
+    
+    _putDontNest(result, 2368, 2404);
+    
+    _putDontNest(result, 2368, 2411);
+    
+    _putDontNest(result, 2368, 2425);
+    
+    _putDontNest(result, 2371, 2368);
+    
+    _putDontNest(result, 2371, 2375);
+    
+    _putDontNest(result, 2371, 2382);
+    
+    _putDontNest(result, 2371, 2389);
+    
+    _putDontNest(result, 2371, 2397);
+    
+    _putDontNest(result, 2371, 2404);
+    
+    _putDontNest(result, 2371, 2411);
+    
+    _putDontNest(result, 2371, 2425);
+    
+    _putDontNest(result, 2375, 2368);
+    
+    _putDontNest(result, 2375, 2375);
+    
+    _putDontNest(result, 2375, 2382);
+    
+    _putDontNest(result, 2375, 2389);
+    
+    _putDontNest(result, 2375, 2397);
+    
+    _putDontNest(result, 2375, 2404);
+    
+    _putDontNest(result, 2375, 2411);
+    
+    _putDontNest(result, 2375, 2425);
+    
+    _putDontNest(result, 2378, 2368);
+    
+    _putDontNest(result, 2378, 2375);
+    
+    _putDontNest(result, 2378, 2382);
+    
+    _putDontNest(result, 2378, 2389);
+    
+    _putDontNest(result, 2378, 2397);
+    
+    _putDontNest(result, 2378, 2404);
+    
+    _putDontNest(result, 2378, 2411);
+    
+    _putDontNest(result, 2378, 2425);
+    
+    _putDontNest(result, 2382, 2368);
+    
+    _putDontNest(result, 2382, 2375);
+    
+    _putDontNest(result, 2382, 2382);
+    
+    _putDontNest(result, 2382, 2389);
+    
+    _putDontNest(result, 2382, 2397);
+    
+    _putDontNest(result, 2382, 2404);
+    
+    _putDontNest(result, 2382, 2411);
+    
+    _putDontNest(result, 2382, 2425);
+    
+    _putDontNest(result, 2385, 2368);
+    
+    _putDontNest(result, 2385, 2375);
+    
+    _putDontNest(result, 2385, 2382);
+    
+    _putDontNest(result, 2385, 2389);
+    
+    _putDontNest(result, 2385, 2397);
+    
+    _putDontNest(result, 2385, 2404);
+    
+    _putDontNest(result, 2385, 2411);
+    
+    _putDontNest(result, 2385, 2425);
+    
+    _putDontNest(result, 2389, 2368);
+    
+    _putDontNest(result, 2389, 2375);
+    
+    _putDontNest(result, 2389, 2382);
+    
+    _putDontNest(result, 2389, 2389);
+    
+    _putDontNest(result, 2389, 2397);
+    
+    _putDontNest(result, 2389, 2404);
+    
+    _putDontNest(result, 2389, 2411);
+    
+    _putDontNest(result, 2389, 2425);
+    
+    _putDontNest(result, 2393, 2397);
+    
+    _putDontNest(result, 2393, 2404);
+    
+    _putDontNest(result, 2393, 2411);
+    
+    _putDontNest(result, 2393, 2425);
+    
+    _putDontNest(result, 2397, 2397);
+    
+    _putDontNest(result, 2397, 2404);
+    
+    _putDontNest(result, 2397, 2411);
+    
+    _putDontNest(result, 2397, 2425);
+    
+    _putDontNest(result, 2400, 2397);
+    
+    _putDontNest(result, 2400, 2404);
+    
+    _putDontNest(result, 2400, 2411);
+    
+    _putDontNest(result, 2400, 2425);
+    
+    _putDontNest(result, 2404, 2397);
+    
+    _putDontNest(result, 2404, 2404);
+    
+    _putDontNest(result, 2404, 2411);
+    
+    _putDontNest(result, 2404, 2425);
+    
+    _putDontNest(result, 2407, 2411);
+    
+    _putDontNest(result, 2407, 2425);
+    
+    _putDontNest(result, 2411, 2411);
+    
+    _putDontNest(result, 2411, 2425);
+    
+    _putDontNest(result, 2425, 2425);
    return result;
   }
     
@@ -294,28 +534,45 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     
     ++resultStoreId;
     
-    result.putUnsafe(2330, resultStoreId);
-    result.putUnsafe(2337, resultStoreId);
-    result.putUnsafe(2345, resultStoreId);
-    result.putUnsafe(2349, resultStoreId);
-    result.putUnsafe(2352, resultStoreId);
+    result.putUnsafe(2425, resultStoreId);
+    ++resultStoreId;
+    
+    result.putUnsafe(2407, resultStoreId);
+    result.putUnsafe(2411, resultStoreId);
+    ++resultStoreId;
+    
+    result.putUnsafe(2393, resultStoreId);
+    result.putUnsafe(2397, resultStoreId);
+    result.putUnsafe(2400, resultStoreId);
+    result.putUnsafe(2404, resultStoreId);
+    ++resultStoreId;
+    
     result.putUnsafe(2356, resultStoreId);
-    result.putUnsafe(2359, resultStoreId);
-    result.putUnsafe(2363, resultStoreId);
-    result.putUnsafe(2366, resultStoreId);
-    result.putUnsafe(2370, resultStoreId);
+    result.putUnsafe(2364, resultStoreId);
+    result.putUnsafe(2368, resultStoreId);
+    result.putUnsafe(2371, resultStoreId);
+    result.putUnsafe(2375, resultStoreId);
+    result.putUnsafe(2378, resultStoreId);
+    result.putUnsafe(2382, resultStoreId);
+    result.putUnsafe(2385, resultStoreId);
+    result.putUnsafe(2389, resultStoreId);
     ++resultStoreId;
     
-    result.putUnsafe(2315, resultStoreId);
-    result.putUnsafe(2322, resultStoreId);
+    result.putUnsafe(2342, resultStoreId);
+    result.putUnsafe(2349, resultStoreId);
+    result.putUnsafe(2360, resultStoreId);
+    ++resultStoreId;
+    
+    result.putUnsafe(2327, resultStoreId);
     result.putUnsafe(2334, resultStoreId);
-    result.putUnsafe(2341, resultStoreId);
+    result.putUnsafe(2346, resultStoreId);
+    result.putUnsafe(2353, resultStoreId);
     ++resultStoreId;
     
-    result.putUnsafe(2306, resultStoreId);
-    result.putUnsafe(2311, resultStoreId);
-    result.putUnsafe(2319, resultStoreId);
-    result.putUnsafe(2326, resultStoreId);
+    result.putUnsafe(2318, resultStoreId);
+    result.putUnsafe(2323, resultStoreId);
+    result.putUnsafe(2331, resultStoreId);
+    result.putUnsafe(2338, resultStoreId);
       
     return result;
   }
@@ -337,27 +594,29 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   // Production declarations
 	
   private static final IConstructor prod__empty__ = (IConstructor) _read("prod(empty(),[],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_import_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"import\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_as_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"as\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_const_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"const\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_for_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"for\")],{})", Factory.Production);
   private static final IConstructor prod__Keyword__lit_int_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"int\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit___111_110_101_111_102_123_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"oneof{\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_barrier_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"barrier\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_as_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"as\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_import_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"import\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_for_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"for\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_module_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"module\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_const_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"const\")],{})", Factory.Production);
   private static final IConstructor prod__Keyword__lit_oneof_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"oneof\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_foreach_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"foreach\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit___111_110_101_111_102_123_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"oneof{\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_true_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"true\")],{})", Factory.Production);
   private static final IConstructor prod__Keyword__lit_else_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"else\")],{})", Factory.Production);
   private static final IConstructor prod__Keyword__lit_if_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"if\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_type_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"type\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_module_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"module\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_index_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"index\")],{})", Factory.Production);
   private static final IConstructor prod__Keyword__lit_return_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"return\")],{})", Factory.Production);
-  private static final IConstructor prod__Keyword__lit_float_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"float\")],{})", Factory.Production);
   private static final IConstructor prod__Keyword__lit_void_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"void\")],{})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_char_class___range__48_57__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star__char_class___range__48_57 = (IConstructor) _read("prod(label(\"$MetaHole\",\\char-class([range(48,57)])),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(\\\\char-class([range(48,57)]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star(\\char-class([range(48,57)]))))})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_false_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"false\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_float_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"float\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_index_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"index\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_foreach_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"foreach\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_type_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"type\")],{})", Factory.Production);
+  private static final IConstructor prod__Keyword__lit_barrier_ = (IConstructor) _read("prod(keywords(\"Keyword\"),[lit(\"barrier\")],{})", Factory.Production);
   private static final IConstructor prod__$MetaHole_char_class___range__48_57__char_class___range__0_0_lit___105_116_101_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter__char_class___range__48_57 = (IConstructor) _read("prod(label(\"$MetaHole\",\\char-class([range(48,57)])),[\\char-class([range(0,0)]),lit(\"iter(\\\\char-class([range(48,57)]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(iter(\\char-class([range(48,57)]))))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_char_class___range__43_43_range__45_45__char_class___range__0_0_lit___111_112_116_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_51_44_52_51_41_44_114_97_110_103_101_40_52_53_44_52_53_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__char_class___range__43_43_range__45_45 = (IConstructor) _read("prod(label(\"$MetaHole\",\\char-class([range(43,43),range(45,45)])),[\\char-class([range(0,0)]),lit(\"opt(\\\\char-class([range(43,43),range(45,45)]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(\\char-class([range(43,43),range(45,45)]))))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_char_class___range__48_57__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star__char_class___range__48_57 = (IConstructor) _read("prod(label(\"$MetaHole\",\\char-class([range(48,57)])),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(\\\\char-class([range(48,57)]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star(\\char-class([range(48,57)]))))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_char_class___range__1_9_range__11_16777215__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_49_44_57_41_44_114_97_110_103_101_40_49_49_44_49_54_55_55_55_50_49_53_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star__char_class___range__1_9_range__11_16777215 = (IConstructor) _read("prod(label(\"$MetaHole\",\\char-class([range(1,9),range(11,16777215)])),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(\\\\char-class([range(1,9),range(11,16777215)]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star(\\char-class([range(1,9),range(11,16777215)]))))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_char_class___range__43_43_range__45_45__char_class___range__0_0_lit___111_112_116_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_51_44_52_51_41_44_114_97_110_103_101_40_52_53_44_52_53_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__char_class___range__43_43_range__45_45 = (IConstructor) _read("prod(label(\"$MetaHole\",\\char-class([range(43,43),range(45,45)])),[\\char-class([range(0,0)]),lit(\"opt(\\\\char-class([range(43,43),range(45,45)]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(\\char-class([range(43,43),range(45,45)]))))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_char_class___range__48_57_range__65_90_range__97_122__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_44_114_97_110_103_101_40_54_53_44_57_48_41_44_114_97_110_103_101_40_57_55_44_49_50_50_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star__char_class___range__48_57_range__65_90_range__97_122 = (IConstructor) _read("prod(label(\"$MetaHole\",\\char-class([range(48,57),range(65,90),range(97,122)])),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(\\\\char-class([range(48,57),range(65,90),range(97,122)]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star(\\char-class([range(48,57),range(65,90),range(97,122)]))))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_char_class___range__48_57_range__65_90_range__95_95__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_44_114_97_110_103_101_40_54_53_44_57_48_41_44_114_97_110_103_101_40_57_53_44_57_53_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star__char_class___range__48_57_range__65_90_range__95_95 = (IConstructor) _read("prod(label(\"$MetaHole\",\\char-class([range(48,57),range(65,90),range(95,95)])),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(\\\\char-class([range(48,57),range(65,90),range(95,95)]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95)]))))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_char_class___range__48_57_range__65_90_range__95_95_range__97_122__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_44_114_97_110_103_101_40_54_53_44_57_48_41_44_114_97_110_103_101_40_57_53_44_57_53_41_44_114_97_110_103_101_40_57_55_44_49_50_50_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122 = (IConstructor) _read("prod(label(\"$MetaHole\",\\char-class([range(48,57),range(65,90),range(95,95),range(97,122)])),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(\\\\char-class([range(48,57),range(65,90),range(95,95),range(97,122)]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95),range(97,122)]))))})", Factory.Production);
@@ -365,8 +624,8 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__$MetaHole_CAPSIdentifier__char_class___range__0_0_lit___115_111_114_116_40_34_67_65_80_83_73_100_101_110_116_105_102_105_101_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__CAPSIdentifier = (IConstructor) _read("prod(label(\"$MetaHole\",lex(\"CAPSIdentifier\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"CAPSIdentifier\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(lex(\"CAPSIdentifier\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_CapsIdentifier__char_class___range__0_0_lit___115_111_114_116_40_34_67_97_112_115_73_100_101_110_116_105_102_105_101_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__CapsIdentifier = (IConstructor) _read("prod(label(\"$MetaHole\",lex(\"CapsIdentifier\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"CapsIdentifier\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(lex(\"CapsIdentifier\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Comment__char_class___range__0_0_lit___115_111_114_116_40_34_67_111_109_109_101_110_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Comment = (IConstructor) _read("prod(label(\"$MetaHole\",lex(\"Comment\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Comment\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(lex(\"Comment\")))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_Exponent__char_class___range__0_0_lit___115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Exponent = (IConstructor) _read("prod(label(\"$MetaHole\",lex(\"Exponent\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Exponent\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(lex(\"Exponent\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Exponent__char_class___range__0_0_lit___111_112_116_40_115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__Exponent = (IConstructor) _read("prod(label(\"$MetaHole\",lex(\"Exponent\")),[\\char-class([range(0,0)]),lit(\"opt(sort(\\\"Exponent\\\"))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(lex(\"Exponent\"))))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_Exponent__char_class___range__0_0_lit___115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Exponent = (IConstructor) _read("prod(label(\"$MetaHole\",lex(\"Exponent\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Exponent\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(lex(\"Exponent\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_FloatLiteral__char_class___range__0_0_lit___115_111_114_116_40_34_70_108_111_97_116_76_105_116_101_114_97_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__FloatLiteral = (IConstructor) _read("prod(label(\"$MetaHole\",lex(\"FloatLiteral\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"FloatLiteral\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(lex(\"FloatLiteral\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Identifier__char_class___range__0_0_lit___111_112_116_40_115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__Identifier = (IConstructor) _read("prod(label(\"$MetaHole\",lex(\"Identifier\")),[\\char-class([range(0,0)]),lit(\"opt(sort(\\\"Identifier\\\"))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(lex(\"Identifier\"))))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Identifier__char_class___range__0_0_lit___115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Identifier = (IConstructor) _read("prod(label(\"$MetaHole\",lex(\"Identifier\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Identifier\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(lex(\"Identifier\")))})", Factory.Production);
@@ -380,41 +639,41 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__$MetaHole_seq___char_class___range__65_90_iter_star__char_class___range__48_57_range__65_90_range__95_95__char_class___range__0_0_lit___115_101_113_40_91_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_54_53_44_57_48_41_93_41_44_99_111_110_100_105_116_105_111_110_97_108_40_92_105_116_101_114_45_115_116_97_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_44_114_97_110_103_101_40_54_53_44_57_48_41_44_114_97_110_103_101_40_57_53_44_57_53_41_93_41_41_44_123_92_110_111_116_45_102_111_108_108_111_119_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_44_114_97_110_103_101_40_54_53_44_57_48_41_44_114_97_110_103_101_40_57_53_44_57_53_41_93_41_41_125_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___char_class___range__65_90_iter_star__char_class___range__48_57_range__65_90_range__95_95 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([\\char-class([range(65,90)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(95,95)]))})])),[\\char-class([range(0,0)]),lit(\"seq([\\\\char-class([range(65,90)]),conditional(\\\\iter-star(\\\\char-class([range(48,57),range(65,90),range(95,95)])),{\\\\not-follow(\\\\char-class([range(48,57),range(65,90),range(95,95)]))})])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([\\char-class([range(65,90)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(95,95)]))})])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_seq___char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122__char_class___range__0_0_lit___115_101_113_40_91_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_57_55_44_49_50_50_41_93_41_44_99_111_110_100_105_116_105_111_110_97_108_40_92_105_116_101_114_45_115_116_97_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_44_114_97_110_103_101_40_54_53_44_57_48_41_44_114_97_110_103_101_40_57_53_44_57_53_41_44_114_97_110_103_101_40_57_55_44_49_50_50_41_93_41_41_44_123_92_110_111_116_45_102_111_108_108_111_119_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_44_114_97_110_103_101_40_54_53_44_57_48_41_44_114_97_110_103_101_40_57_55_44_49_50_50_41_93_41_41_125_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([\\char-class([range(97,122)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95),range(97,122)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(97,122)]))})])),[\\char-class([range(0,0)]),lit(\"seq([\\\\char-class([range(97,122)]),conditional(\\\\iter-star(\\\\char-class([range(48,57),range(65,90),range(95,95),range(97,122)])),{\\\\not-follow(\\\\char-class([range(48,57),range(65,90),range(97,122)]))})])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([\\char-class([range(97,122)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95),range(97,122)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(97,122)]))})])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_seq___lit_else_layouts_LAYOUTLIST_Stat__char_class___range__0_0_lit___115_101_113_40_91_108_105_116_40_34_101_108_115_101_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_115_111_114_116_40_34_83_116_97_116_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___lit_else_layouts_LAYOUTLIST_Stat = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\"else\"),layouts(\"LAYOUTLIST\"),sort(\"Stat\")])),[\\char-class([range(0,0)]),lit(\"seq([lit(\\\"else\\\"),layouts(\\\"LAYOUTLIST\\\"),sort(\\\"Stat\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([lit(\"else\"),layouts(\"LAYOUTLIST\"),sort(\"Stat\")])))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_seq___Decl_layouts_LAYOUTLIST_lit___59__char_class___range__0_0_lit___115_101_113_40_91_115_111_114_116_40_34_68_101_99_108_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_59_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___Decl_layouts_LAYOUTLIST_lit___59 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")])),[\\char-class([range(0,0)]),lit(\"seq([sort(\\\"Decl\\\"),layouts(\\\"LAYOUTLIST\\\"),lit(\\\";\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")])))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_seq___Decl_layouts_LAYOUTLIST_lit___59__char_class___range__0_0_lit___105_116_101_114_40_115_101_113_40_91_115_111_114_116_40_34_68_101_99_108_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_59_34_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_seps__seq___Decl_layouts_LAYOUTLIST_lit___59__layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")])),[\\char-class([range(0,0)]),lit(\"iter(seq([sort(\\\"Decl\\\"),layouts(\\\"LAYOUTLIST\\\"),lit(\\\";\\\")]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-seps(seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")]),[layouts(\"LAYOUTLIST\")])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_seq___lit_else_layouts_LAYOUTLIST_Stat__char_class___range__0_0_lit___111_112_116_40_115_101_113_40_91_108_105_116_40_34_101_108_115_101_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_115_111_114_116_40_34_83_116_97_116_34_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__seq___lit_else_layouts_LAYOUTLIST_Stat = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\"else\"),layouts(\"LAYOUTLIST\"),sort(\"Stat\")])),[\\char-class([range(0,0)]),lit(\"opt(seq([lit(\\\"else\\\"),layouts(\\\"LAYOUTLIST\\\"),sort(\\\"Stat\\\")]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(seq([lit(\"else\"),layouts(\"LAYOUTLIST\"),sort(\"Stat\")]))))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_seq___lit___58_layouts_LAYOUTLIST_Decl__char_class___range__0_0_lit___111_112_116_40_115_101_113_40_91_108_105_116_40_34_58_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_115_111_114_116_40_34_68_101_99_108_34_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__seq___lit___58_layouts_LAYOUTLIST_Decl = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\":\"),layouts(\"LAYOUTLIST\"),sort(\"Decl\")])),[\\char-class([range(0,0)]),lit(\"opt(seq([lit(\\\":\\\"),layouts(\\\"LAYOUTLIST\\\"),sort(\\\"Decl\\\")]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(seq([lit(\":\"),layouts(\"LAYOUTLIST\"),sort(\"Decl\")]))))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_seq___Decl_layouts_LAYOUTLIST_lit___59__char_class___range__0_0_lit___105_116_101_114_40_115_101_113_40_91_115_111_114_116_40_34_68_101_99_108_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_59_34_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_seps__seq___Decl_layouts_LAYOUTLIST_lit___59__layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")])),[\\char-class([range(0,0)]),lit(\"iter(seq([sort(\\\"Decl\\\"),layouts(\\\"LAYOUTLIST\\\"),lit(\\\";\\\")]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-seps(seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")]),[layouts(\"LAYOUTLIST\")])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_seq___lit___58_layouts_LAYOUTLIST_Decl__char_class___range__0_0_lit___115_101_113_40_91_108_105_116_40_34_58_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_115_111_114_116_40_34_68_101_99_108_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___lit___58_layouts_LAYOUTLIST_Decl = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\":\"),layouts(\"LAYOUTLIST\"),sort(\"Decl\")])),[\\char-class([range(0,0)]),lit(\"seq([lit(\\\":\\\"),layouts(\\\"LAYOUTLIST\\\"),sort(\\\"Decl\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([lit(\":\"),layouts(\"LAYOUTLIST\"),sort(\"Decl\")])))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_seq___Decl_layouts_LAYOUTLIST_lit___59__char_class___range__0_0_lit___115_101_113_40_91_115_111_114_116_40_34_68_101_99_108_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_59_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___Decl_layouts_LAYOUTLIST_lit___59 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")])),[\\char-class([range(0,0)]),lit(\"seq([sort(\\\"Decl\\\"),layouts(\\\"LAYOUTLIST\\\"),lit(\\\";\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")])))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_seq___lit___58_layouts_LAYOUTLIST_Decl__char_class___range__0_0_lit___111_112_116_40_115_101_113_40_91_108_105_116_40_34_58_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_115_111_114_116_40_34_68_101_99_108_34_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__seq___lit___58_layouts_LAYOUTLIST_Decl = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\":\"),layouts(\"LAYOUTLIST\"),sort(\"Decl\")])),[\\char-class([range(0,0)]),lit(\"opt(seq([lit(\\\":\\\"),layouts(\\\"LAYOUTLIST\\\"),sort(\\\"Decl\\\")]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(seq([lit(\":\"),layouts(\"LAYOUTLIST\"),sort(\"Decl\")]))))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_seq___char_class___range__65_90_char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__97_122__char_class___range__0_0_lit___115_101_113_40_91_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_54_53_44_57_48_41_93_41_44_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_57_55_44_49_50_50_41_93_41_44_99_111_110_100_105_116_105_111_110_97_108_40_92_105_116_101_114_45_115_116_97_114_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_44_114_97_110_103_101_40_54_53_44_57_48_41_44_114_97_110_103_101_40_57_55_44_49_50_50_41_93_41_41_44_123_92_110_111_116_45_102_111_108_108_111_119_40_92_99_104_97_114_45_99_108_97_115_115_40_91_114_97_110_103_101_40_52_56_44_53_55_41_44_114_97_110_103_101_40_54_53_44_57_48_41_44_114_97_110_103_101_40_57_55_44_49_50_50_41_93_41_41_125_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___char_class___range__65_90_char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__97_122 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([\\char-class([range(65,90)]),\\char-class([range(97,122)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(97,122)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(97,122)]))})])),[\\char-class([range(0,0)]),lit(\"seq([\\\\char-class([range(65,90)]),\\\\char-class([range(97,122)]),conditional(\\\\iter-star(\\\\char-class([range(48,57),range(65,90),range(97,122)])),{\\\\not-follow(\\\\char-class([range(48,57),range(65,90),range(97,122)]))})])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([\\char-class([range(65,90)]),\\char-class([range(97,122)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(97,122)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(97,122)]))})])))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41__char_class___range__0_0_lit___115_101_113_40_91_108_105_116_40_34_40_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_41_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])),[\\char-class([range(0,0)]),lit(\"seq([lit(\\\"(\\\"),layouts(\\\"LAYOUTLIST\\\"),\\\\iter-seps(sort(\\\"Exp\\\"),[lit(\\\",\\\")]),layouts(\\\"LAYOUTLIST\\\"),lit(\\\")\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41__char_class___range__0_0_lit___111_112_116_40_115_101_113_40_91_108_105_116_40_34_40_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_68_101_99_108_34_41_44_91_108_105_116_40_34_44_34_41_93_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_41_34_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])),[\\char-class([range(0,0)]),lit(\"opt(seq([lit(\\\"(\\\"),layouts(\\\"LAYOUTLIST\\\"),\\\\iter-seps(sort(\\\"Decl\\\"),[lit(\\\",\\\")]),layouts(\\\"LAYOUTLIST\\\"),lit(\\\")\\\")]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")]))))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41__char_class___range__0_0_lit___115_101_113_40_91_108_105_116_40_34_40_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_68_101_99_108_34_41_44_91_108_105_116_40_34_44_34_41_93_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_41_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])),[\\char-class([range(0,0)]),lit(\"seq([lit(\\\"(\\\"),layouts(\\\"LAYOUTLIST\\\"),\\\\iter-seps(sort(\\\"Decl\\\"),[lit(\\\",\\\")]),layouts(\\\"LAYOUTLIST\\\"),lit(\\\")\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41__char_class___range__0_0_lit___111_112_116_40_115_101_113_40_91_108_105_116_40_34_40_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_41_34_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])),[\\char-class([range(0,0)]),lit(\"opt(seq([lit(\\\"(\\\"),layouts(\\\"LAYOUTLIST\\\"),\\\\iter-seps(sort(\\\"Exp\\\"),[lit(\\\",\\\")]),layouts(\\\"LAYOUTLIST\\\"),lit(\\\")\\\")]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")]))))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41__char_class___range__0_0_lit___115_101_113_40_91_108_105_116_40_34_40_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_41_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])),[\\char-class([range(0,0)]),lit(\"seq([lit(\\\"(\\\"),layouts(\\\"LAYOUTLIST\\\"),\\\\iter-seps(sort(\\\"Exp\\\"),[lit(\\\",\\\")]),layouts(\\\"LAYOUTLIST\\\"),lit(\\\")\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41__char_class___range__0_0_lit___115_101_113_40_91_108_105_116_40_34_40_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_68_101_99_108_34_41_44_91_108_105_116_40_34_44_34_41_93_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_41_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])),[\\char-class([range(0,0)]),lit(\"seq([lit(\\\"(\\\"),layouts(\\\"LAYOUTLIST\\\"),\\\\iter-seps(sort(\\\"Decl\\\"),[lit(\\\",\\\")]),layouts(\\\"LAYOUTLIST\\\"),lit(\\\")\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41__char_class___range__0_0_lit___111_112_116_40_115_101_113_40_91_108_105_116_40_34_40_34_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_68_101_99_108_34_41_44_91_108_105_116_40_34_44_34_41_93_41_44_108_97_121_111_117_116_115_40_34_76_65_89_79_85_84_76_73_83_84_34_41_44_108_105_116_40_34_41_34_41_93_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("prod(label(\"$MetaHole\",seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])),[\\char-class([range(0,0)]),lit(\"opt(seq([lit(\\\"(\\\"),layouts(\\\"LAYOUTLIST\\\"),\\\\iter-seps(sort(\\\"Decl\\\"),[lit(\\\",\\\")]),layouts(\\\"LAYOUTLIST\\\"),lit(\\\")\\\")]))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(opt(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")]))))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_ArrayExp__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__ArrayExp__layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"ArrayExp\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(sort(\\\"ArrayExp\\\"))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star-seps(sort(\"ArrayExp\"),[layouts(\"LAYOUTLIST\")])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_ArrayExp__char_class___range__0_0_lit___115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__ArrayExp = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"ArrayExp\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"ArrayExp\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"ArrayExp\")))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_ArraySize__char_class___range__0_0_lit___115_111_114_116_40_34_65_114_114_97_121_83_105_122_101_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__ArraySize = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"ArraySize\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"ArraySize\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"ArraySize\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_ArraySize__char_class___range__0_0_lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_65_114_114_97_121_83_105_122_101_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_seps__ArraySize__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"ArraySize\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-seps(sort(\\\"ArraySize\\\"),[lit(\\\",\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-seps(sort(\"ArraySize\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")])))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_ArraySize__char_class___range__0_0_lit___115_111_114_116_40_34_65_114_114_97_121_83_105_122_101_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__ArraySize = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"ArraySize\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"ArraySize\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"ArraySize\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_BasicDecl__char_class___range__0_0_lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_66_97_115_105_99_68_101_99_108_34_41_44_91_108_105_116_40_34_97_115_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_seps__BasicDecl__layouts_LAYOUTLIST_lit_as_layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"BasicDecl\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-seps(sort(\\\"BasicDecl\\\"),[lit(\\\"as\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-seps(sort(\"BasicDecl\"),[layouts(\"LAYOUTLIST\"),lit(\"as\"),layouts(\"LAYOUTLIST\")])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_BasicDecl__char_class___range__0_0_lit___115_111_114_116_40_34_66_97_115_105_99_68_101_99_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__BasicDecl = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"BasicDecl\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"BasicDecl\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"BasicDecl\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_BasicVar__char_class___range__0_0_lit___115_111_114_116_40_34_66_97_115_105_99_86_97_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__BasicVar = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"BasicVar\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"BasicVar\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"BasicVar\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Block__char_class___range__0_0_lit___115_111_114_116_40_34_66_108_111_99_107_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Block = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Block\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Block\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Block\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Call__char_class___range__0_0_lit___115_111_114_116_40_34_67_97_108_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Call = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Call\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Call\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Call\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Code__char_class___range__0_0_lit___115_111_114_116_40_34_67_111_100_101_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Code = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Code\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Code\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Code\")))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_Decl__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_45_115_101_112_115_40_115_111_114_116_40_34_68_101_99_108_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Decl\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-star-seps(sort(\\\"Decl\\\"),[lit(\\\",\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")])))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_Decl__char_class___range__0_0_lit___115_111_114_116_40_34_68_101_99_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Decl = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Decl\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Decl\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Decl\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Decl__char_class___range__0_0_lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_68_101_99_108_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Decl\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-seps(sort(\\\"Decl\\\"),[lit(\\\",\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")])))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_DeclModifier__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_68_101_99_108_77_111_100_105_102_105_101_114_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__DeclModifier__layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"DeclModifier\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(sort(\\\"DeclModifier\\\"))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star-seps(sort(\"DeclModifier\"),[layouts(\"LAYOUTLIST\")])))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_Decl__char_class___range__0_0_lit___115_111_114_116_40_34_68_101_99_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Decl = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Decl\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Decl\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Decl\")))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_Decl__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_45_115_101_112_115_40_115_111_114_116_40_34_68_101_99_108_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Decl\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-star-seps(sort(\\\"Decl\\\"),[lit(\\\",\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_DeclModifier__char_class___range__0_0_lit___115_111_114_116_40_34_68_101_99_108_77_111_100_105_102_105_101_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__DeclModifier = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"DeclModifier\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"DeclModifier\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"DeclModifier\")))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_DeclModifier__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_68_101_99_108_77_111_100_105_102_105_101_114_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__DeclModifier__layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"DeclModifier\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(sort(\\\"DeclModifier\\\"))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star-seps(sort(\"DeclModifier\"),[layouts(\"LAYOUTLIST\")])))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_Exp__char_class___range__0_0_lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Exp\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-seps(sort(\\\"Exp\\\"),[lit(\\\",\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Exp__char_class___range__0_0_lit___115_111_114_116_40_34_69_120_112_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Exp = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Exp\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Exp\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Exp\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Exp__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Exp\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-star-seps(sort(\\\"Exp\\\"),[lit(\\\",\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")])))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_Exp__char_class___range__0_0_lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Exp\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-seps(sort(\\\"Exp\\\"),[lit(\\\",\\\")])\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_For__char_class___range__0_0_lit___115_111_114_116_40_34_70_111_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__For = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"For\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"For\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"For\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_ForEach__char_class___range__0_0_lit___115_111_114_116_40_34_70_111_114_69_97_99_104_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__ForEach = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"ForEach\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"ForEach\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"ForEach\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Func__char_class___range__0_0_lit___115_111_114_116_40_34_70_117_110_99_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Func = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Func\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Func\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Func\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Func__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_70_117_110_99_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__Func__layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Func\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(sort(\\\"Func\\\"))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star-seps(sort(\"Func\"),[layouts(\"LAYOUTLIST\")])))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Id__char_class___range__0_0_lit___115_111_114_116_40_34_73_100_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Id = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Id\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Id\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Id\")))})", Factory.Production);
-  private static final IConstructor prod__$MetaHole_Import__char_class___range__0_0_lit___115_111_114_116_40_34_73_109_112_111_114_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Import = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Import\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Import\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Import\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Import__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_73_109_112_111_114_116_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__Import__layouts_LAYOUTLIST = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Import\")),[\\char-class([range(0,0)]),lit(\"\\\\iter-star(sort(\\\"Import\\\"))\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(\\iter-star-seps(sort(\"Import\"),[layouts(\"LAYOUTLIST\")])))})", Factory.Production);
+  private static final IConstructor prod__$MetaHole_Import__char_class___range__0_0_lit___115_111_114_116_40_34_73_109_112_111_114_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Import = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Import\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Import\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Import\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Increment__char_class___range__0_0_lit___115_111_114_116_40_34_73_110_99_114_101_109_101_110_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Increment = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Increment\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Increment\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Increment\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Module__char_class___range__0_0_lit___115_111_114_116_40_34_77_111_100_117_108_101_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Module = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Module\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Module\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Module\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Return__char_class___range__0_0_lit___115_111_114_116_40_34_82_101_116_117_114_110_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Return = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Return\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Return\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Return\")))})", Factory.Production);
@@ -426,6 +685,7 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__$MetaHole_TypeDef__char_class___range__0_0_lit___115_111_114_116_40_34_84_121_112_101_68_101_102_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__TypeDef = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"TypeDef\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"TypeDef\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"TypeDef\")))})", Factory.Production);
   private static final IConstructor prod__$MetaHole_Var__char_class___range__0_0_lit___115_111_114_116_40_34_86_97_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Var = (IConstructor) _read("prod(label(\"$MetaHole\",sort(\"Var\")),[\\char-class([range(0,0)]),lit(\"sort(\\\"Var\\\")\"),lit(\":\"),iter(\\char-class([range(48,57)])),\\char-class([range(0,0)])],{tag(\"holeType\"(sort(\"Var\")))})", Factory.Production);
   private static final IConstructor prod__add_Exp__Exp_layouts_LAYOUTLIST_lit___43_layouts_LAYOUTLIST_Exp__assoc__left = (IConstructor) _read("prod(label(\"add\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"+\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(left())})", Factory.Production);
+  private static final IConstructor prod__and_Exp__Exp_layouts_LAYOUTLIST_lit___38_38_layouts_LAYOUTLIST_Exp__assoc__non_assoc = (IConstructor) _read("prod(label(\"and\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"&&\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(\\non-assoc())})", Factory.Production);
   private static final IConstructor prod__arrayType_Type__Type_layouts_LAYOUTLIST_lit___91_layouts_LAYOUTLIST_iter_seps__ArraySize__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___93_ = (IConstructor) _read("prod(label(\"arrayType\",sort(\"Type\")),[sort(\"Type\"),layouts(\"LAYOUTLIST\"),lit(\"[\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"ArraySize\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\"]\")],{})", Factory.Production);
   private static final IConstructor prod__astArraySize_ArraySize__Exp_layouts_LAYOUTLIST_opt__seq___lit___58_layouts_LAYOUTLIST_Decl_ = (IConstructor) _read("prod(label(\"astArraySize\",sort(\"ArraySize\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),opt(seq([lit(\":\"),layouts(\"LAYOUTLIST\"),sort(\"Decl\")]))],{})", Factory.Production);
   private static final IConstructor prod__astAsStat_Stat__Var_layouts_LAYOUTLIST_lit_as_layouts_LAYOUTLIST_iter_seps__BasicDecl__layouts_LAYOUTLIST_lit_as_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___59_ = (IConstructor) _read("prod(label(\"astAsStat\",sort(\"Stat\")),[sort(\"Var\"),layouts(\"LAYOUTLIST\"),lit(\"as\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"BasicDecl\"),[layouts(\"LAYOUTLIST\"),lit(\"as\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\";\")],{})", Factory.Production);
@@ -452,6 +712,8 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__astVarExp_Exp__Var_ = (IConstructor) _read("prod(label(\"astVarExp\",sort(\"Exp\")),[sort(\"Var\")],{})", Factory.Production);
   private static final IConstructor prod__barrierStat_Stat__lit_barrier_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_Identifier_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_lit___59_ = (IConstructor) _read("prod(label(\"barrierStat\",sort(\"Stat\")),[lit(\"barrier\"),layouts(\"LAYOUTLIST\"),lit(\"(\"),layouts(\"LAYOUTLIST\"),lex(\"Identifier\"),layouts(\"LAYOUTLIST\"),lit(\")\"),layouts(\"LAYOUTLIST\"),lit(\";\")],{})", Factory.Production);
   private static final IConstructor prod__basicDecl_BasicDecl__Type_layouts_LAYOUTLIST_Id_ = (IConstructor) _read("prod(label(\"basicDecl\",sort(\"BasicDecl\")),[sort(\"Type\"),layouts(\"LAYOUTLIST\"),sort(\"Id\")],{})", Factory.Production);
+  private static final IConstructor prod__bitand_Exp__Exp_layouts_LAYOUTLIST_lit___38_layouts_LAYOUTLIST_Exp__assoc__left = (IConstructor) _read("prod(label(\"bitand\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"&\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(left())})", Factory.Production);
+  private static final IConstructor prod__bitshl_Exp__Exp_layouts_LAYOUTLIST_lit___60_60_layouts_LAYOUTLIST_Exp__assoc__left = (IConstructor) _read("prod(label(\"bitshl\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"\\<\\<\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(left())})", Factory.Production);
   private static final IConstructor prod__blockStat_Stat__Block_ = (IConstructor) _read("prod(label(\"blockStat\",sort(\"Stat\")),[sort(\"Block\")],{})", Factory.Production);
   private static final IConstructor prod__boolean_Type__lit_bool_ = (IConstructor) _read("prod(label(\"boolean\",sort(\"Type\")),[lit(\"bool\")],{})", Factory.Production);
   private static final IConstructor prod__byte_Type__lit_byte_ = (IConstructor) _read("prod(label(\"byte\",sort(\"Type\")),[lit(\"byte\")],{})", Factory.Production);
@@ -459,10 +721,12 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__div_Exp__Exp_layouts_LAYOUTLIST_lit___47_layouts_LAYOUTLIST_Exp__assoc__left = (IConstructor) _read("prod(label(\"div\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"/\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(left())})", Factory.Production);
   private static final IConstructor prod__emptyArray_ArrayExp__lit___91_93_ = (IConstructor) _read("prod(label(\"emptyArray\",sort(\"ArrayExp\")),[lit(\"[]\")],{})", Factory.Production);
   private static final IConstructor prod__eq_Exp__Exp_layouts_LAYOUTLIST_lit___61_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc = (IConstructor) _read("prod(label(\"eq\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"==\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(\\non-assoc())})", Factory.Production);
+  private static final IConstructor prod__falseConstant_Exp__lit_false_ = (IConstructor) _read("prod(label(\"falseConstant\",sort(\"Exp\")),[lit(\"false\")],{})", Factory.Production);
   private static final IConstructor prod__float_Type__lit_float_ = (IConstructor) _read("prod(label(\"float\",sort(\"Type\")),[lit(\"float\")],{})", Factory.Production);
   private static final IConstructor prod__floatConstant_Exp__FloatLiteral_ = (IConstructor) _read("prod(label(\"floatConstant\",sort(\"Exp\")),[lex(\"FloatLiteral\")],{})", Factory.Production);
   private static final IConstructor prod__forStat_Stat__For_ = (IConstructor) _read("prod(label(\"forStat\",sort(\"Stat\")),[sort(\"For\")],{})", Factory.Production);
   private static final IConstructor prod__foreachStat_Stat__ForEach_ = (IConstructor) _read("prod(label(\"foreachStat\",sort(\"Stat\")),[sort(\"ForEach\")],{})", Factory.Production);
+  private static final IConstructor prod__ge_Exp__Exp_layouts_LAYOUTLIST_lit___62_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc = (IConstructor) _read("prod(label(\"ge\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"\\>=\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(\\non-assoc())})", Factory.Production);
   private static final IConstructor prod__gt_Exp__Exp_layouts_LAYOUTLIST_lit___62_layouts_LAYOUTLIST_Exp__assoc__non_assoc = (IConstructor) _read("prod(label(\"gt\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"\\>\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(\\non-assoc())})", Factory.Production);
   private static final IConstructor prod__id_CAPSIdentifier__seq___char_class___range__65_90_iter_star__char_class___range__48_57_range__65_90_range__95_95_ = (IConstructor) _read("prod(label(\"id\",lex(\"CAPSIdentifier\")),[conditional(seq([\\char-class([range(65,90)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(95,95)]))})]),{delete(keywords(\"Keyword\"))})],{})", Factory.Production);
   private static final IConstructor prod__id_CapsIdentifier__seq___char_class___range__65_90_char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__97_122_ = (IConstructor) _read("prod(label(\"id\",lex(\"CapsIdentifier\")),[conditional(seq([\\char-class([range(65,90)]),\\char-class([range(97,122)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(97,122)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(97,122)]))})]),{delete(keywords(\"Keyword\"))})],{})", Factory.Production);
@@ -472,6 +736,7 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__index_Type__lit_index_ = (IConstructor) _read("prod(label(\"index\",sort(\"Type\")),[lit(\"index\")],{})", Factory.Production);
   private static final IConstructor prod__int_Type__lit_int_ = (IConstructor) _read("prod(label(\"int\",sort(\"Type\")),[lit(\"int\")],{})", Factory.Production);
   private static final IConstructor prod__intConstant_Exp__IntLiteral_ = (IConstructor) _read("prod(label(\"intConstant\",sort(\"Exp\")),[lex(\"IntLiteral\")],{})", Factory.Production);
+  private static final IConstructor prod__le_Exp__Exp_layouts_LAYOUTLIST_lit___60_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc = (IConstructor) _read("prod(label(\"le\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"\\<=\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(\\non-assoc())})", Factory.Production);
   private static final IConstructor prod__lt_Exp__Exp_layouts_LAYOUTLIST_lit___60_layouts_LAYOUTLIST_Exp__assoc__non_assoc = (IConstructor) _read("prod(label(\"lt\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"\\<\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(\\non-assoc())})", Factory.Production);
   private static final IConstructor prod__minus_Exp__lit___layouts_LAYOUTLIST_Exp_ = (IConstructor) _read("prod(label(\"minus\",sort(\"Exp\")),[lit(\"-\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{})", Factory.Production);
   private static final IConstructor prod__module_Module__lit_module_layouts_LAYOUTLIST_Identifier_layouts_LAYOUTLIST_iter_star_seps__Import__layouts_LAYOUTLIST_layouts_LAYOUTLIST_Code_ = (IConstructor) _read("prod(label(\"module\",sort(\"Module\")),[lit(\"module\"),layouts(\"LAYOUTLIST\"),lex(\"Identifier\"),layouts(\"LAYOUTLIST\"),\\iter-star-seps(sort(\"Import\"),[layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),sort(\"Code\")],{})", Factory.Production);
@@ -483,6 +748,7 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__sub_Exp__Exp_layouts_LAYOUTLIST_lit___layouts_LAYOUTLIST_Exp__assoc__left = (IConstructor) _read("prod(label(\"sub\",sort(\"Exp\")),[sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\"-\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\")],{assoc(left())})", Factory.Production);
   private static final IConstructor prod__syntaxConstDecl_TopDecl__lit_const_layouts_LAYOUTLIST_Type_layouts_LAYOUTLIST_CAPSIdentifier_layouts_LAYOUTLIST_lit___61_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___59_ = (IConstructor) _read("prod(label(\"syntaxConstDecl\",sort(\"TopDecl\")),[lit(\"const\"),layouts(\"LAYOUTLIST\"),sort(\"Type\"),layouts(\"LAYOUTLIST\"),lex(\"CAPSIdentifier\"),layouts(\"LAYOUTLIST\"),lit(\"=\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\";\")],{})", Factory.Production);
   private static final IConstructor prod__syntaxFunction_Func__opt__Identifier_layouts_LAYOUTLIST_Type_layouts_LAYOUTLIST_Identifier_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_iter_star_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_Block_ = (IConstructor) _read("prod(label(\"syntaxFunction\",sort(\"Func\")),[opt(lex(\"Identifier\")),layouts(\"LAYOUTLIST\"),sort(\"Type\"),layouts(\"LAYOUTLIST\"),lex(\"Identifier\"),layouts(\"LAYOUTLIST\"),lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-star-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\"),layouts(\"LAYOUTLIST\"),sort(\"Block\")],{})", Factory.Production);
+  private static final IConstructor prod__trueConstant_Exp__lit_true_ = (IConstructor) _read("prod(label(\"trueConstant\",sort(\"Exp\")),[lit(\"true\")],{})", Factory.Production);
   private static final IConstructor prod__typeDecl_TopDecl__TypeDef_ = (IConstructor) _read("prod(label(\"typeDecl\",sort(\"TopDecl\")),[sort(\"TypeDef\")],{})", Factory.Production);
   private static final IConstructor prod__userdefined_DeclModifier__Identifier_ = (IConstructor) _read("prod(label(\"userdefined\",sort(\"DeclModifier\")),[lex(\"Identifier\")],{})", Factory.Production);
   private static final IConstructor prod__var_Var__BasicVar_ = (IConstructor) _read("prod(label(\"var\",sort(\"Var\")),[sort(\"BasicVar\")],{})", Factory.Production);
@@ -495,18 +761,20 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__Exponent__char_class___range__69_69_range__101_101_opt__char_class___range__43_43_range__45_45_iter__char_class___range__48_57_ = (IConstructor) _read("prod(lex(\"Exponent\"),[\\char-class([range(69,69),range(101,101)]),opt(\\char-class([range(43,43),range(45,45)])),conditional(iter(\\char-class([range(48,57)])),{\\not-follow(\\char-class([range(48,57)]))})],{})", Factory.Production);
   private static final IConstructor prod__FloatLiteral__IntLiteral_Exponent_ = (IConstructor) _read("prod(lex(\"FloatLiteral\"),[lex(\"IntLiteral\"),lex(\"Exponent\")],{})", Factory.Production);
   private static final IConstructor prod__FloatLiteral__IntLiteral_char_class___range__46_46_iter__char_class___range__48_57_opt__Exponent_ = (IConstructor) _read("prod(lex(\"FloatLiteral\"),[lex(\"IntLiteral\"),\\char-class([range(46,46)]),conditional(iter(\\char-class([range(48,57)])),{\\not-follow(\\char-class([range(48,57)]))}),opt(lex(\"Exponent\"))],{})", Factory.Production);
-  private static final IConstructor prod__IncOption__lit___43_43_ = (IConstructor) _read("prod(lex(\"IncOption\"),[lit(\"++\")],{})", Factory.Production);
   private static final IConstructor prod__IncOption__lit____ = (IConstructor) _read("prod(lex(\"IncOption\"),[lit(\"--\")],{})", Factory.Production);
+  private static final IConstructor prod__IncOption__lit___43_43_ = (IConstructor) _read("prod(lex(\"IncOption\"),[lit(\"++\")],{})", Factory.Production);
   private static final IConstructor prod__IncOptionStep__lit___43_61_ = (IConstructor) _read("prod(lex(\"IncOptionStep\"),[lit(\"+=\")],{})", Factory.Production);
   private static final IConstructor prod__IncOptionStep__lit___45_61_ = (IConstructor) _read("prod(lex(\"IncOptionStep\"),[lit(\"-=\")],{})", Factory.Production);
   private static final IConstructor prod__IntLiteral__lit_0_ = (IConstructor) _read("prod(lex(\"IntLiteral\"),[lit(\"0\")],{})", Factory.Production);
   private static final IConstructor prod__IntLiteral__char_class___range__49_57_iter_star__char_class___range__48_57_ = (IConstructor) _read("prod(lex(\"IntLiteral\"),[\\char-class([range(49,57)]),conditional(\\iter-star(\\char-class([range(48,57)])),{\\not-follow(\\char-class([range(48,57)]))})],{})", Factory.Production);
   private static final IConstructor prod__LAYOUT__char_class___range__9_10_range__13_13_range__32_32_ = (IConstructor) _read("prod(lex(\"LAYOUT\"),[\\char-class([range(9,10),range(13,13),range(32,32)])],{})", Factory.Production);
   private static final IConstructor prod__LAYOUT__Comment_ = (IConstructor) _read("prod(lex(\"LAYOUT\"),[lex(\"Comment\")],{})", Factory.Production);
-  private static final IConstructor prod__MultiLineCommentBodyToken__char_class___range__1_41_range__43_16777215_ = (IConstructor) _read("prod(lex(\"MultiLineCommentBodyToken\"),[\\char-class([range(1,41),range(43,16777215)])],{})", Factory.Production);
   private static final IConstructor prod__MultiLineCommentBodyToken__Asterisk_ = (IConstructor) _read("prod(lex(\"MultiLineCommentBodyToken\"),[lex(\"Asterisk\")],{})", Factory.Production);
+  private static final IConstructor prod__MultiLineCommentBodyToken__char_class___range__1_41_range__43_16777215_ = (IConstructor) _read("prod(lex(\"MultiLineCommentBodyToken\"),[\\char-class([range(1,41),range(43,16777215)])],{})", Factory.Production);
   private static final IConstructor prod__lit___33__char_class___range__33_33_ = (IConstructor) _read("prod(lit(\"!\"),[\\char-class([range(33,33)])],{})", Factory.Production);
   private static final IConstructor prod__lit___33_61__char_class___range__33_33_char_class___range__61_61_ = (IConstructor) _read("prod(lit(\"!=\"),[\\char-class([range(33,33)]),\\char-class([range(61,61)])],{})", Factory.Production);
+  private static final IConstructor prod__lit___38__char_class___range__38_38_ = (IConstructor) _read("prod(lit(\"&\"),[\\char-class([range(38,38)])],{})", Factory.Production);
+  private static final IConstructor prod__lit___38_38__char_class___range__38_38_char_class___range__38_38_ = (IConstructor) _read("prod(lit(\"&&\"),[\\char-class([range(38,38)]),\\char-class([range(38,38)])],{})", Factory.Production);
   private static final IConstructor prod__lit___40__char_class___range__40_40_ = (IConstructor) _read("prod(lit(\"(\"),[\\char-class([range(40,40)])],{})", Factory.Production);
   private static final IConstructor prod__lit___41__char_class___range__41_41_ = (IConstructor) _read("prod(lit(\")\"),[\\char-class([range(41,41)])],{})", Factory.Production);
   private static final IConstructor prod__lit___42__char_class___range__42_42_ = (IConstructor) _read("prod(lit(\"*\"),[\\char-class([range(42,42)])],{})", Factory.Production);
@@ -525,9 +793,12 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__lit___58__char_class___range__58_58_ = (IConstructor) _read("prod(lit(\":\"),[\\char-class([range(58,58)])],{})", Factory.Production);
   private static final IConstructor prod__lit___59__char_class___range__59_59_ = (IConstructor) _read("prod(lit(\";\"),[\\char-class([range(59,59)])],{})", Factory.Production);
   private static final IConstructor prod__lit___60__char_class___range__60_60_ = (IConstructor) _read("prod(lit(\"\\<\"),[\\char-class([range(60,60)])],{})", Factory.Production);
+  private static final IConstructor prod__lit___60_60__char_class___range__60_60_char_class___range__60_60_ = (IConstructor) _read("prod(lit(\"\\<\\<\"),[\\char-class([range(60,60)]),\\char-class([range(60,60)])],{})", Factory.Production);
+  private static final IConstructor prod__lit___60_61__char_class___range__60_60_char_class___range__61_61_ = (IConstructor) _read("prod(lit(\"\\<=\"),[\\char-class([range(60,60)]),\\char-class([range(61,61)])],{})", Factory.Production);
   private static final IConstructor prod__lit___61__char_class___range__61_61_ = (IConstructor) _read("prod(lit(\"=\"),[\\char-class([range(61,61)])],{})", Factory.Production);
   private static final IConstructor prod__lit___61_61__char_class___range__61_61_char_class___range__61_61_ = (IConstructor) _read("prod(lit(\"==\"),[\\char-class([range(61,61)]),\\char-class([range(61,61)])],{})", Factory.Production);
   private static final IConstructor prod__lit___62__char_class___range__62_62_ = (IConstructor) _read("prod(lit(\"\\>\"),[\\char-class([range(62,62)])],{})", Factory.Production);
+  private static final IConstructor prod__lit___62_61__char_class___range__62_62_char_class___range__61_61_ = (IConstructor) _read("prod(lit(\"\\>=\"),[\\char-class([range(62,62)]),\\char-class([range(61,61)])],{})", Factory.Production);
   private static final IConstructor prod__lit___91__char_class___range__91_91_ = (IConstructor) _read("prod(lit(\"[\"),[\\char-class([range(91,91)])],{})", Factory.Production);
   private static final IConstructor prod__lit___91_93__char_class___range__91_91_char_class___range__93_93_ = (IConstructor) _read("prod(lit(\"[]\"),[\\char-class([range(91,91)]),\\char-class([range(93,93)])],{})", Factory.Production);
   private static final IConstructor prod__lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_65_114_114_97_121_83_105_122_101_34_41_44_91_108_105_116_40_34_44_34_41_93_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__101_101_char_class___range__112_112_char_class___range__115_115_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__65_65_char_class___range__114_114_char_class___range__114_114_char_class___range__97_97_char_class___range__121_121_char_class___range__83_83_char_class___range__105_105_char_class___range__122_122_char_class___range__101_101_char_class___range__34_34_char_class___range__41_41_char_class___range__44_44_char_class___range__91_91_char_class___range__108_108_char_class___range__105_105_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__44_44_char_class___range__34_34_char_class___range__41_41_char_class___range__93_93_char_class___range__41_41_ = (IConstructor) _read("prod(lit(\"\\\\iter-seps(sort(\\\"ArraySize\\\"),[lit(\\\",\\\")])\"),[\\char-class([range(92,92)]),\\char-class([range(105,105)]),\\char-class([range(116,116)]),\\char-class([range(101,101)]),\\char-class([range(114,114)]),\\char-class([range(45,45)]),\\char-class([range(115,115)]),\\char-class([range(101,101)]),\\char-class([range(112,112)]),\\char-class([range(115,115)]),\\char-class([range(40,40)]),\\char-class([range(115,115)]),\\char-class([range(111,111)]),\\char-class([range(114,114)]),\\char-class([range(116,116)]),\\char-class([range(40,40)]),\\char-class([range(34,34)]),\\char-class([range(65,65)]),\\char-class([range(114,114)]),\\char-class([range(114,114)]),\\char-class([range(97,97)]),\\char-class([range(121,121)]),\\char-class([range(83,83)]),\\char-class([range(105,105)]),\\char-class([range(122,122)]),\\char-class([range(101,101)]),\\char-class([range(34,34)]),\\char-class([range(41,41)]),\\char-class([range(44,44)]),\\char-class([range(91,91)]),\\char-class([range(108,108)]),\\char-class([range(105,105)]),\\char-class([range(116,116)]),\\char-class([range(40,40)]),\\char-class([range(34,34)]),\\char-class([range(44,44)]),\\char-class([range(34,34)]),\\char-class([range(41,41)]),\\char-class([range(93,93)]),\\char-class([range(41,41)])],{})", Factory.Production);
@@ -556,6 +827,7 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__lit_byte__char_class___range__98_98_char_class___range__121_121_char_class___range__116_116_char_class___range__101_101_ = (IConstructor) _read("prod(lit(\"byte\"),[\\char-class([range(98,98)]),\\char-class([range(121,121)]),\\char-class([range(116,116)]),\\char-class([range(101,101)])],{})", Factory.Production);
   private static final IConstructor prod__lit_const__char_class___range__99_99_char_class___range__111_111_char_class___range__110_110_char_class___range__115_115_char_class___range__116_116_ = (IConstructor) _read("prod(lit(\"const\"),[\\char-class([range(99,99)]),\\char-class([range(111,111)]),\\char-class([range(110,110)]),\\char-class([range(115,115)]),\\char-class([range(116,116)])],{})", Factory.Production);
   private static final IConstructor prod__lit_else__char_class___range__101_101_char_class___range__108_108_char_class___range__115_115_char_class___range__101_101_ = (IConstructor) _read("prod(lit(\"else\"),[\\char-class([range(101,101)]),\\char-class([range(108,108)]),\\char-class([range(115,115)]),\\char-class([range(101,101)])],{})", Factory.Production);
+  private static final IConstructor prod__lit_false__char_class___range__102_102_char_class___range__97_97_char_class___range__108_108_char_class___range__115_115_char_class___range__101_101_ = (IConstructor) _read("prod(lit(\"false\"),[\\char-class([range(102,102)]),\\char-class([range(97,97)]),\\char-class([range(108,108)]),\\char-class([range(115,115)]),\\char-class([range(101,101)])],{})", Factory.Production);
   private static final IConstructor prod__lit_float__char_class___range__102_102_char_class___range__108_108_char_class___range__111_111_char_class___range__97_97_char_class___range__116_116_ = (IConstructor) _read("prod(lit(\"float\"),[\\char-class([range(102,102)]),\\char-class([range(108,108)]),\\char-class([range(111,111)]),\\char-class([range(97,97)]),\\char-class([range(116,116)])],{})", Factory.Production);
   private static final IConstructor prod__lit_for__char_class___range__102_102_char_class___range__111_111_char_class___range__114_114_ = (IConstructor) _read("prod(lit(\"for\"),[\\char-class([range(102,102)]),\\char-class([range(111,111)]),\\char-class([range(114,114)])],{})", Factory.Production);
   private static final IConstructor prod__lit_foreach__char_class___range__102_102_char_class___range__111_111_char_class___range__114_114_char_class___range__101_101_char_class___range__97_97_char_class___range__99_99_char_class___range__104_104_ = (IConstructor) _read("prod(lit(\"foreach\"),[\\char-class([range(102,102)]),\\char-class([range(111,111)]),\\char-class([range(114,114)]),\\char-class([range(101,101)]),\\char-class([range(97,97)]),\\char-class([range(99,99)]),\\char-class([range(104,104)])],{})", Factory.Production);
@@ -620,6 +892,7 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__lit___115_111_114_116_40_34_84_121_112_101_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_char_class___range__34_34_char_class___range__41_41_ = (IConstructor) _read("prod(lit(\"sort(\\\"Type\\\")\"),[\\char-class([range(115,115)]),\\char-class([range(111,111)]),\\char-class([range(114,114)]),\\char-class([range(116,116)]),\\char-class([range(40,40)]),\\char-class([range(34,34)]),\\char-class([range(84,84)]),\\char-class([range(121,121)]),\\char-class([range(112,112)]),\\char-class([range(101,101)]),\\char-class([range(34,34)]),\\char-class([range(41,41)])],{})", Factory.Production);
   private static final IConstructor prod__lit___115_111_114_116_40_34_84_121_112_101_68_101_102_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_char_class___range__68_68_char_class___range__101_101_char_class___range__102_102_char_class___range__34_34_char_class___range__41_41_ = (IConstructor) _read("prod(lit(\"sort(\\\"TypeDef\\\")\"),[\\char-class([range(115,115)]),\\char-class([range(111,111)]),\\char-class([range(114,114)]),\\char-class([range(116,116)]),\\char-class([range(40,40)]),\\char-class([range(34,34)]),\\char-class([range(84,84)]),\\char-class([range(121,121)]),\\char-class([range(112,112)]),\\char-class([range(101,101)]),\\char-class([range(68,68)]),\\char-class([range(101,101)]),\\char-class([range(102,102)]),\\char-class([range(34,34)]),\\char-class([range(41,41)])],{})", Factory.Production);
   private static final IConstructor prod__lit___115_111_114_116_40_34_86_97_114_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__86_86_char_class___range__97_97_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_ = (IConstructor) _read("prod(lit(\"sort(\\\"Var\\\")\"),[\\char-class([range(115,115)]),\\char-class([range(111,111)]),\\char-class([range(114,114)]),\\char-class([range(116,116)]),\\char-class([range(40,40)]),\\char-class([range(34,34)]),\\char-class([range(86,86)]),\\char-class([range(97,97)]),\\char-class([range(114,114)]),\\char-class([range(34,34)]),\\char-class([range(41,41)])],{})", Factory.Production);
+  private static final IConstructor prod__lit_true__char_class___range__116_116_char_class___range__114_114_char_class___range__117_117_char_class___range__101_101_ = (IConstructor) _read("prod(lit(\"true\"),[\\char-class([range(116,116)]),\\char-class([range(114,114)]),\\char-class([range(117,117)]),\\char-class([range(101,101)])],{})", Factory.Production);
   private static final IConstructor prod__lit_type__char_class___range__116_116_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_ = (IConstructor) _read("prod(lit(\"type\"),[\\char-class([range(116,116)]),\\char-class([range(121,121)]),\\char-class([range(112,112)]),\\char-class([range(101,101)])],{})", Factory.Production);
   private static final IConstructor prod__lit_void__char_class___range__118_118_char_class___range__111_111_char_class___range__105_105_char_class___range__100_100_ = (IConstructor) _read("prod(lit(\"void\"),[\\char-class([range(118,118)]),\\char-class([range(111,111)]),\\char-class([range(105,105)]),\\char-class([range(100,100)])],{})", Factory.Production);
   private static final IConstructor prod__lit___123__char_class___range__123_123_ = (IConstructor) _read("prod(lit(\"{\"),[\\char-class([range(123,123)])],{})", Factory.Production);
@@ -627,8 +900,8 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor prod__lit___125__char_class___range__125_125_ = (IConstructor) _read("prod(lit(\"}\"),[\\char-class([range(125,125)])],{})", Factory.Production);
   private static final IConstructor prod__ArrayExp__lit___91_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___93_ = (IConstructor) _read("prod(sort(\"ArrayExp\"),[lit(\"[\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\"]\")],{})", Factory.Production);
   private static final IConstructor prod__Exp__lit___40_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___41__bracket = (IConstructor) _read("prod(sort(\"Exp\"),[lit(\"(\"),layouts(\"LAYOUTLIST\"),sort(\"Exp\"),layouts(\"LAYOUTLIST\"),lit(\")\")],{bracket()})", Factory.Production);
-  private static final IConstructor prod__Id__Identifier_ = (IConstructor) _read("prod(sort(\"Id\"),[lex(\"Identifier\")],{})", Factory.Production);
   private static final IConstructor prod__Id__CAPSIdentifier_ = (IConstructor) _read("prod(sort(\"Id\"),[lex(\"CAPSIdentifier\")],{})", Factory.Production);
+  private static final IConstructor prod__Id__Identifier_ = (IConstructor) _read("prod(sort(\"Id\"),[lex(\"Identifier\")],{})", Factory.Production);
   private static final IConstructor prod__start__Module__layouts_LAYOUTLIST_top_Module_layouts_LAYOUTLIST_ = (IConstructor) _read("prod(start(sort(\"Module\")),[layouts(\"LAYOUTLIST\"),label(\"top\",sort(\"Module\")),layouts(\"LAYOUTLIST\")],{})", Factory.Production);
   private static final IConstructor regular__iter__char_class___range__48_57 = (IConstructor) _read("regular(iter(\\char-class([range(48,57)])))", Factory.Production);
   private static final IConstructor regular__iter_seps__seq___Decl_layouts_LAYOUTLIST_lit___59__layouts_LAYOUTLIST = (IConstructor) _read("regular(\\iter-seps(seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")]),[layouts(\"LAYOUTLIST\")]))", Factory.Production);
@@ -638,8 +911,8 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor regular__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST = (IConstructor) _read("regular(\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]))", Factory.Production);
   private static final IConstructor regular__iter_star__char_class___range__48_57 = (IConstructor) _read("regular(\\iter-star(\\char-class([range(48,57)])))", Factory.Production);
   private static final IConstructor regular__iter_star__char_class___range__1_9_range__11_16777215 = (IConstructor) _read("regular(\\iter-star(\\char-class([range(1,9),range(11,16777215)])))", Factory.Production);
-  private static final IConstructor regular__iter_star__char_class___range__48_57_range__65_90_range__97_122 = (IConstructor) _read("regular(\\iter-star(\\char-class([range(48,57),range(65,90),range(97,122)])))", Factory.Production);
   private static final IConstructor regular__iter_star__char_class___range__48_57_range__65_90_range__95_95 = (IConstructor) _read("regular(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95)])))", Factory.Production);
+  private static final IConstructor regular__iter_star__char_class___range__48_57_range__65_90_range__97_122 = (IConstructor) _read("regular(\\iter-star(\\char-class([range(48,57),range(65,90),range(97,122)])))", Factory.Production);
   private static final IConstructor regular__iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122 = (IConstructor) _read("regular(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95),range(97,122)])))", Factory.Production);
   private static final IConstructor regular__iter_star__LAYOUT = (IConstructor) _read("regular(\\iter-star(lex(\"LAYOUT\")))", Factory.Production);
   private static final IConstructor regular__iter_star__MultiLineCommentBodyToken = (IConstructor) _read("regular(\\iter-star(lex(\"MultiLineCommentBodyToken\")))", Factory.Production);
@@ -654,18 +927,18 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
   private static final IConstructor regular__opt__char_class___range__43_43_range__45_45 = (IConstructor) _read("regular(opt(\\char-class([range(43,43),range(45,45)])))", Factory.Production);
   private static final IConstructor regular__opt__Exponent = (IConstructor) _read("regular(opt(lex(\"Exponent\")))", Factory.Production);
   private static final IConstructor regular__opt__Identifier = (IConstructor) _read("regular(opt(lex(\"Identifier\")))", Factory.Production);
-  private static final IConstructor regular__opt__seq___lit_else_layouts_LAYOUTLIST_Stat = (IConstructor) _read("regular(opt(seq([lit(\"else\"),layouts(\"LAYOUTLIST\"),sort(\"Stat\")])))", Factory.Production);
   private static final IConstructor regular__opt__seq___lit___58_layouts_LAYOUTLIST_Decl = (IConstructor) _read("regular(opt(seq([lit(\":\"),layouts(\"LAYOUTLIST\"),sort(\"Decl\")])))", Factory.Production);
-  private static final IConstructor regular__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("regular(opt(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])))", Factory.Production);
+  private static final IConstructor regular__opt__seq___lit_else_layouts_LAYOUTLIST_Stat = (IConstructor) _read("regular(opt(seq([lit(\"else\"),layouts(\"LAYOUTLIST\"),sort(\"Stat\")])))", Factory.Production);
   private static final IConstructor regular__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("regular(opt(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])))", Factory.Production);
+  private static final IConstructor regular__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("regular(opt(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")])))", Factory.Production);
   private static final IConstructor regular__seq___char_class___range__65_90_iter_star__char_class___range__48_57_range__65_90_range__95_95 = (IConstructor) _read("regular(seq([\\char-class([range(65,90)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(95,95)]))})]))", Factory.Production);
   private static final IConstructor regular__seq___char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122 = (IConstructor) _read("regular(seq([\\char-class([range(97,122)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(95,95),range(97,122)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(97,122)]))})]))", Factory.Production);
   private static final IConstructor regular__seq___char_class___range__65_90_char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__97_122 = (IConstructor) _read("regular(seq([\\char-class([range(65,90)]),\\char-class([range(97,122)]),conditional(\\iter-star(\\char-class([range(48,57),range(65,90),range(97,122)])),{\\not-follow(\\char-class([range(48,57),range(65,90),range(97,122)]))})]))", Factory.Production);
   private static final IConstructor regular__seq___lit___58_layouts_LAYOUTLIST_Decl = (IConstructor) _read("regular(seq([lit(\":\"),layouts(\"LAYOUTLIST\"),sort(\"Decl\")]))", Factory.Production);
-  private static final IConstructor regular__seq___Decl_layouts_LAYOUTLIST_lit___59 = (IConstructor) _read("regular(seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")]))", Factory.Production);
   private static final IConstructor regular__seq___lit_else_layouts_LAYOUTLIST_Stat = (IConstructor) _read("regular(seq([lit(\"else\"),layouts(\"LAYOUTLIST\"),sort(\"Stat\")]))", Factory.Production);
-  private static final IConstructor regular__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("regular(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")]))", Factory.Production);
+  private static final IConstructor regular__seq___Decl_layouts_LAYOUTLIST_lit___59 = (IConstructor) _read("regular(seq([sort(\"Decl\"),layouts(\"LAYOUTLIST\"),lit(\";\")]))", Factory.Production);
   private static final IConstructor regular__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("regular(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Exp\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")]))", Factory.Production);
+  private static final IConstructor regular__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41 = (IConstructor) _read("regular(seq([lit(\"(\"),layouts(\"LAYOUTLIST\"),\\iter-seps(sort(\"Decl\"),[layouts(\"LAYOUTLIST\"),lit(\",\"),layouts(\"LAYOUTLIST\")]),layouts(\"LAYOUTLIST\"),lit(\")\")]))", Factory.Production);
     
   // Item declarations
 	
@@ -678,115 +951,121 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
       EXPECTS = builder.buildExpectArray();
     }
     
-    protected static final void _init_prod__Keyword__lit_module_(ExpectBuilder<IConstructor> builder) {
-      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
-      
-      tmp[0] = new LiteralStackNode<IConstructor>(4018, 0, prod__lit_module__char_class___range__109_109_char_class___range__111_111_char_class___range__100_100_char_class___range__117_117_char_class___range__108_108_char_class___range__101_101_, new int[] {109,111,100,117,108,101}, null, null);
-      builder.addAlternative(Parser.prod__Keyword__lit_module_, tmp);
-	}
-    protected static final void _init_prod__Keyword__lit_foreach_(ExpectBuilder<IConstructor> builder) {
-      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
-      
-      tmp[0] = new LiteralStackNode<IConstructor>(4020, 0, prod__lit_foreach__char_class___range__102_102_char_class___range__111_111_char_class___range__114_114_char_class___range__101_101_char_class___range__97_97_char_class___range__99_99_char_class___range__104_104_, new int[] {102,111,114,101,97,99,104}, null, null);
-      builder.addAlternative(Parser.prod__Keyword__lit_foreach_, tmp);
-	}
-    protected static final void _init_prod__Keyword__lit_float_(ExpectBuilder<IConstructor> builder) {
-      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
-      
-      tmp[0] = new LiteralStackNode<IConstructor>(4022, 0, prod__lit_float__char_class___range__102_102_char_class___range__108_108_char_class___range__111_111_char_class___range__97_97_char_class___range__116_116_, new int[] {102,108,111,97,116}, null, null);
-      builder.addAlternative(Parser.prod__Keyword__lit_float_, tmp);
-	}
     protected static final void _init_prod__Keyword__lit_as_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4024, 0, prod__lit_as__char_class___range__97_97_char_class___range__115_115_, new int[] {97,115}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4078, 0, prod__lit_as__char_class___range__97_97_char_class___range__115_115_, new int[] {97,115}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit_as_, tmp);
 	}
     protected static final void _init_prod__Keyword__lit_index_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4026, 0, prod__lit_index__char_class___range__105_105_char_class___range__110_110_char_class___range__100_100_char_class___range__101_101_char_class___range__120_120_, new int[] {105,110,100,101,120}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4080, 0, prod__lit_index__char_class___range__105_105_char_class___range__110_110_char_class___range__100_100_char_class___range__101_101_char_class___range__120_120_, new int[] {105,110,100,101,120}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit_index_, tmp);
 	}
     protected static final void _init_prod__Keyword__lit_for_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4028, 0, prod__lit_for__char_class___range__102_102_char_class___range__111_111_char_class___range__114_114_, new int[] {102,111,114}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4082, 0, prod__lit_for__char_class___range__102_102_char_class___range__111_111_char_class___range__114_114_, new int[] {102,111,114}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit_for_, tmp);
-	}
-    protected static final void _init_prod__Keyword__lit_oneof_(ExpectBuilder<IConstructor> builder) {
-      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
-      
-      tmp[0] = new LiteralStackNode<IConstructor>(4030, 0, prod__lit_oneof__char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__111_111_char_class___range__102_102_, new int[] {111,110,101,111,102}, null, null);
-      builder.addAlternative(Parser.prod__Keyword__lit_oneof_, tmp);
-	}
-    protected static final void _init_prod__Keyword__lit_const_(ExpectBuilder<IConstructor> builder) {
-      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
-      
-      tmp[0] = new LiteralStackNode<IConstructor>(4032, 0, prod__lit_const__char_class___range__99_99_char_class___range__111_111_char_class___range__110_110_char_class___range__115_115_char_class___range__116_116_, new int[] {99,111,110,115,116}, null, null);
-      builder.addAlternative(Parser.prod__Keyword__lit_const_, tmp);
 	}
     protected static final void _init_prod__Keyword__lit___111_110_101_111_102_123_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4034, 0, prod__lit___111_110_101_111_102_123__char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__111_111_char_class___range__102_102_char_class___range__123_123_, new int[] {111,110,101,111,102,123}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4084, 0, prod__lit___111_110_101_111_102_123__char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__111_111_char_class___range__102_102_char_class___range__123_123_, new int[] {111,110,101,111,102,123}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit___111_110_101_111_102_123_, tmp);
 	}
     protected static final void _init_prod__Keyword__lit_else_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4036, 0, prod__lit_else__char_class___range__101_101_char_class___range__108_108_char_class___range__115_115_char_class___range__101_101_, new int[] {101,108,115,101}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4086, 0, prod__lit_else__char_class___range__101_101_char_class___range__108_108_char_class___range__115_115_char_class___range__101_101_, new int[] {101,108,115,101}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit_else_, tmp);
 	}
     protected static final void _init_prod__Keyword__lit_return_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4038, 0, prod__lit_return__char_class___range__114_114_char_class___range__101_101_char_class___range__116_116_char_class___range__117_117_char_class___range__114_114_char_class___range__110_110_, new int[] {114,101,116,117,114,110}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4088, 0, prod__lit_return__char_class___range__114_114_char_class___range__101_101_char_class___range__116_116_char_class___range__117_117_char_class___range__114_114_char_class___range__110_110_, new int[] {114,101,116,117,114,110}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit_return_, tmp);
 	}
-    protected static final void _init_prod__Keyword__lit_type_(ExpectBuilder<IConstructor> builder) {
+    protected static final void _init_prod__Keyword__lit_false_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4040, 0, prod__lit_type__char_class___range__116_116_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_, new int[] {116,121,112,101}, null, null);
-      builder.addAlternative(Parser.prod__Keyword__lit_type_, tmp);
+      tmp[0] = new LiteralStackNode<IConstructor>(4090, 0, prod__lit_false__char_class___range__102_102_char_class___range__97_97_char_class___range__108_108_char_class___range__115_115_char_class___range__101_101_, new int[] {102,97,108,115,101}, null, null);
+      builder.addAlternative(Parser.prod__Keyword__lit_false_, tmp);
 	}
     protected static final void _init_prod__Keyword__lit_if_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4042, 0, prod__lit_if__char_class___range__105_105_char_class___range__102_102_, new int[] {105,102}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4092, 0, prod__lit_if__char_class___range__105_105_char_class___range__102_102_, new int[] {105,102}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit_if_, tmp);
+	}
+    protected static final void _init_prod__Keyword__lit_true_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(4094, 0, prod__lit_true__char_class___range__116_116_char_class___range__114_114_char_class___range__117_117_char_class___range__101_101_, new int[] {116,114,117,101}, null, null);
+      builder.addAlternative(Parser.prod__Keyword__lit_true_, tmp);
+	}
+    protected static final void _init_prod__Keyword__lit_void_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(4096, 0, prod__lit_void__char_class___range__118_118_char_class___range__111_111_char_class___range__105_105_char_class___range__100_100_, new int[] {118,111,105,100}, null, null);
+      builder.addAlternative(Parser.prod__Keyword__lit_void_, tmp);
+	}
+    protected static final void _init_prod__Keyword__lit_module_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(4098, 0, prod__lit_module__char_class___range__109_109_char_class___range__111_111_char_class___range__100_100_char_class___range__117_117_char_class___range__108_108_char_class___range__101_101_, new int[] {109,111,100,117,108,101}, null, null);
+      builder.addAlternative(Parser.prod__Keyword__lit_module_, tmp);
+	}
+    protected static final void _init_prod__Keyword__lit_foreach_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(4100, 0, prod__lit_foreach__char_class___range__102_102_char_class___range__111_111_char_class___range__114_114_char_class___range__101_101_char_class___range__97_97_char_class___range__99_99_char_class___range__104_104_, new int[] {102,111,114,101,97,99,104}, null, null);
+      builder.addAlternative(Parser.prod__Keyword__lit_foreach_, tmp);
+	}
+    protected static final void _init_prod__Keyword__lit_float_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(4102, 0, prod__lit_float__char_class___range__102_102_char_class___range__108_108_char_class___range__111_111_char_class___range__97_97_char_class___range__116_116_, new int[] {102,108,111,97,116}, null, null);
+      builder.addAlternative(Parser.prod__Keyword__lit_float_, tmp);
+	}
+    protected static final void _init_prod__Keyword__lit_oneof_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(4104, 0, prod__lit_oneof__char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__111_111_char_class___range__102_102_, new int[] {111,110,101,111,102}, null, null);
+      builder.addAlternative(Parser.prod__Keyword__lit_oneof_, tmp);
+	}
+    protected static final void _init_prod__Keyword__lit_const_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(4106, 0, prod__lit_const__char_class___range__99_99_char_class___range__111_111_char_class___range__110_110_char_class___range__115_115_char_class___range__116_116_, new int[] {99,111,110,115,116}, null, null);
+      builder.addAlternative(Parser.prod__Keyword__lit_const_, tmp);
+	}
+    protected static final void _init_prod__Keyword__lit_type_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(4108, 0, prod__lit_type__char_class___range__116_116_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_, new int[] {116,121,112,101}, null, null);
+      builder.addAlternative(Parser.prod__Keyword__lit_type_, tmp);
 	}
     protected static final void _init_prod__Keyword__lit_int_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4044, 0, prod__lit_int__char_class___range__105_105_char_class___range__110_110_char_class___range__116_116_, new int[] {105,110,116}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4110, 0, prod__lit_int__char_class___range__105_105_char_class___range__110_110_char_class___range__116_116_, new int[] {105,110,116}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit_int_, tmp);
 	}
     protected static final void _init_prod__Keyword__lit_barrier_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4046, 0, prod__lit_barrier__char_class___range__98_98_char_class___range__97_97_char_class___range__114_114_char_class___range__114_114_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_, new int[] {98,97,114,114,105,101,114}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4112, 0, prod__lit_barrier__char_class___range__98_98_char_class___range__97_97_char_class___range__114_114_char_class___range__114_114_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_, new int[] {98,97,114,114,105,101,114}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit_barrier_, tmp);
 	}
     protected static final void _init_prod__Keyword__lit_import_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4048, 0, prod__lit_import__char_class___range__105_105_char_class___range__109_109_char_class___range__112_112_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_, new int[] {105,109,112,111,114,116}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4114, 0, prod__lit_import__char_class___range__105_105_char_class___range__109_109_char_class___range__112_112_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_, new int[] {105,109,112,111,114,116}, null, null);
       builder.addAlternative(Parser.prod__Keyword__lit_import_, tmp);
 	}
-    protected static final void _init_prod__Keyword__lit_void_(ExpectBuilder<IConstructor> builder) {
-      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
-      
-      tmp[0] = new LiteralStackNode<IConstructor>(4050, 0, prod__lit_void__char_class___range__118_118_char_class___range__111_111_char_class___range__105_105_char_class___range__100_100_, new int[] {118,111,105,100}, null, null);
-      builder.addAlternative(Parser.prod__Keyword__lit_void_, tmp);
-	}
     public static void init(ExpectBuilder<IConstructor> builder){
-      
-        _init_prod__Keyword__lit_module_(builder);
-      
-        _init_prod__Keyword__lit_foreach_(builder);
-      
-        _init_prod__Keyword__lit_float_(builder);
       
         _init_prod__Keyword__lit_as_(builder);
       
@@ -794,27 +1073,37 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
       
         _init_prod__Keyword__lit_for_(builder);
       
-        _init_prod__Keyword__lit_oneof_(builder);
-      
-        _init_prod__Keyword__lit_const_(builder);
-      
         _init_prod__Keyword__lit___111_110_101_111_102_123_(builder);
       
         _init_prod__Keyword__lit_else_(builder);
       
         _init_prod__Keyword__lit_return_(builder);
       
-        _init_prod__Keyword__lit_type_(builder);
+        _init_prod__Keyword__lit_false_(builder);
       
         _init_prod__Keyword__lit_if_(builder);
+      
+        _init_prod__Keyword__lit_true_(builder);
+      
+        _init_prod__Keyword__lit_void_(builder);
+      
+        _init_prod__Keyword__lit_module_(builder);
+      
+        _init_prod__Keyword__lit_foreach_(builder);
+      
+        _init_prod__Keyword__lit_float_(builder);
+      
+        _init_prod__Keyword__lit_oneof_(builder);
+      
+        _init_prod__Keyword__lit_const_(builder);
+      
+        _init_prod__Keyword__lit_type_(builder);
       
         _init_prod__Keyword__lit_int_(builder);
       
         _init_prod__Keyword__lit_barrier_(builder);
       
         _init_prod__Keyword__lit_import_(builder);
-      
-        _init_prod__Keyword__lit_void_(builder);
       
     }
   }
@@ -830,7 +1119,7 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__layouts_$default$__(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new EpsilonStackNode<IConstructor>(2437, 0);
+      tmp[0] = new EpsilonStackNode<IConstructor>(2492, 0);
       builder.addAlternative(Parser.prod__layouts_$default$__, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -851,7 +1140,7 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__layouts_LAYOUTLIST__iter_star__LAYOUT_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new ListStackNode<IConstructor>(2789, 0, regular__iter_star__LAYOUT, new NonTerminalStackNode<IConstructor>(2784, 0, "LAYOUT", null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{9,10},{13,13},{32,32}}), new StringFollowRestriction(new int[] {47,47}), new StringFollowRestriction(new int[] {47,42})});
+      tmp[0] = new ListStackNode<IConstructor>(2844, 0, regular__iter_star__LAYOUT, new NonTerminalStackNode<IConstructor>(2839, 0, "LAYOUT", null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{9,10},{13,13},{32,32}}), new StringFollowRestriction(new int[] {47,47}), new StringFollowRestriction(new int[] {47,42})});
       builder.addAlternative(Parser.prod__layouts_LAYOUTLIST__iter_star__LAYOUT_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -872,17 +1161,17 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Asterisk__char_class___range__0_0_lit___115_111_114_116_40_34_65_115_116_101_114_105_115_107_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Asterisk(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(5114, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(5113, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(5112, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(5111, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(5110, 1, prod__lit___115_111_114_116_40_34_65_115_116_101_114_105_115_107_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__65_65_char_class___range__115_115_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__105_105_char_class___range__115_115_char_class___range__107_107_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,65,115,116,101,114,105,115,107,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(5109, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(5200, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(5199, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(5198, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(5197, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(5196, 1, prod__lit___115_111_114_116_40_34_65_115_116_101_114_105_115_107_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__65_65_char_class___range__115_115_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__105_105_char_class___range__115_115_char_class___range__107_107_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,65,115,116,101,114,105,115,107,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(5195, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Asterisk__char_class___range__0_0_lit___115_111_114_116_40_34_65_115_116_101_114_105_115_107_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Asterisk, tmp);
 	}
     protected static final void _init_prod__Asterisk__char_class___range__42_42_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new CharStackNode<IConstructor>(5106, 0, new int[][]{{42,42}}, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{47,47}})});
+      tmp[0] = new CharStackNode<IConstructor>(5192, 0, new int[][]{{42,42}}, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{47,47}})});
       builder.addAlternative(Parser.prod__Asterisk__char_class___range__42_42_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -915,7 +1204,7 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__id_CAPSIdentifier__seq___char_class___range__65_90_iter_star__char_class___range__48_57_range__65_90_range__95_95_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new SequenceStackNode<IConstructor>(92, 0, regular__seq___char_class___range__65_90_iter_star__char_class___range__48_57_range__65_90_range__95_95, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new CharStackNode<IConstructor>(85, 0, new int[][]{{65,90}}, null, null), new ListStackNode<IConstructor>(89, 1, regular__iter_star__char_class___range__48_57_range__65_90_range__95_95, new CharStackNode<IConstructor>(86, 0, new int[][]{{48,57},{65,90},{95,95}}, null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57},{65,90},{95,95}})})}, null, new ICompletionFilter[] {new StringMatchRestriction(new int[] {118,111,105,100}), new StringMatchRestriction(new int[] {105,109,112,111,114,116}), new StringMatchRestriction(new int[] {98,97,114,114,105,101,114}), new StringMatchRestriction(new int[] {114,101,116,117,114,110}), new StringMatchRestriction(new int[] {97,115}), new StringMatchRestriction(new int[] {105,110,100,101,120}), new StringMatchRestriction(new int[] {99,111,110,115,116}), new StringMatchRestriction(new int[] {109,111,100,117,108,101}), new StringMatchRestriction(new int[] {102,108,111,97,116}), new StringMatchRestriction(new int[] {111,110,101,111,102}), new StringMatchRestriction(new int[] {105,102}), new StringMatchRestriction(new int[] {111,110,101,111,102,123}), new StringMatchRestriction(new int[] {105,110,116}), new StringMatchRestriction(new int[] {102,111,114}), new StringMatchRestriction(new int[] {101,108,115,101}), new StringMatchRestriction(new int[] {102,111,114,101,97,99,104}), new StringMatchRestriction(new int[] {116,121,112,101})});
+      tmp[0] = new SequenceStackNode<IConstructor>(92, 0, regular__seq___char_class___range__65_90_iter_star__char_class___range__48_57_range__65_90_range__95_95, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new CharStackNode<IConstructor>(85, 0, new int[][]{{65,90}}, null, null), new ListStackNode<IConstructor>(89, 1, regular__iter_star__char_class___range__48_57_range__65_90_range__95_95, new CharStackNode<IConstructor>(86, 0, new int[][]{{48,57},{65,90},{95,95}}, null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57},{65,90},{95,95}})})}, null, new ICompletionFilter[] {new StringMatchRestriction(new int[] {105,109,112,111,114,116}), new StringMatchRestriction(new int[] {102,97,108,115,101}), new StringMatchRestriction(new int[] {99,111,110,115,116}), new StringMatchRestriction(new int[] {109,111,100,117,108,101}), new StringMatchRestriction(new int[] {116,114,117,101}), new StringMatchRestriction(new int[] {105,110,116}), new StringMatchRestriction(new int[] {102,111,114}), new StringMatchRestriction(new int[] {102,111,114,101,97,99,104}), new StringMatchRestriction(new int[] {118,111,105,100}), new StringMatchRestriction(new int[] {98,97,114,114,105,101,114}), new StringMatchRestriction(new int[] {114,101,116,117,114,110}), new StringMatchRestriction(new int[] {97,115}), new StringMatchRestriction(new int[] {105,110,100,101,120}), new StringMatchRestriction(new int[] {102,108,111,97,116}), new StringMatchRestriction(new int[] {105,102}), new StringMatchRestriction(new int[] {111,110,101,111,102}), new StringMatchRestriction(new int[] {111,110,101,111,102,123}), new StringMatchRestriction(new int[] {101,108,115,101}), new StringMatchRestriction(new int[] {116,121,112,101})});
       builder.addAlternative(Parser.prod__id_CAPSIdentifier__seq___char_class___range__65_90_iter_star__char_class___range__48_57_range__65_90_range__95_95_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -938,17 +1227,17 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_CapsIdentifier__char_class___range__0_0_lit___115_111_114_116_40_34_67_97_112_115_73_100_101_110_116_105_102_105_101_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__CapsIdentifier(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4574, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4573, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4572, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4571, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4570, 1, prod__lit___115_111_114_116_40_34_67_97_112_115_73_100_101_110_116_105_102_105_101_114_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__67_67_char_class___range__97_97_char_class___range__112_112_char_class___range__115_115_char_class___range__73_73_char_class___range__100_100_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__105_105_char_class___range__102_102_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,67,97,112,115,73,100,101,110,116,105,102,105,101,114,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4569, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(4655, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(4654, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4653, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4652, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(4651, 1, prod__lit___115_111_114_116_40_34_67_97_112_115_73_100_101_110_116_105_102_105_101_114_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__67_67_char_class___range__97_97_char_class___range__112_112_char_class___range__115_115_char_class___range__73_73_char_class___range__100_100_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__105_105_char_class___range__102_102_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,67,97,112,115,73,100,101,110,116,105,102,105,101,114,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4650, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_CapsIdentifier__char_class___range__0_0_lit___115_111_114_116_40_34_67_97_112_115_73_100_101_110_116_105_102_105_101_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__CapsIdentifier, tmp);
 	}
     protected static final void _init_prod__id_CapsIdentifier__seq___char_class___range__65_90_char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__97_122_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new SequenceStackNode<IConstructor>(4586, 0, regular__seq___char_class___range__65_90_char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__97_122, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new CharStackNode<IConstructor>(4578, 0, new int[][]{{65,90}}, null, null), new CharStackNode<IConstructor>(4579, 1, new int[][]{{97,122}}, null, null), new ListStackNode<IConstructor>(4583, 2, regular__iter_star__char_class___range__48_57_range__65_90_range__97_122, new CharStackNode<IConstructor>(4580, 0, new int[][]{{48,57},{65,90},{97,122}}, null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57},{65,90},{97,122}})})}, null, new ICompletionFilter[] {new StringMatchRestriction(new int[] {118,111,105,100}), new StringMatchRestriction(new int[] {105,109,112,111,114,116}), new StringMatchRestriction(new int[] {98,97,114,114,105,101,114}), new StringMatchRestriction(new int[] {114,101,116,117,114,110}), new StringMatchRestriction(new int[] {97,115}), new StringMatchRestriction(new int[] {105,110,100,101,120}), new StringMatchRestriction(new int[] {99,111,110,115,116}), new StringMatchRestriction(new int[] {109,111,100,117,108,101}), new StringMatchRestriction(new int[] {102,108,111,97,116}), new StringMatchRestriction(new int[] {111,110,101,111,102}), new StringMatchRestriction(new int[] {105,102}), new StringMatchRestriction(new int[] {111,110,101,111,102,123}), new StringMatchRestriction(new int[] {105,110,116}), new StringMatchRestriction(new int[] {102,111,114}), new StringMatchRestriction(new int[] {101,108,115,101}), new StringMatchRestriction(new int[] {102,111,114,101,97,99,104}), new StringMatchRestriction(new int[] {116,121,112,101})});
+      tmp[0] = new SequenceStackNode<IConstructor>(4667, 0, regular__seq___char_class___range__65_90_char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__97_122, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new CharStackNode<IConstructor>(4659, 0, new int[][]{{65,90}}, null, null), new CharStackNode<IConstructor>(4660, 1, new int[][]{{97,122}}, null, null), new ListStackNode<IConstructor>(4664, 2, regular__iter_star__char_class___range__48_57_range__65_90_range__97_122, new CharStackNode<IConstructor>(4661, 0, new int[][]{{48,57},{65,90},{97,122}}, null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57},{65,90},{97,122}})})}, null, new ICompletionFilter[] {new StringMatchRestriction(new int[] {105,109,112,111,114,116}), new StringMatchRestriction(new int[] {102,97,108,115,101}), new StringMatchRestriction(new int[] {99,111,110,115,116}), new StringMatchRestriction(new int[] {109,111,100,117,108,101}), new StringMatchRestriction(new int[] {116,114,117,101}), new StringMatchRestriction(new int[] {105,110,116}), new StringMatchRestriction(new int[] {102,111,114}), new StringMatchRestriction(new int[] {102,111,114,101,97,99,104}), new StringMatchRestriction(new int[] {118,111,105,100}), new StringMatchRestriction(new int[] {98,97,114,114,105,101,114}), new StringMatchRestriction(new int[] {114,101,116,117,114,110}), new StringMatchRestriction(new int[] {97,115}), new StringMatchRestriction(new int[] {105,110,100,101,120}), new StringMatchRestriction(new int[] {102,108,111,97,116}), new StringMatchRestriction(new int[] {105,102}), new StringMatchRestriction(new int[] {111,110,101,111,102}), new StringMatchRestriction(new int[] {111,110,101,111,102,123}), new StringMatchRestriction(new int[] {101,108,115,101}), new StringMatchRestriction(new int[] {116,121,112,101})});
       builder.addAlternative(Parser.prod__id_CapsIdentifier__seq___char_class___range__65_90_char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__97_122_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1018,29 +1307,29 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Exponent__char_class___range__0_0_lit___115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Exponent(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(2934, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2933, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2932, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2931, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2930, 1, prod__lit___115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,69,120,112,111,110,101,110,116,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2929, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(2994, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(2993, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2992, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2991, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(2990, 1, prod__lit___115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,69,120,112,111,110,101,110,116,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(2989, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Exponent__char_class___range__0_0_lit___115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Exponent, tmp);
 	}
     protected static final void _init_prod__$MetaHole_Exponent__char_class___range__0_0_lit___111_112_116_40_115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__Exponent(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(2943, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2942, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2941, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2940, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2939, 1, prod__lit___111_112_116_40_115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41_41__char_class___range__111_111_char_class___range__112_112_char_class___range__116_116_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {111,112,116,40,115,111,114,116,40,34,69,120,112,111,110,101,110,116,34,41,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2938, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3003, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3002, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3001, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3000, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(2999, 1, prod__lit___111_112_116_40_115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41_41__char_class___range__111_111_char_class___range__112_112_char_class___range__116_116_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {111,112,116,40,115,111,114,116,40,34,69,120,112,111,110,101,110,116,34,41,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(2998, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Exponent__char_class___range__0_0_lit___111_112_116_40_115_111_114_116_40_34_69_120_112_111_110_101_110_116_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__Exponent, tmp);
 	}
     protected static final void _init_prod__Exponent__char_class___range__69_69_range__101_101_opt__char_class___range__43_43_range__45_45_iter__char_class___range__48_57_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new ListStackNode<IConstructor>(2926, 2, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2923, 0, new int[][]{{48,57}}, null, null), true, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57}})});
-      tmp[1] = new OptionalStackNode<IConstructor>(2922, 1, regular__opt__char_class___range__43_43_range__45_45, new CharStackNode<IConstructor>(2921, 0, new int[][]{{43,43},{45,45}}, null, null), null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2920, 0, new int[][]{{69,69},{101,101}}, null, null);
+      tmp[2] = new ListStackNode<IConstructor>(2986, 2, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2983, 0, new int[][]{{48,57}}, null, null), true, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57}})});
+      tmp[1] = new OptionalStackNode<IConstructor>(2982, 1, regular__opt__char_class___range__43_43_range__45_45, new CharStackNode<IConstructor>(2981, 0, new int[][]{{43,43},{45,45}}, null, null), null, null);
+      tmp[0] = new CharStackNode<IConstructor>(2980, 0, new int[][]{{69,69},{101,101}}, null, null);
       builder.addAlternative(Parser.prod__Exponent__char_class___range__69_69_range__101_101_opt__char_class___range__43_43_range__45_45_iter__char_class___range__48_57_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1065,27 +1354,27 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_FloatLiteral__char_class___range__0_0_lit___115_111_114_116_40_34_70_108_111_97_116_76_105_116_101_114_97_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__FloatLiteral(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3582, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3581, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3580, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3579, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3578, 1, prod__lit___115_111_114_116_40_34_70_108_111_97_116_76_105_116_101_114_97_108_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__70_70_char_class___range__108_108_char_class___range__111_111_char_class___range__97_97_char_class___range__116_116_char_class___range__76_76_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__97_97_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,70,108,111,97,116,76,105,116,101,114,97,108,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3577, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3642, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3641, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3640, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3639, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3638, 1, prod__lit___115_111_114_116_40_34_70_108_111_97_116_76_105_116_101_114_97_108_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__70_70_char_class___range__108_108_char_class___range__111_111_char_class___range__97_97_char_class___range__116_116_char_class___range__76_76_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__97_97_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,70,108,111,97,116,76,105,116,101,114,97,108,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3637, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_FloatLiteral__char_class___range__0_0_lit___115_111_114_116_40_34_70_108_111_97_116_76_105_116_101_114_97_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__FloatLiteral, tmp);
 	}
     protected static final void _init_prod__FloatLiteral__IntLiteral_Exponent_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[2];
       
-      tmp[1] = new NonTerminalStackNode<IConstructor>(3574, 1, "Exponent", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(3573, 0, "IntLiteral", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(3634, 1, "Exponent", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(3633, 0, "IntLiteral", null, null);
       builder.addAlternative(Parser.prod__FloatLiteral__IntLiteral_Exponent_, tmp);
 	}
     protected static final void _init_prod__FloatLiteral__IntLiteral_char_class___range__46_46_iter__char_class___range__48_57_opt__Exponent_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[4];
       
-      tmp[3] = new OptionalStackNode<IConstructor>(3571, 3, regular__opt__Exponent, new NonTerminalStackNode<IConstructor>(3570, 0, "Exponent", null, null), null, null);
-      tmp[2] = new ListStackNode<IConstructor>(3569, 2, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3566, 0, new int[][]{{48,57}}, null, null), true, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57}})});
-      tmp[1] = new CharStackNode<IConstructor>(3565, 1, new int[][]{{46,46}}, null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(3564, 0, "IntLiteral", null, null);
+      tmp[3] = new OptionalStackNode<IConstructor>(3631, 3, regular__opt__Exponent, new NonTerminalStackNode<IConstructor>(3630, 0, "Exponent", null, null), null, null);
+      tmp[2] = new ListStackNode<IConstructor>(3629, 2, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3626, 0, new int[][]{{48,57}}, null, null), true, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57}})});
+      tmp[1] = new CharStackNode<IConstructor>(3625, 1, new int[][]{{46,46}}, null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(3624, 0, "IntLiteral", null, null);
       builder.addAlternative(Parser.prod__FloatLiteral__IntLiteral_char_class___range__46_46_iter__char_class___range__48_57_opt__Exponent_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1110,27 +1399,27 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Identifier__char_class___range__0_0_lit___111_112_116_40_115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__Identifier(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3009, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3008, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3007, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3006, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3005, 1, prod__lit___111_112_116_40_115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41_41__char_class___range__111_111_char_class___range__112_112_char_class___range__116_116_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__100_100_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__105_105_char_class___range__102_102_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {111,112,116,40,115,111,114,116,40,34,73,100,101,110,116,105,102,105,101,114,34,41,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3004, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3069, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3068, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3067, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3066, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3065, 1, prod__lit___111_112_116_40_115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41_41__char_class___range__111_111_char_class___range__112_112_char_class___range__116_116_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__100_100_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__105_105_char_class___range__102_102_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {111,112,116,40,115,111,114,116,40,34,73,100,101,110,116,105,102,105,101,114,34,41,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3064, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Identifier__char_class___range__0_0_lit___111_112_116_40_115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__opt__Identifier, tmp);
 	}
     protected static final void _init_prod__$MetaHole_Identifier__char_class___range__0_0_lit___115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Identifier(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3019, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3018, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3017, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3016, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3015, 1, prod__lit___115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__100_100_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__105_105_char_class___range__102_102_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,100,101,110,116,105,102,105,101,114,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3014, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3079, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3078, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3077, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3076, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3075, 1, prod__lit___115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__100_100_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__105_105_char_class___range__102_102_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,100,101,110,116,105,102,105,101,114,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3074, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Identifier__char_class___range__0_0_lit___115_111_114_116_40_34_73_100_101_110_116_105_102_105_101_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Identifier, tmp);
 	}
     protected static final void _init_prod__id_Identifier__seq___char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new SequenceStackNode<IConstructor>(3001, 0, regular__seq___char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new CharStackNode<IConstructor>(2994, 0, new int[][]{{97,122}}, null, null), new ListStackNode<IConstructor>(2998, 1, regular__iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122, new CharStackNode<IConstructor>(2995, 0, new int[][]{{48,57},{65,90},{95,95},{97,122}}, null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57},{65,90},{97,122}})})}, null, new ICompletionFilter[] {new StringMatchRestriction(new int[] {118,111,105,100}), new StringMatchRestriction(new int[] {105,109,112,111,114,116}), new StringMatchRestriction(new int[] {98,97,114,114,105,101,114}), new StringMatchRestriction(new int[] {114,101,116,117,114,110}), new StringMatchRestriction(new int[] {97,115}), new StringMatchRestriction(new int[] {105,110,100,101,120}), new StringMatchRestriction(new int[] {99,111,110,115,116}), new StringMatchRestriction(new int[] {109,111,100,117,108,101}), new StringMatchRestriction(new int[] {102,108,111,97,116}), new StringMatchRestriction(new int[] {111,110,101,111,102}), new StringMatchRestriction(new int[] {105,102}), new StringMatchRestriction(new int[] {111,110,101,111,102,123}), new StringMatchRestriction(new int[] {105,110,116}), new StringMatchRestriction(new int[] {102,111,114}), new StringMatchRestriction(new int[] {101,108,115,101}), new StringMatchRestriction(new int[] {102,111,114,101,97,99,104}), new StringMatchRestriction(new int[] {116,121,112,101})});
+      tmp[0] = new SequenceStackNode<IConstructor>(3061, 0, regular__seq___char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new CharStackNode<IConstructor>(3054, 0, new int[][]{{97,122}}, null, null), new ListStackNode<IConstructor>(3058, 1, regular__iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122, new CharStackNode<IConstructor>(3055, 0, new int[][]{{48,57},{65,90},{95,95},{97,122}}, null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57},{65,90},{97,122}})})}, null, new ICompletionFilter[] {new StringMatchRestriction(new int[] {105,109,112,111,114,116}), new StringMatchRestriction(new int[] {102,97,108,115,101}), new StringMatchRestriction(new int[] {99,111,110,115,116}), new StringMatchRestriction(new int[] {109,111,100,117,108,101}), new StringMatchRestriction(new int[] {116,114,117,101}), new StringMatchRestriction(new int[] {105,110,116}), new StringMatchRestriction(new int[] {102,111,114}), new StringMatchRestriction(new int[] {102,111,114,101,97,99,104}), new StringMatchRestriction(new int[] {118,111,105,100}), new StringMatchRestriction(new int[] {98,97,114,114,105,101,114}), new StringMatchRestriction(new int[] {114,101,116,117,114,110}), new StringMatchRestriction(new int[] {97,115}), new StringMatchRestriction(new int[] {105,110,100,101,120}), new StringMatchRestriction(new int[] {102,108,111,97,116}), new StringMatchRestriction(new int[] {105,102}), new StringMatchRestriction(new int[] {111,110,101,111,102}), new StringMatchRestriction(new int[] {111,110,101,111,102,123}), new StringMatchRestriction(new int[] {101,108,115,101}), new StringMatchRestriction(new int[] {116,121,112,101})});
       builder.addAlternative(Parser.prod__id_Identifier__seq___char_class___range__97_122_iter_star__char_class___range__48_57_range__65_90_range__95_95_range__97_122_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1155,23 +1444,23 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_IncOption__char_class___range__0_0_lit___115_111_114_116_40_34_73_110_99_79_112_116_105_111_110_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__IncOption(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3595, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3594, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3593, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3592, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3591, 1, prod__lit___115_111_114_116_40_34_73_110_99_79_112_116_105_111_110_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__110_110_char_class___range__99_99_char_class___range__79_79_char_class___range__112_112_char_class___range__116_116_char_class___range__105_105_char_class___range__111_111_char_class___range__110_110_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,110,99,79,112,116,105,111,110,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3590, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3655, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3654, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3653, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3652, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3651, 1, prod__lit___115_111_114_116_40_34_73_110_99_79_112_116_105_111_110_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__110_110_char_class___range__99_99_char_class___range__79_79_char_class___range__112_112_char_class___range__116_116_char_class___range__105_105_char_class___range__111_111_char_class___range__110_110_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,110,99,79,112,116,105,111,110,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3650, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_IncOption__char_class___range__0_0_lit___115_111_114_116_40_34_73_110_99_79_112_116_105_111_110_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__IncOption, tmp);
 	}
     protected static final void _init_prod__IncOption__lit___43_43_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(3587, 0, prod__lit___43_43__char_class___range__43_43_char_class___range__43_43_, new int[] {43,43}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(3647, 0, prod__lit___43_43__char_class___range__43_43_char_class___range__43_43_, new int[] {43,43}, null, null);
       builder.addAlternative(Parser.prod__IncOption__lit___43_43_, tmp);
 	}
     protected static final void _init_prod__IncOption__lit____(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(3598, 0, prod__lit_____char_class___range__45_45_char_class___range__45_45_, new int[] {45,45}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(3658, 0, prod__lit_____char_class___range__45_45_char_class___range__45_45_, new int[] {45,45}, null, null);
       builder.addAlternative(Parser.prod__IncOption__lit____, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1237,24 +1526,24 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_IntLiteral__char_class___range__0_0_lit___115_111_114_116_40_34_73_110_116_76_105_116_101_114_97_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__IntLiteral(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(2771, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2770, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2769, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2768, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2767, 1, prod__lit___115_111_114_116_40_34_73_110_116_76_105_116_101_114_97_108_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__110_110_char_class___range__116_116_char_class___range__76_76_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__97_97_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,110,116,76,105,116,101,114,97,108,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2766, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(2826, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(2825, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2824, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2823, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(2822, 1, prod__lit___115_111_114_116_40_34_73_110_116_76_105_116_101_114_97_108_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__110_110_char_class___range__116_116_char_class___range__76_76_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__97_97_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,110,116,76,105,116,101,114,97,108,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(2821, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_IntLiteral__char_class___range__0_0_lit___115_111_114_116_40_34_73_110_116_76_105_116_101_114_97_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__IntLiteral, tmp);
 	}
     protected static final void _init_prod__IntLiteral__lit_0_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(2774, 0, prod__lit_0__char_class___range__48_48_, new int[] {48}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(2829, 0, prod__lit_0__char_class___range__48_48_, new int[] {48}, null, null);
       builder.addAlternative(Parser.prod__IntLiteral__lit_0_, tmp);
 	}
     protected static final void _init_prod__IntLiteral__char_class___range__49_57_iter_star__char_class___range__48_57_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[2];
       
-      tmp[1] = new ListStackNode<IConstructor>(2780, 1, regular__iter_star__char_class___range__48_57, new CharStackNode<IConstructor>(2777, 0, new int[][]{{48,57}}, null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57}})});
-      tmp[0] = new CharStackNode<IConstructor>(2776, 0, new int[][]{{49,57}}, null, null);
+      tmp[1] = new ListStackNode<IConstructor>(2835, 1, regular__iter_star__char_class___range__48_57, new CharStackNode<IConstructor>(2832, 0, new int[][]{{48,57}}, null, null), false, null, new ICompletionFilter[] {new CharFollowRestriction(new int[][]{{48,57}})});
+      tmp[0] = new CharStackNode<IConstructor>(2831, 0, new int[][]{{49,57}}, null, null);
       builder.addAlternative(Parser.prod__IntLiteral__char_class___range__49_57_iter_star__char_class___range__48_57_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1332,33 +1621,33 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_MultiLineCommentBodyToken__char_class___range__0_0_lit___115_111_114_116_40_34_77_117_108_116_105_76_105_110_101_67_111_109_109_101_110_116_66_111_100_121_84_111_107_101_110_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__MultiLineCommentBodyToken(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3932, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3931, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3930, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3929, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3928, 1, prod__lit___115_111_114_116_40_34_77_117_108_116_105_76_105_110_101_67_111_109_109_101_110_116_66_111_100_121_84_111_107_101_110_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__77_77_char_class___range__117_117_char_class___range__108_108_char_class___range__116_116_char_class___range__105_105_char_class___range__76_76_char_class___range__105_105_char_class___range__110_110_char_class___range__101_101_char_class___range__67_67_char_class___range__111_111_char_class___range__109_109_char_class___range__109_109_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__66_66_char_class___range__111_111_char_class___range__100_100_char_class___range__121_121_char_class___range__84_84_char_class___range__111_111_char_class___range__107_107_char_class___range__101_101_char_class___range__110_110_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,77,117,108,116,105,76,105,110,101,67,111,109,109,101,110,116,66,111,100,121,84,111,107,101,110,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3927, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3992, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3991, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3990, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3989, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3988, 1, prod__lit___115_111_114_116_40_34_77_117_108_116_105_76_105_110_101_67_111_109_109_101_110_116_66_111_100_121_84_111_107_101_110_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__77_77_char_class___range__117_117_char_class___range__108_108_char_class___range__116_116_char_class___range__105_105_char_class___range__76_76_char_class___range__105_105_char_class___range__110_110_char_class___range__101_101_char_class___range__67_67_char_class___range__111_111_char_class___range__109_109_char_class___range__109_109_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__66_66_char_class___range__111_111_char_class___range__100_100_char_class___range__121_121_char_class___range__84_84_char_class___range__111_111_char_class___range__107_107_char_class___range__101_101_char_class___range__110_110_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,77,117,108,116,105,76,105,110,101,67,111,109,109,101,110,116,66,111,100,121,84,111,107,101,110,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3987, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_MultiLineCommentBodyToken__char_class___range__0_0_lit___115_111_114_116_40_34_77_117_108_116_105_76_105_110_101_67_111_109_109_101_110_116_66_111_100_121_84_111_107_101_110_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__MultiLineCommentBodyToken, tmp);
 	}
     protected static final void _init_prod__$MetaHole_MultiLineCommentBodyToken__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_77_117_108_116_105_76_105_110_101_67_111_109_109_101_110_116_66_111_100_121_84_111_107_101_110_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star__MultiLineCommentBodyToken(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3941, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3940, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3939, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3938, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3937, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_77_117_108_116_105_76_105_110_101_67_111_109_109_101_110_116_66_111_100_121_84_111_107_101_110_34_41_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__77_77_char_class___range__117_117_char_class___range__108_108_char_class___range__116_116_char_class___range__105_105_char_class___range__76_76_char_class___range__105_105_char_class___range__110_110_char_class___range__101_101_char_class___range__67_67_char_class___range__111_111_char_class___range__109_109_char_class___range__109_109_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__66_66_char_class___range__111_111_char_class___range__100_100_char_class___range__121_121_char_class___range__84_84_char_class___range__111_111_char_class___range__107_107_char_class___range__101_101_char_class___range__110_110_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,40,115,111,114,116,40,34,77,117,108,116,105,76,105,110,101,67,111,109,109,101,110,116,66,111,100,121,84,111,107,101,110,34,41,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3936, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(4001, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(4000, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3999, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3998, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3997, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_77_117_108_116_105_76_105_110_101_67_111_109_109_101_110_116_66_111_100_121_84_111_107_101_110_34_41_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__77_77_char_class___range__117_117_char_class___range__108_108_char_class___range__116_116_char_class___range__105_105_char_class___range__76_76_char_class___range__105_105_char_class___range__110_110_char_class___range__101_101_char_class___range__67_67_char_class___range__111_111_char_class___range__109_109_char_class___range__109_109_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__66_66_char_class___range__111_111_char_class___range__100_100_char_class___range__121_121_char_class___range__84_84_char_class___range__111_111_char_class___range__107_107_char_class___range__101_101_char_class___range__110_110_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,40,115,111,114,116,40,34,77,117,108,116,105,76,105,110,101,67,111,109,109,101,110,116,66,111,100,121,84,111,107,101,110,34,41,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3996, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_MultiLineCommentBodyToken__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_77_117_108_116_105_76_105_110_101_67_111_109_109_101_110_116_66_111_100_121_84_111_107_101_110_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star__MultiLineCommentBodyToken, tmp);
 	}
     protected static final void _init_prod__MultiLineCommentBodyToken__char_class___range__1_41_range__43_16777215_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new CharStackNode<IConstructor>(3945, 0, new int[][]{{1,41},{43,16777215}}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4005, 0, new int[][]{{1,41},{43,16777215}}, null, null);
       builder.addAlternative(Parser.prod__MultiLineCommentBodyToken__char_class___range__1_41_range__43_16777215_, tmp);
 	}
     protected static final void _init_prod__MultiLineCommentBodyToken__Asterisk_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(3947, 0, "Asterisk", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4007, 0, "Asterisk", null, null);
       builder.addAlternative(Parser.prod__MultiLineCommentBodyToken__Asterisk_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1385,37 +1674,37 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_ArrayExp__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__ArrayExp__layouts_LAYOUTLIST(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(2977, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2976, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2975, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2974, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2973, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__65_65_char_class___range__114_114_char_class___range__114_114_char_class___range__97_97_char_class___range__121_121_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,40,115,111,114,116,40,34,65,114,114,97,121,69,120,112,34,41,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2972, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3037, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3036, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3035, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3034, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3033, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__65_65_char_class___range__114_114_char_class___range__114_114_char_class___range__97_97_char_class___range__121_121_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,40,115,111,114,116,40,34,65,114,114,97,121,69,120,112,34,41,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3032, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_ArrayExp__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__ArrayExp__layouts_LAYOUTLIST, tmp);
 	}
     protected static final void _init_prod__$MetaHole_ArrayExp__char_class___range__0_0_lit___115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__ArrayExp(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(2968, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2967, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2966, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2965, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2964, 1, prod__lit___115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__65_65_char_class___range__114_114_char_class___range__114_114_char_class___range__97_97_char_class___range__121_121_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,65,114,114,97,121,69,120,112,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2963, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3028, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3027, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3026, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3025, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3024, 1, prod__lit___115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__65_65_char_class___range__114_114_char_class___range__114_114_char_class___range__97_97_char_class___range__121_121_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,65,114,114,97,121,69,120,112,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3023, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_ArrayExp__char_class___range__0_0_lit___115_111_114_116_40_34_65_114_114_97_121_69_120_112_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__ArrayExp, tmp);
 	}
     protected static final void _init_prod__emptyArray_ArrayExp__lit___91_93_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(2950, 0, prod__lit___91_93__char_class___range__91_91_char_class___range__93_93_, new int[] {91,93}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(3010, 0, prod__lit___91_93__char_class___range__91_91_char_class___range__93_93_, new int[] {91,93}, null, null);
       builder.addAlternative(Parser.prod__emptyArray_ArrayExp__lit___91_93_, tmp);
 	}
     protected static final void _init_prod__ArrayExp__lit___91_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___93_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new LiteralStackNode<IConstructor>(2960, 4, prod__lit___93__char_class___range__93_93_, new int[] {93}, null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2959, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new SeparatedListStackNode<IConstructor>(2958, 2, regular__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(2954, 0, "Exp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(2955, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(2956, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(2957, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2953, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(2952, 0, prod__lit___91__char_class___range__91_91_, new int[] {91}, null, null);
+      tmp[4] = new LiteralStackNode<IConstructor>(3020, 4, prod__lit___93__char_class___range__93_93_, new int[] {93}, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(3019, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new SeparatedListStackNode<IConstructor>(3018, 2, regular__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(3014, 0, "Exp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(3015, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(3016, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(3017, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(3013, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(3012, 0, prod__lit___91__char_class___range__91_91_, new int[] {91}, null, null);
       builder.addAlternative(Parser.prod__ArrayExp__lit___91_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___93_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1552,19 +1841,19 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_BasicVar__char_class___range__0_0_lit___115_111_114_116_40_34_66_97_115_105_99_86_97_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__BasicVar(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3684, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3683, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3682, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3681, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3680, 1, prod__lit___115_111_114_116_40_34_66_97_115_105_99_86_97_114_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__66_66_char_class___range__97_97_char_class___range__115_115_char_class___range__105_105_char_class___range__99_99_char_class___range__86_86_char_class___range__97_97_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,66,97,115,105,99,86,97,114,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3679, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3744, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3743, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3742, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3741, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3740, 1, prod__lit___115_111_114_116_40_34_66_97_115_105_99_86_97_114_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__66_66_char_class___range__97_97_char_class___range__115_115_char_class___range__105_105_char_class___range__99_99_char_class___range__86_86_char_class___range__97_97_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,66,97,115,105,99,86,97,114,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3739, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_BasicVar__char_class___range__0_0_lit___115_111_114_116_40_34_66_97_115_105_99_86_97_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__BasicVar, tmp);
 	}
     protected static final void _init_prod__astBasicVar_BasicVar__Id_layouts_LAYOUTLIST_iter_star_seps__ArrayExp__layouts_LAYOUTLIST_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new SeparatedListStackNode<IConstructor>(3692, 2, regular__iter_star_seps__ArrayExp__layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(3690, 0, "ArrayExp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(3691, 1, "layouts_LAYOUTLIST", null, null)}, false, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(3689, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(3688, 0, "Id", null, null);
+      tmp[2] = new SeparatedListStackNode<IConstructor>(3752, 2, regular__iter_star_seps__ArrayExp__layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(3750, 0, "ArrayExp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(3751, 1, "layouts_LAYOUTLIST", null, null)}, false, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(3749, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(3748, 0, "Id", null, null);
       builder.addAlternative(Parser.prod__astBasicVar_BasicVar__Id_layouts_LAYOUTLIST_iter_star_seps__ArrayExp__layouts_LAYOUTLIST_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1587,21 +1876,21 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Block__char_class___range__0_0_lit___115_111_114_116_40_34_66_108_111_99_107_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Block(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4673, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4672, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4671, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4670, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4669, 1, prod__lit___115_111_114_116_40_34_66_108_111_99_107_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__66_66_char_class___range__108_108_char_class___range__111_111_char_class___range__99_99_char_class___range__107_107_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,66,108,111,99,107,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4668, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(4754, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(4753, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4752, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4751, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(4750, 1, prod__lit___115_111_114_116_40_34_66_108_111_99_107_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__66_66_char_class___range__108_108_char_class___range__111_111_char_class___range__99_99_char_class___range__107_107_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,66,108,111,99,107,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4749, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Block__char_class___range__0_0_lit___115_111_114_116_40_34_66_108_111_99_107_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Block, tmp);
 	}
     protected static final void _init_prod__astBlock_Block__lit___123_layouts_LAYOUTLIST_iter_star_seps__Stat__layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___125_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new LiteralStackNode<IConstructor>(4683, 4, prod__lit___125__char_class___range__125_125_, new int[] {125}, null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(4682, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new SeparatedListStackNode<IConstructor>(4681, 2, regular__iter_star_seps__Stat__layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4679, 0, "Stat", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4680, 1, "layouts_LAYOUTLIST", null, null)}, false, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4678, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(4677, 0, prod__lit___123__char_class___range__123_123_, new int[] {123}, null, null);
+      tmp[4] = new LiteralStackNode<IConstructor>(4764, 4, prod__lit___125__char_class___range__125_125_, new int[] {125}, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4763, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new SeparatedListStackNode<IConstructor>(4762, 2, regular__iter_star_seps__Stat__layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4760, 0, "Stat", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4761, 1, "layouts_LAYOUTLIST", null, null)}, false, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4759, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4758, 0, prod__lit___123__char_class___range__123_123_, new int[] {123}, null, null);
       builder.addAlternative(Parser.prod__astBlock_Block__lit___123_layouts_LAYOUTLIST_iter_star_seps__Stat__layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___125_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1624,23 +1913,23 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Call__char_class___range__0_0_lit___115_111_114_116_40_34_67_97_108_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Call(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4916, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4915, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4914, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4913, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4912, 1, prod__lit___115_111_114_116_40_34_67_97_108_108_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__67_67_char_class___range__97_97_char_class___range__108_108_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,67,97,108,108,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4911, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(5002, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(5001, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(5000, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4999, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(4998, 1, prod__lit___115_111_114_116_40_34_67_97_108_108_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__67_67_char_class___range__97_97_char_class___range__108_108_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,67,97,108,108,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4997, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Call__char_class___range__0_0_lit___115_111_114_116_40_34_67_97_108_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Call, tmp);
 	}
     protected static final void _init_prod__astCall_Call__Identifier_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_iter_star_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[7];
       
-      tmp[6] = new LiteralStackNode<IConstructor>(4908, 6, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
-      tmp[5] = new NonTerminalStackNode<IConstructor>(4907, 5, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new SeparatedListStackNode<IConstructor>(4906, 4, regular__iter_star_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4902, 0, "Exp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4903, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4904, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(4905, 3, "layouts_LAYOUTLIST", null, null)}, false, null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(4901, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4900, 2, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4899, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4898, 0, "Identifier", null, null);
+      tmp[6] = new LiteralStackNode<IConstructor>(4994, 6, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
+      tmp[5] = new NonTerminalStackNode<IConstructor>(4993, 5, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new SeparatedListStackNode<IConstructor>(4992, 4, regular__iter_star_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4988, 0, "Exp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4989, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4990, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(4991, 3, "layouts_LAYOUTLIST", null, null)}, false, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4987, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4986, 2, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4985, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4984, 0, "Identifier", null, null);
       builder.addAlternative(Parser.prod__astCall_Call__Identifier_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_iter_star_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1663,19 +1952,19 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Code__char_class___range__0_0_lit___115_111_114_116_40_34_67_111_100_101_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Code(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(2739, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2738, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2737, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2736, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2735, 1, prod__lit___115_111_114_116_40_34_67_111_100_101_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__67_67_char_class___range__111_111_char_class___range__100_100_char_class___range__101_101_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,67,111,100,101,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2734, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(2794, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(2793, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2792, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2791, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(2790, 1, prod__lit___115_111_114_116_40_34_67_111_100_101_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__67_67_char_class___range__111_111_char_class___range__100_100_char_class___range__101_101_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,67,111,100,101,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(2789, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Code__char_class___range__0_0_lit___115_111_114_116_40_34_67_111_100_101_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Code, tmp);
 	}
     protected static final void _init_prod__astCode_Code__iter_star_seps__TopDecl__layouts_LAYOUTLIST_layouts_LAYOUTLIST_iter_star_seps__Func__layouts_LAYOUTLIST_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new SeparatedListStackNode<IConstructor>(2731, 2, regular__iter_star_seps__Func__layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(2729, 0, "Func", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(2730, 1, "layouts_LAYOUTLIST", null, null)}, false, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2728, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new SeparatedListStackNode<IConstructor>(2727, 0, regular__iter_star_seps__TopDecl__layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(2725, 0, "TopDecl", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(2726, 1, "layouts_LAYOUTLIST", null, null)}, false, null, null);
+      tmp[2] = new SeparatedListStackNode<IConstructor>(2786, 2, regular__iter_star_seps__Func__layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(2784, 0, "Func", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(2785, 1, "layouts_LAYOUTLIST", null, null)}, false, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2783, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new SeparatedListStackNode<IConstructor>(2782, 0, regular__iter_star_seps__TopDecl__layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(2780, 0, "TopDecl", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(2781, 1, "layouts_LAYOUTLIST", null, null)}, false, null, null);
       builder.addAlternative(Parser.prod__astCode_Code__iter_star_seps__TopDecl__layouts_LAYOUTLIST_layouts_LAYOUTLIST_iter_star_seps__Func__layouts_LAYOUTLIST_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -1824,171 +2113,233 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Exp__char_class___range__0_0_lit___115_111_114_116_40_34_69_120_112_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Exp(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(2255, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2254, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2253, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2252, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2251, 1, prod__lit___115_111_114_116_40_34_69_120_112_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,69,120,112,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2250, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(2267, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(2266, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2265, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2264, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(2263, 1, prod__lit___115_111_114_116_40_34_69_120_112_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,69,120,112,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(2262, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Exp__char_class___range__0_0_lit___115_111_114_116_40_34_69_120_112_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Exp, tmp);
 	}
     protected static final void _init_prod__$MetaHole_Exp__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[0] = new CharStackNode<IConstructor>(2237, 0, new int[][]{{0,0}}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2238, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__101_101_char_class___range__112_112_char_class___range__115_115_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_char_class___range__44_44_char_class___range__91_91_char_class___range__108_108_char_class___range__105_105_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__44_44_char_class___range__34_34_char_class___range__41_41_char_class___range__93_93_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,45,115,101,112,115,40,115,111,114,116,40,34,69,120,112,34,41,44,91,108,105,116,40,34,44,34,41,93,41}, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2239, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2241, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2240, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[4] = new CharStackNode<IConstructor>(2242, 4, new int[][]{{0,0}}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(2249, 0, new int[][]{{0,0}}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(2250, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__101_101_char_class___range__112_112_char_class___range__115_115_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_char_class___range__44_44_char_class___range__91_91_char_class___range__108_108_char_class___range__105_105_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__44_44_char_class___range__34_34_char_class___range__41_41_char_class___range__93_93_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,45,115,101,112,115,40,115,111,114,116,40,34,69,120,112,34,41,44,91,108,105,116,40,34,44,34,41,93,41}, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2251, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(2253, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2252, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(2254, 4, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Exp__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, tmp);
 	}
     protected static final void _init_prod__$MetaHole_Exp__char_class___range__0_0_lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(2264, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2263, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2262, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2261, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2260, 1, prod__lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__101_101_char_class___range__112_112_char_class___range__115_115_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_char_class___range__44_44_char_class___range__91_91_char_class___range__108_108_char_class___range__105_105_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__44_44_char_class___range__34_34_char_class___range__41_41_char_class___range__93_93_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,101,112,115,40,115,111,114,116,40,34,69,120,112,34,41,44,91,108,105,116,40,34,44,34,41,93,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2259, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(2276, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(2275, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2274, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2273, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(2272, 1, prod__lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__101_101_char_class___range__112_112_char_class___range__115_115_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__69_69_char_class___range__120_120_char_class___range__112_112_char_class___range__34_34_char_class___range__41_41_char_class___range__44_44_char_class___range__91_91_char_class___range__108_108_char_class___range__105_105_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__44_44_char_class___range__34_34_char_class___range__41_41_char_class___range__93_93_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,101,112,115,40,115,111,114,116,40,34,69,120,112,34,41,44,91,108,105,116,40,34,44,34,41,93,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(2271, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Exp__char_class___range__0_0_lit___92_105_116_101_114_45_115_101_112_115_40_115_111_114_116_40_34_69_120_112_34_41_44_91_108_105_116_40_34_44_34_41_93_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, tmp);
 	}
     protected static final void _init_prod__add_Exp__Exp_layouts_LAYOUTLIST_lit___43_layouts_LAYOUTLIST_Exp__assoc__left(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new NonTerminalStackNode<IConstructor>(2341, 4, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2340, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2339, 2, prod__lit___43__char_class___range__43_43_, new int[] {43}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2338, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2337, 0, "Exp", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2353, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2352, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2351, 2, prod__lit___43__char_class___range__43_43_, new int[] {43}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2350, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2349, 0, "Exp", null, null);
       builder.addAlternative(Parser.prod__add_Exp__Exp_layouts_LAYOUTLIST_lit___43_layouts_LAYOUTLIST_Exp__assoc__left, tmp);
+	}
+    protected static final void _init_prod__and_Exp__Exp_layouts_LAYOUTLIST_lit___38_38_layouts_LAYOUTLIST_Exp__assoc__non_assoc(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
+      
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2411, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2410, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2409, 2, prod__lit___38_38__char_class___range__38_38_char_class___range__38_38_, new int[] {38,38}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2408, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2407, 0, "Exp", null, null);
+      builder.addAlternative(Parser.prod__and_Exp__Exp_layouts_LAYOUTLIST_lit___38_38_layouts_LAYOUTLIST_Exp__assoc__non_assoc, tmp);
 	}
     protected static final void _init_prod__astCallExp_Exp__Call_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2291, 0, "Call", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2303, 0, "Call", null, null);
       builder.addAlternative(Parser.prod__astCallExp_Exp__Call_, tmp);
 	}
     protected static final void _init_prod__astVarExp_Exp__Var_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2285, 0, "Var", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2297, 0, "Var", null, null);
       builder.addAlternative(Parser.prod__astVarExp_Exp__Var_, tmp);
+	}
+    protected static final void _init_prod__bitand_Exp__Exp_layouts_LAYOUTLIST_lit___38_layouts_LAYOUTLIST_Exp__assoc__left(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
+      
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2425, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2424, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2423, 2, prod__lit___38__char_class___range__38_38_, new int[] {38}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2422, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2421, 0, "Exp", null, null);
+      builder.addAlternative(Parser.prod__bitand_Exp__Exp_layouts_LAYOUTLIST_lit___38_layouts_LAYOUTLIST_Exp__assoc__left, tmp);
+	}
+    protected static final void _init_prod__bitshl_Exp__Exp_layouts_LAYOUTLIST_lit___60_60_layouts_LAYOUTLIST_Exp__assoc__left(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
+      
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2360, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2359, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2358, 2, prod__lit___60_60__char_class___range__60_60_char_class___range__60_60_, new int[] {60,60}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2357, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2356, 0, "Exp", null, null);
+      builder.addAlternative(Parser.prod__bitshl_Exp__Exp_layouts_LAYOUTLIST_lit___60_60_layouts_LAYOUTLIST_Exp__assoc__left, tmp);
 	}
     protected static final void _init_prod__div_Exp__Exp_layouts_LAYOUTLIST_lit___47_layouts_LAYOUTLIST_Exp__assoc__left(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new NonTerminalStackNode<IConstructor>(2326, 4, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2325, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2324, 2, prod__lit___47__char_class___range__47_47_, new int[] {47}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2323, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2322, 0, "Exp", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2338, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2337, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2336, 2, prod__lit___47__char_class___range__47_47_, new int[] {47}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2335, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2334, 0, "Exp", null, null);
       builder.addAlternative(Parser.prod__div_Exp__Exp_layouts_LAYOUTLIST_lit___47_layouts_LAYOUTLIST_Exp__assoc__left, tmp);
 	}
     protected static final void _init_prod__eq_Exp__Exp_layouts_LAYOUTLIST_lit___61_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new NonTerminalStackNode<IConstructor>(2356, 4, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2355, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2354, 2, prod__lit___61_61__char_class___range__61_61_char_class___range__61_61_, new int[] {61,61}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2353, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2352, 0, "Exp", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2397, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2396, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2395, 2, prod__lit___61_61__char_class___range__61_61_char_class___range__61_61_, new int[] {61,61}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2394, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2393, 0, "Exp", null, null);
       builder.addAlternative(Parser.prod__eq_Exp__Exp_layouts_LAYOUTLIST_lit___61_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc, tmp);
+	}
+    protected static final void _init_prod__falseConstant_Exp__lit_false_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(2309, 0, prod__lit_false__char_class___range__102_102_char_class___range__97_97_char_class___range__108_108_char_class___range__115_115_char_class___range__101_101_, new int[] {102,97,108,115,101}, null, null);
+      builder.addAlternative(Parser.prod__falseConstant_Exp__lit_false_, tmp);
 	}
     protected static final void _init_prod__floatConstant_Exp__FloatLiteral_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2288, 0, "FloatLiteral", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2300, 0, "FloatLiteral", null, null);
       builder.addAlternative(Parser.prod__floatConstant_Exp__FloatLiteral_, tmp);
+	}
+    protected static final void _init_prod__ge_Exp__Exp_layouts_LAYOUTLIST_lit___62_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
+      
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2382, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2381, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2380, 2, prod__lit___62_61__char_class___range__62_62_char_class___range__61_61_, new int[] {62,61}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2379, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2378, 0, "Exp", null, null);
+      builder.addAlternative(Parser.prod__ge_Exp__Exp_layouts_LAYOUTLIST_lit___62_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc, tmp);
 	}
     protected static final void _init_prod__gt_Exp__Exp_layouts_LAYOUTLIST_lit___62_layouts_LAYOUTLIST_Exp__assoc__non_assoc(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new NonTerminalStackNode<IConstructor>(2363, 4, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2362, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2361, 2, prod__lit___62__char_class___range__62_62_, new int[] {62}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2360, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2359, 0, "Exp", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2389, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2388, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2387, 2, prod__lit___62__char_class___range__62_62_, new int[] {62}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2386, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2385, 0, "Exp", null, null);
       builder.addAlternative(Parser.prod__gt_Exp__Exp_layouts_LAYOUTLIST_lit___62_layouts_LAYOUTLIST_Exp__assoc__non_assoc, tmp);
 	}
     protected static final void _init_prod__intConstant_Exp__IntLiteral_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2294, 0, "IntLiteral", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2306, 0, "IntLiteral", null, null);
       builder.addAlternative(Parser.prod__intConstant_Exp__IntLiteral_, tmp);
+	}
+    protected static final void _init_prod__le_Exp__Exp_layouts_LAYOUTLIST_lit___60_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
+      
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2375, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2374, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2373, 2, prod__lit___60_61__char_class___range__60_60_char_class___range__61_61_, new int[] {60,61}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2372, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2371, 0, "Exp", null, null);
+      builder.addAlternative(Parser.prod__le_Exp__Exp_layouts_LAYOUTLIST_lit___60_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc, tmp);
 	}
     protected static final void _init_prod__lt_Exp__Exp_layouts_LAYOUTLIST_lit___60_layouts_LAYOUTLIST_Exp__assoc__non_assoc(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2345, 0, "Exp", null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2346, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2347, 2, prod__lit___60__char_class___range__60_60_, new int[] {60}, null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2348, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new NonTerminalStackNode<IConstructor>(2349, 4, "Exp", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2364, 0, "Exp", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2365, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2366, 2, prod__lit___60__char_class___range__60_60_, new int[] {60}, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2367, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2368, 4, "Exp", null, null);
       builder.addAlternative(Parser.prod__lt_Exp__Exp_layouts_LAYOUTLIST_lit___60_layouts_LAYOUTLIST_Exp__assoc__non_assoc, tmp);
 	}
     protected static final void _init_prod__minus_Exp__lit___layouts_LAYOUTLIST_Exp_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new NonTerminalStackNode<IConstructor>(2311, 2, "Exp", null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2310, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(2309, 0, prod__lit____char_class___range__45_45_, new int[] {45}, null, null);
+      tmp[2] = new NonTerminalStackNode<IConstructor>(2323, 2, "Exp", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2322, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(2321, 0, prod__lit____char_class___range__45_45_, new int[] {45}, null, null);
       builder.addAlternative(Parser.prod__minus_Exp__lit___layouts_LAYOUTLIST_Exp_, tmp);
 	}
     protected static final void _init_prod__mul_Exp__Exp_layouts_LAYOUTLIST_lit___42_layouts_LAYOUTLIST_Exp__assoc__left(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new NonTerminalStackNode<IConstructor>(2319, 4, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2318, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2317, 2, prod__lit___42__char_class___range__42_42_, new int[] {42}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2316, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2315, 0, "Exp", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2331, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2330, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2329, 2, prod__lit___42__char_class___range__42_42_, new int[] {42}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2328, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2327, 0, "Exp", null, null);
       builder.addAlternative(Parser.prod__mul_Exp__Exp_layouts_LAYOUTLIST_lit___42_layouts_LAYOUTLIST_Exp__assoc__left, tmp);
 	}
     protected static final void _init_prod__ne_Exp__Exp_layouts_LAYOUTLIST_lit___33_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new NonTerminalStackNode<IConstructor>(2370, 4, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2369, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2368, 2, prod__lit___33_61__char_class___range__33_33_char_class___range__61_61_, new int[] {33,61}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2367, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2366, 0, "Exp", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2404, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2403, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2402, 2, prod__lit___33_61__char_class___range__33_33_char_class___range__61_61_, new int[] {33,61}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2401, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2400, 0, "Exp", null, null);
       builder.addAlternative(Parser.prod__ne_Exp__Exp_layouts_LAYOUTLIST_lit___33_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc, tmp);
 	}
     protected static final void _init_prod__not_Exp__lit___33_layouts_LAYOUTLIST_Exp_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(2304, 0, prod__lit___33__char_class___range__33_33_, new int[] {33}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2305, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new NonTerminalStackNode<IConstructor>(2306, 2, "Exp", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(2316, 0, prod__lit___33__char_class___range__33_33_, new int[] {33}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2317, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new NonTerminalStackNode<IConstructor>(2318, 2, "Exp", null, null);
       builder.addAlternative(Parser.prod__not_Exp__lit___33_layouts_LAYOUTLIST_Exp_, tmp);
 	}
     protected static final void _init_prod__oneof_Exp__lit___111_110_101_111_102_123_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___125_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new LiteralStackNode<IConstructor>(2280, 4, prod__lit___125__char_class___range__125_125_, new int[] {125}, null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2279, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new SeparatedListStackNode<IConstructor>(2278, 2, regular__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(2274, 0, "Exp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(2275, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(2276, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(2277, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2273, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(2272, 0, prod__lit___111_110_101_111_102_123__char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__111_111_char_class___range__102_102_char_class___range__123_123_, new int[] {111,110,101,111,102,123}, null, null);
+      tmp[4] = new LiteralStackNode<IConstructor>(2292, 4, prod__lit___125__char_class___range__125_125_, new int[] {125}, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2291, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new SeparatedListStackNode<IConstructor>(2290, 2, regular__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(2286, 0, "Exp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(2287, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(2288, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(2289, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2285, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(2284, 0, prod__lit___111_110_101_111_102_123__char_class___range__111_111_char_class___range__110_110_char_class___range__101_101_char_class___range__111_111_char_class___range__102_102_char_class___range__123_123_, new int[] {111,110,101,111,102,123}, null, null);
       builder.addAlternative(Parser.prod__oneof_Exp__lit___111_110_101_111_102_123_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___125_, tmp);
 	}
     protected static final void _init_prod__sub_Exp__Exp_layouts_LAYOUTLIST_lit___layouts_LAYOUTLIST_Exp__assoc__left(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2330, 0, "Exp", null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2331, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2332, 2, prod__lit____char_class___range__45_45_, new int[] {45}, null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2333, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new NonTerminalStackNode<IConstructor>(2334, 4, "Exp", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2342, 0, "Exp", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2343, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2344, 2, prod__lit____char_class___range__45_45_, new int[] {45}, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2345, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2346, 4, "Exp", null, null);
       builder.addAlternative(Parser.prod__sub_Exp__Exp_layouts_LAYOUTLIST_lit___layouts_LAYOUTLIST_Exp__assoc__left, tmp);
+	}
+    protected static final void _init_prod__trueConstant_Exp__lit_true_(ExpectBuilder<IConstructor> builder) {
+      AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
+      
+      tmp[0] = new LiteralStackNode<IConstructor>(2312, 0, prod__lit_true__char_class___range__116_116_char_class___range__114_114_char_class___range__117_117_char_class___range__101_101_, new int[] {116,114,117,101}, null, null);
+      builder.addAlternative(Parser.prod__trueConstant_Exp__lit_true_, tmp);
 	}
     protected static final void _init_prod__Exp__lit___40_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___41__bracket(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(2297, 0, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2298, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new NonTerminalStackNode<IConstructor>(2299, 2, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2300, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new LiteralStackNode<IConstructor>(2301, 4, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
+      tmp[4] = new LiteralStackNode<IConstructor>(2418, 4, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2417, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new NonTerminalStackNode<IConstructor>(2416, 2, "Exp", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2415, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(2414, 0, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
       builder.addAlternative(Parser.prod__Exp__lit___40_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___41__bracket, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2001,19 +2352,31 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
       
         _init_prod__add_Exp__Exp_layouts_LAYOUTLIST_lit___43_layouts_LAYOUTLIST_Exp__assoc__left(builder);
       
+        _init_prod__and_Exp__Exp_layouts_LAYOUTLIST_lit___38_38_layouts_LAYOUTLIST_Exp__assoc__non_assoc(builder);
+      
         _init_prod__astCallExp_Exp__Call_(builder);
       
         _init_prod__astVarExp_Exp__Var_(builder);
+      
+        _init_prod__bitand_Exp__Exp_layouts_LAYOUTLIST_lit___38_layouts_LAYOUTLIST_Exp__assoc__left(builder);
+      
+        _init_prod__bitshl_Exp__Exp_layouts_LAYOUTLIST_lit___60_60_layouts_LAYOUTLIST_Exp__assoc__left(builder);
       
         _init_prod__div_Exp__Exp_layouts_LAYOUTLIST_lit___47_layouts_LAYOUTLIST_Exp__assoc__left(builder);
       
         _init_prod__eq_Exp__Exp_layouts_LAYOUTLIST_lit___61_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc(builder);
       
+        _init_prod__falseConstant_Exp__lit_false_(builder);
+      
         _init_prod__floatConstant_Exp__FloatLiteral_(builder);
+      
+        _init_prod__ge_Exp__Exp_layouts_LAYOUTLIST_lit___62_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc(builder);
       
         _init_prod__gt_Exp__Exp_layouts_LAYOUTLIST_lit___62_layouts_LAYOUTLIST_Exp__assoc__non_assoc(builder);
       
         _init_prod__intConstant_Exp__IntLiteral_(builder);
+      
+        _init_prod__le_Exp__Exp_layouts_LAYOUTLIST_lit___60_61_layouts_LAYOUTLIST_Exp__assoc__non_assoc(builder);
       
         _init_prod__lt_Exp__Exp_layouts_LAYOUTLIST_lit___60_layouts_LAYOUTLIST_Exp__assoc__non_assoc(builder);
       
@@ -2028,6 +2391,8 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
         _init_prod__oneof_Exp__lit___111_110_101_111_102_123_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___125_(builder);
       
         _init_prod__sub_Exp__Exp_layouts_LAYOUTLIST_lit___layouts_LAYOUTLIST_Exp__assoc__left(builder);
+      
+        _init_prod__trueConstant_Exp__lit_true_(builder);
       
         _init_prod__Exp__lit___40_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___41__bracket(builder);
       
@@ -2094,31 +2459,31 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_ForEach__char_class___range__0_0_lit___115_111_114_116_40_34_70_111_114_69_97_99_104_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__ForEach(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3957, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3956, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3955, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3954, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3953, 1, prod__lit___115_111_114_116_40_34_70_111_114_69_97_99_104_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__70_70_char_class___range__111_111_char_class___range__114_114_char_class___range__69_69_char_class___range__97_97_char_class___range__99_99_char_class___range__104_104_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,70,111,114,69,97,99,104,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3952, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(4017, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(4016, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4015, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4014, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(4013, 1, prod__lit___115_111_114_116_40_34_70_111_114_69_97_99_104_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__70_70_char_class___range__111_111_char_class___range__114_114_char_class___range__69_69_char_class___range__97_97_char_class___range__99_99_char_class___range__104_104_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,70,111,114,69,97,99,104,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4012, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_ForEach__char_class___range__0_0_lit___115_111_114_116_40_34_70_111_114_69_97_99_104_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__ForEach, tmp);
 	}
     protected static final void _init_prod__astForEachLoop_ForEach__lit_foreach_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_Decl_layouts_LAYOUTLIST_lit_in_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_Identifier_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_Stat_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[15];
       
-      tmp[14] = new NonTerminalStackNode<IConstructor>(3975, 14, "Stat", null, null);
-      tmp[13] = new NonTerminalStackNode<IConstructor>(3974, 13, "layouts_LAYOUTLIST", null, null);
-      tmp[12] = new LiteralStackNode<IConstructor>(3973, 12, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
-      tmp[11] = new NonTerminalStackNode<IConstructor>(3972, 11, "layouts_LAYOUTLIST", null, null);
-      tmp[10] = new NonTerminalStackNode<IConstructor>(3971, 10, "Identifier", null, null);
-      tmp[9] = new NonTerminalStackNode<IConstructor>(3970, 9, "layouts_LAYOUTLIST", null, null);
-      tmp[8] = new NonTerminalStackNode<IConstructor>(3969, 8, "Exp", null, null);
-      tmp[7] = new NonTerminalStackNode<IConstructor>(3968, 7, "layouts_LAYOUTLIST", null, null);
-      tmp[6] = new LiteralStackNode<IConstructor>(3967, 6, prod__lit_in__char_class___range__105_105_char_class___range__110_110_, new int[] {105,110}, null, null);
-      tmp[5] = new NonTerminalStackNode<IConstructor>(3966, 5, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new NonTerminalStackNode<IConstructor>(3965, 4, "Decl", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(3964, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3963, 2, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(3962, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(3961, 0, prod__lit_foreach__char_class___range__102_102_char_class___range__111_111_char_class___range__114_114_char_class___range__101_101_char_class___range__97_97_char_class___range__99_99_char_class___range__104_104_, new int[] {102,111,114,101,97,99,104}, null, null);
+      tmp[14] = new NonTerminalStackNode<IConstructor>(4035, 14, "Stat", null, null);
+      tmp[13] = new NonTerminalStackNode<IConstructor>(4034, 13, "layouts_LAYOUTLIST", null, null);
+      tmp[12] = new LiteralStackNode<IConstructor>(4033, 12, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
+      tmp[11] = new NonTerminalStackNode<IConstructor>(4032, 11, "layouts_LAYOUTLIST", null, null);
+      tmp[10] = new NonTerminalStackNode<IConstructor>(4031, 10, "Identifier", null, null);
+      tmp[9] = new NonTerminalStackNode<IConstructor>(4030, 9, "layouts_LAYOUTLIST", null, null);
+      tmp[8] = new NonTerminalStackNode<IConstructor>(4029, 8, "Exp", null, null);
+      tmp[7] = new NonTerminalStackNode<IConstructor>(4028, 7, "layouts_LAYOUTLIST", null, null);
+      tmp[6] = new LiteralStackNode<IConstructor>(4027, 6, prod__lit_in__char_class___range__105_105_char_class___range__110_110_, new int[] {105,110}, null, null);
+      tmp[5] = new NonTerminalStackNode<IConstructor>(4026, 5, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(4025, 4, "Decl", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4024, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4023, 2, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4022, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4021, 0, prod__lit_foreach__char_class___range__102_102_char_class___range__111_111_char_class___range__114_114_char_class___range__101_101_char_class___range__97_97_char_class___range__99_99_char_class___range__104_104_, new int[] {102,111,114,101,97,99,104}, null, null);
       builder.addAlternative(Parser.prod__astForEachLoop_ForEach__lit_foreach_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_Decl_layouts_LAYOUTLIST_lit_in_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_Identifier_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_Stat_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2198,23 +2563,23 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Id__char_class___range__0_0_lit___115_111_114_116_40_34_73_100_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Id(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3559, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3558, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3557, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3556, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3555, 1, prod__lit___115_111_114_116_40_34_73_100_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__100_100_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,100,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3554, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3619, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3618, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3617, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3616, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3615, 1, prod__lit___115_111_114_116_40_34_73_100_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__100_100_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,100,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3614, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Id__char_class___range__0_0_lit___115_111_114_116_40_34_73_100_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Id, tmp);
 	}
     protected static final void _init_prod__Id__CAPSIdentifier_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(3549, 0, "CAPSIdentifier", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(3609, 0, "CAPSIdentifier", null, null);
       builder.addAlternative(Parser.prod__Id__CAPSIdentifier_, tmp);
 	}
     protected static final void _init_prod__Id__Identifier_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(3551, 0, "Identifier", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(3611, 0, "Identifier", null, null);
       builder.addAlternative(Parser.prod__Id__Identifier_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2288,29 +2653,29 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Increment__char_class___range__0_0_lit___115_111_114_116_40_34_73_110_99_114_101_109_101_110_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Increment(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(3902, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(3901, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3900, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(3899, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(3898, 1, prod__lit___115_111_114_116_40_34_73_110_99_114_101_109_101_110_116_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__110_110_char_class___range__99_99_char_class___range__114_114_char_class___range__101_101_char_class___range__109_109_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,110,99,114,101,109,101,110,116,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(3897, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(3962, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(3961, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(3960, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(3959, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(3958, 1, prod__lit___115_111_114_116_40_34_73_110_99_114_101_109_101_110_116_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__73_73_char_class___range__110_110_char_class___range__99_99_char_class___range__114_114_char_class___range__101_101_char_class___range__109_109_char_class___range__101_101_char_class___range__110_110_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,73,110,99,114,101,109,101,110,116,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(3957, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Increment__char_class___range__0_0_lit___115_111_114_116_40_34_73_110_99_114_101_109_101_110_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Increment, tmp);
 	}
     protected static final void _init_prod__astInc_Increment__Var_layouts_LAYOUTLIST_IncOption_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new NonTerminalStackNode<IConstructor>(3908, 2, "IncOption", null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(3907, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(3906, 0, "Var", null, null);
+      tmp[2] = new NonTerminalStackNode<IConstructor>(3968, 2, "IncOption", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(3967, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(3966, 0, "Var", null, null);
       builder.addAlternative(Parser.prod__astInc_Increment__Var_layouts_LAYOUTLIST_IncOption_, tmp);
 	}
     protected static final void _init_prod__astIncStep_Increment__Var_layouts_LAYOUTLIST_IncOptionStep_layouts_LAYOUTLIST_Exp_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new NonTerminalStackNode<IConstructor>(3894, 4, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(3893, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new NonTerminalStackNode<IConstructor>(3892, 2, "IncOptionStep", null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(3891, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(3890, 0, "Var", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(3954, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(3953, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new NonTerminalStackNode<IConstructor>(3952, 2, "IncOptionStep", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(3951, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(3950, 0, "Var", null, null);
       builder.addAlternative(Parser.prod__astIncStep_Increment__Var_layouts_LAYOUTLIST_IncOptionStep_layouts_LAYOUTLIST_Exp_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2374,17 +2739,17 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Return__char_class___range__0_0_lit___115_111_114_116_40_34_82_101_116_117_114_110_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Return(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4357, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4356, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4355, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4354, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4353, 1, prod__lit___115_111_114_116_40_34_82_101_116_117_114_110_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__82_82_char_class___range__101_101_char_class___range__116_116_char_class___range__117_117_char_class___range__114_114_char_class___range__110_110_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,82,101,116,117,114,110,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4352, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(4431, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(4430, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4429, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4428, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(4427, 1, prod__lit___115_111_114_116_40_34_82_101_116_117_114_110_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__82_82_char_class___range__101_101_char_class___range__116_116_char_class___range__117_117_char_class___range__114_114_char_class___range__110_110_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,82,101,116,117,114,110,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4426, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Return__char_class___range__0_0_lit___115_111_114_116_40_34_82_101_116_117_114_110_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Return, tmp);
 	}
     protected static final void _init_prod__astRet_Return__Exp_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4349, 0, "Exp", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4423, 0, "Exp", null, null);
       builder.addAlternative(Parser.prod__astRet_Return__Exp_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2407,127 +2772,127 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Stat__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_83_116_97_116_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__Stat__layouts_LAYOUTLIST(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4779, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4778, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4777, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4776, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4775, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_83_116_97_116_34_41_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__83_83_char_class___range__116_116_char_class___range__97_97_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,40,115,111,114,116,40,34,83,116,97,116,34,41,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4774, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(4865, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(4864, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4863, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4862, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(4861, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_83_116_97_116_34_41_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__83_83_char_class___range__116_116_char_class___range__97_97_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,40,115,111,114,116,40,34,83,116,97,116,34,41,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4860, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Stat__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_83_116_97_116_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__Stat__layouts_LAYOUTLIST, tmp);
 	}
     protected static final void _init_prod__$MetaHole_Stat__char_class___range__0_0_lit___115_111_114_116_40_34_83_116_97_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Stat(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4759, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4758, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4757, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4756, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4755, 1, prod__lit___115_111_114_116_40_34_83_116_97_116_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__83_83_char_class___range__116_116_char_class___range__97_97_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,83,116,97,116,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4754, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(4845, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(4844, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4843, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4842, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(4841, 1, prod__lit___115_111_114_116_40_34_83_116_97_116_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__83_83_char_class___range__116_116_char_class___range__97_97_char_class___range__116_116_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,83,116,97,116,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4840, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Stat__char_class___range__0_0_lit___115_111_114_116_40_34_83_116_97_116_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Stat, tmp);
 	}
     protected static final void _init_prod__astAsStat_Stat__Var_layouts_LAYOUTLIST_lit_as_layouts_LAYOUTLIST_iter_seps__BasicDecl__layouts_LAYOUTLIST_lit_as_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___59_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[7];
       
-      tmp[6] = new LiteralStackNode<IConstructor>(4742, 6, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
-      tmp[5] = new NonTerminalStackNode<IConstructor>(4741, 5, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new SeparatedListStackNode<IConstructor>(4740, 4, regular__iter_seps__BasicDecl__layouts_LAYOUTLIST_lit_as_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4736, 0, "BasicDecl", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4737, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4738, 2, prod__lit_as__char_class___range__97_97_char_class___range__115_115_, new int[] {97,115}, null, null), new NonTerminalStackNode<IConstructor>(4739, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(4735, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4734, 2, prod__lit_as__char_class___range__97_97_char_class___range__115_115_, new int[] {97,115}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4733, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4732, 0, "Var", null, null);
+      tmp[6] = new LiteralStackNode<IConstructor>(4828, 6, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
+      tmp[5] = new NonTerminalStackNode<IConstructor>(4827, 5, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new SeparatedListStackNode<IConstructor>(4826, 4, regular__iter_seps__BasicDecl__layouts_LAYOUTLIST_lit_as_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4822, 0, "BasicDecl", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4823, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4824, 2, prod__lit_as__char_class___range__97_97_char_class___range__115_115_, new int[] {97,115}, null, null), new NonTerminalStackNode<IConstructor>(4825, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4821, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4820, 2, prod__lit_as__char_class___range__97_97_char_class___range__115_115_, new int[] {97,115}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4819, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4818, 0, "Var", null, null);
       builder.addAlternative(Parser.prod__astAsStat_Stat__Var_layouts_LAYOUTLIST_lit_as_layouts_LAYOUTLIST_iter_seps__BasicDecl__layouts_LAYOUTLIST_lit_as_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___59_, tmp);
 	}
     protected static final void _init_prod__astAssignStat_Stat__Var_layouts_LAYOUTLIST_lit___61_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___59_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[7];
       
-      tmp[6] = new LiteralStackNode<IConstructor>(4813, 6, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
-      tmp[5] = new NonTerminalStackNode<IConstructor>(4812, 5, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new NonTerminalStackNode<IConstructor>(4811, 4, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(4810, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4809, 2, prod__lit___61__char_class___range__61_61_, new int[] {61}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4808, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4807, 0, "Var", null, null);
+      tmp[6] = new LiteralStackNode<IConstructor>(4899, 6, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
+      tmp[5] = new NonTerminalStackNode<IConstructor>(4898, 5, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(4897, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4896, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4895, 2, prod__lit___61__char_class___range__61_61_, new int[] {61}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4894, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4893, 0, "Var", null, null);
       builder.addAlternative(Parser.prod__astAssignStat_Stat__Var_layouts_LAYOUTLIST_lit___61_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___59_, tmp);
 	}
     protected static final void _init_prod__astCallStat_Stat__Call_layouts_LAYOUTLIST_lit___59_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new LiteralStackNode<IConstructor>(4823, 2, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4822, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4821, 0, "Call", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4909, 2, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4908, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4907, 0, "Call", null, null);
       builder.addAlternative(Parser.prod__astCallStat_Stat__Call_layouts_LAYOUTLIST_lit___59_, tmp);
 	}
     protected static final void _init_prod__astDeclStat_Stat__Decl_layouts_LAYOUTLIST_lit___59_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new LiteralStackNode<IConstructor>(4804, 2, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4803, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4802, 0, "Decl", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4890, 2, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4889, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4888, 0, "Decl", null, null);
       builder.addAlternative(Parser.prod__astDeclStat_Stat__Decl_layouts_LAYOUTLIST_lit___59_, tmp);
 	}
     protected static final void _init_prod__astIfStat_Stat__lit_if_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_Stat_layouts_LAYOUTLIST_opt__seq___lit_else_layouts_LAYOUTLIST_Stat_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[11];
       
-      tmp[10] = new OptionalStackNode<IConstructor>(4799, 10, regular__opt__seq___lit_else_layouts_LAYOUTLIST_Stat, new SequenceStackNode<IConstructor>(4798, 0, regular__seq___lit_else_layouts_LAYOUTLIST_Stat, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new LiteralStackNode<IConstructor>(4795, 0, prod__lit_else__char_class___range__101_101_char_class___range__108_108_char_class___range__115_115_char_class___range__101_101_, new int[] {101,108,115,101}, null, null), new NonTerminalStackNode<IConstructor>(4796, 1, "layouts_LAYOUTLIST", null, null), new NonTerminalStackNode<IConstructor>(4797, 2, "Stat", null, null)}, null, null), null, null);
-      tmp[9] = new NonTerminalStackNode<IConstructor>(4794, 9, "layouts_LAYOUTLIST", null, null);
-      tmp[8] = new NonTerminalStackNode<IConstructor>(4793, 8, "Stat", null, null);
-      tmp[7] = new NonTerminalStackNode<IConstructor>(4792, 7, "layouts_LAYOUTLIST", null, null);
-      tmp[6] = new LiteralStackNode<IConstructor>(4791, 6, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
-      tmp[5] = new NonTerminalStackNode<IConstructor>(4790, 5, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new NonTerminalStackNode<IConstructor>(4789, 4, "Exp", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(4788, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4787, 2, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4786, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(4785, 0, prod__lit_if__char_class___range__105_105_char_class___range__102_102_, new int[] {105,102}, null, null);
+      tmp[10] = new OptionalStackNode<IConstructor>(4885, 10, regular__opt__seq___lit_else_layouts_LAYOUTLIST_Stat, new SequenceStackNode<IConstructor>(4884, 0, regular__seq___lit_else_layouts_LAYOUTLIST_Stat, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new LiteralStackNode<IConstructor>(4881, 0, prod__lit_else__char_class___range__101_101_char_class___range__108_108_char_class___range__115_115_char_class___range__101_101_, new int[] {101,108,115,101}, null, null), new NonTerminalStackNode<IConstructor>(4882, 1, "layouts_LAYOUTLIST", null, null), new NonTerminalStackNode<IConstructor>(4883, 2, "Stat", null, null)}, null, null), null, null);
+      tmp[9] = new NonTerminalStackNode<IConstructor>(4880, 9, "layouts_LAYOUTLIST", null, null);
+      tmp[8] = new NonTerminalStackNode<IConstructor>(4879, 8, "Stat", null, null);
+      tmp[7] = new NonTerminalStackNode<IConstructor>(4878, 7, "layouts_LAYOUTLIST", null, null);
+      tmp[6] = new LiteralStackNode<IConstructor>(4877, 6, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
+      tmp[5] = new NonTerminalStackNode<IConstructor>(4876, 5, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(4875, 4, "Exp", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4874, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4873, 2, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4872, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4871, 0, prod__lit_if__char_class___range__105_105_char_class___range__102_102_, new int[] {105,102}, null, null);
       builder.addAlternative(Parser.prod__astIfStat_Stat__lit_if_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_Stat_layouts_LAYOUTLIST_opt__seq___lit_else_layouts_LAYOUTLIST_Stat_, tmp);
 	}
     protected static final void _init_prod__barrierStat_Stat__lit_barrier_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_Identifier_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_lit___59_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[9];
       
-      tmp[8] = new LiteralStackNode<IConstructor>(4771, 8, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
-      tmp[7] = new NonTerminalStackNode<IConstructor>(4770, 7, "layouts_LAYOUTLIST", null, null);
-      tmp[6] = new LiteralStackNode<IConstructor>(4769, 6, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
-      tmp[5] = new NonTerminalStackNode<IConstructor>(4768, 5, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new NonTerminalStackNode<IConstructor>(4767, 4, "Identifier", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(4766, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4765, 2, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4764, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(4763, 0, prod__lit_barrier__char_class___range__98_98_char_class___range__97_97_char_class___range__114_114_char_class___range__114_114_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_, new int[] {98,97,114,114,105,101,114}, null, null);
+      tmp[8] = new LiteralStackNode<IConstructor>(4857, 8, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
+      tmp[7] = new NonTerminalStackNode<IConstructor>(4856, 7, "layouts_LAYOUTLIST", null, null);
+      tmp[6] = new LiteralStackNode<IConstructor>(4855, 6, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null);
+      tmp[5] = new NonTerminalStackNode<IConstructor>(4854, 5, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(4853, 4, "Identifier", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4852, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4851, 2, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4850, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4849, 0, prod__lit_barrier__char_class___range__98_98_char_class___range__97_97_char_class___range__114_114_char_class___range__114_114_char_class___range__105_105_char_class___range__101_101_char_class___range__114_114_, new int[] {98,97,114,114,105,101,114}, null, null);
       builder.addAlternative(Parser.prod__barrierStat_Stat__lit_barrier_layouts_LAYOUTLIST_lit___40_layouts_LAYOUTLIST_Identifier_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_lit___59_, tmp);
 	}
     protected static final void _init_prod__blockStat_Stat__Block_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4751, 0, "Block", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4837, 0, "Block", null, null);
       builder.addAlternative(Parser.prod__blockStat_Stat__Block_, tmp);
 	}
     protected static final void _init_prod__forStat_Stat__For_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4745, 0, "For", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4831, 0, "For", null, null);
       builder.addAlternative(Parser.prod__forStat_Stat__For_, tmp);
 	}
     protected static final void _init_prod__foreachStat_Stat__ForEach_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4748, 0, "ForEach", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4834, 0, "ForEach", null, null);
       builder.addAlternative(Parser.prod__foreachStat_Stat__ForEach_, tmp);
 	}
     protected static final void _init_prod__incStat_Stat__Increment_layouts_LAYOUTLIST_lit___59_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new LiteralStackNode<IConstructor>(4818, 2, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4817, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4816, 0, "Increment", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4904, 2, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4903, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4902, 0, "Increment", null, null);
       builder.addAlternative(Parser.prod__incStat_Stat__Increment_layouts_LAYOUTLIST_lit___59_, tmp);
 	}
     protected static final void _init_prod__returnStat_Stat__lit_return_layouts_LAYOUTLIST_Return_layouts_LAYOUTLIST_lit___59_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new LiteralStackNode<IConstructor>(4830, 4, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(4829, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new NonTerminalStackNode<IConstructor>(4828, 2, "Return", null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4827, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(4826, 0, prod__lit_return__char_class___range__114_114_char_class___range__101_101_char_class___range__116_116_char_class___range__117_117_char_class___range__114_114_char_class___range__110_110_, new int[] {114,101,116,117,114,110}, null, null);
+      tmp[4] = new LiteralStackNode<IConstructor>(4916, 4, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4915, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new NonTerminalStackNode<IConstructor>(4914, 2, "Return", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4913, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4912, 0, prod__lit_return__char_class___range__114_114_char_class___range__101_101_char_class___range__116_116_char_class___range__117_117_char_class___range__114_114_char_class___range__110_110_, new int[] {114,101,116,117,114,110}, null, null);
       builder.addAlternative(Parser.prod__returnStat_Stat__lit_return_layouts_LAYOUTLIST_Return_layouts_LAYOUTLIST_lit___59_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2572,43 +2937,43 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_TopDecl__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_84_111_112_68_101_99_108_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__TopDecl__layouts_LAYOUTLIST(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4952, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4951, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4950, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4949, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4948, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_84_111_112_68_101_99_108_34_41_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__111_111_char_class___range__112_112_char_class___range__68_68_char_class___range__101_101_char_class___range__99_99_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,40,115,111,114,116,40,34,84,111,112,68,101,99,108,34,41,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4947, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(5038, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(5037, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(5036, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(5035, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(5034, 1, prod__lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_84_111_112_68_101_99_108_34_41_41__char_class___range__92_92_char_class___range__105_105_char_class___range__116_116_char_class___range__101_101_char_class___range__114_114_char_class___range__45_45_char_class___range__115_115_char_class___range__116_116_char_class___range__97_97_char_class___range__114_114_char_class___range__40_40_char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__111_111_char_class___range__112_112_char_class___range__68_68_char_class___range__101_101_char_class___range__99_99_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_char_class___range__41_41_, new int[] {92,105,116,101,114,45,115,116,97,114,40,115,111,114,116,40,34,84,111,112,68,101,99,108,34,41,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(5033, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_TopDecl__char_class___range__0_0_lit___92_105_116_101_114_45_115_116_97_114_40_115_111_114_116_40_34_84_111_112_68_101_99_108_34_41_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__iter_star_seps__TopDecl__layouts_LAYOUTLIST, tmp);
 	}
     protected static final void _init_prod__$MetaHole_TopDecl__char_class___range__0_0_lit___115_111_114_116_40_34_84_111_112_68_101_99_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__TopDecl(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4943, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4942, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4941, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4940, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4939, 1, prod__lit___115_111_114_116_40_34_84_111_112_68_101_99_108_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__111_111_char_class___range__112_112_char_class___range__68_68_char_class___range__101_101_char_class___range__99_99_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,84,111,112,68,101,99,108,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4938, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(5029, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(5028, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(5027, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(5026, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(5025, 1, prod__lit___115_111_114_116_40_34_84_111_112_68_101_99_108_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__111_111_char_class___range__112_112_char_class___range__68_68_char_class___range__101_101_char_class___range__99_99_char_class___range__108_108_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,84,111,112,68,101,99,108,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(5024, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_TopDecl__char_class___range__0_0_lit___115_111_114_116_40_34_84_111_112_68_101_99_108_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__TopDecl, tmp);
 	}
     protected static final void _init_prod__syntaxConstDecl_TopDecl__lit_const_layouts_LAYOUTLIST_Type_layouts_LAYOUTLIST_CAPSIdentifier_layouts_LAYOUTLIST_lit___61_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___59_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[11];
       
-      tmp[10] = new LiteralStackNode<IConstructor>(4932, 10, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
-      tmp[9] = new NonTerminalStackNode<IConstructor>(4931, 9, "layouts_LAYOUTLIST", null, null);
-      tmp[8] = new NonTerminalStackNode<IConstructor>(4930, 8, "Exp", null, null);
-      tmp[7] = new NonTerminalStackNode<IConstructor>(4929, 7, "layouts_LAYOUTLIST", null, null);
-      tmp[6] = new LiteralStackNode<IConstructor>(4928, 6, prod__lit___61__char_class___range__61_61_, new int[] {61}, null, null);
-      tmp[5] = new NonTerminalStackNode<IConstructor>(4927, 5, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new NonTerminalStackNode<IConstructor>(4926, 4, "CAPSIdentifier", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(4925, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new NonTerminalStackNode<IConstructor>(4924, 2, "Type", null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4923, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(4922, 0, prod__lit_const__char_class___range__99_99_char_class___range__111_111_char_class___range__110_110_char_class___range__115_115_char_class___range__116_116_, new int[] {99,111,110,115,116}, null, null);
+      tmp[10] = new LiteralStackNode<IConstructor>(5018, 10, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null);
+      tmp[9] = new NonTerminalStackNode<IConstructor>(5017, 9, "layouts_LAYOUTLIST", null, null);
+      tmp[8] = new NonTerminalStackNode<IConstructor>(5016, 8, "Exp", null, null);
+      tmp[7] = new NonTerminalStackNode<IConstructor>(5015, 7, "layouts_LAYOUTLIST", null, null);
+      tmp[6] = new LiteralStackNode<IConstructor>(5014, 6, prod__lit___61__char_class___range__61_61_, new int[] {61}, null, null);
+      tmp[5] = new NonTerminalStackNode<IConstructor>(5013, 5, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(5012, 4, "CAPSIdentifier", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(5011, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new NonTerminalStackNode<IConstructor>(5010, 2, "Type", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(5009, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(5008, 0, prod__lit_const__char_class___range__99_99_char_class___range__111_111_char_class___range__110_110_char_class___range__115_115_char_class___range__116_116_, new int[] {99,111,110,115,116}, null, null);
       builder.addAlternative(Parser.prod__syntaxConstDecl_TopDecl__lit_const_layouts_LAYOUTLIST_Type_layouts_LAYOUTLIST_CAPSIdentifier_layouts_LAYOUTLIST_lit___61_layouts_LAYOUTLIST_Exp_layouts_LAYOUTLIST_lit___59_, tmp);
 	}
     protected static final void _init_prod__typeDecl_TopDecl__TypeDef_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4935, 0, "TypeDef", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(5021, 0, "TypeDef", null, null);
       builder.addAlternative(Parser.prod__typeDecl_TopDecl__TypeDef_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2635,67 +3000,67 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Type__char_class___range__0_0_lit___115_111_114_116_40_34_84_121_112_101_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Type(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4412, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4411, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4410, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4409, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4408, 1, prod__lit___115_111_114_116_40_34_84_121_112_101_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,84,121,112,101,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4407, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(4493, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(4492, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4491, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4490, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(4489, 1, prod__lit___115_111_114_116_40_34_84_121_112_101_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,84,121,112,101,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4488, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Type__char_class___range__0_0_lit___115_111_114_116_40_34_84_121_112_101_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Type, tmp);
 	}
     protected static final void _init_prod__arrayType_Type__Type_layouts_LAYOUTLIST_lit___91_layouts_LAYOUTLIST_iter_seps__ArraySize__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___93_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[7];
       
-      tmp[6] = new LiteralStackNode<IConstructor>(4432, 6, prod__lit___93__char_class___range__93_93_, new int[] {93}, null, null);
-      tmp[5] = new NonTerminalStackNode<IConstructor>(4431, 5, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new SeparatedListStackNode<IConstructor>(4430, 4, regular__iter_seps__ArraySize__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4426, 0, "ArraySize", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4427, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4428, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(4429, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(4425, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4424, 2, prod__lit___91__char_class___range__91_91_, new int[] {91}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4423, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4422, 0, "Type", null, null);
+      tmp[6] = new LiteralStackNode<IConstructor>(4513, 6, prod__lit___93__char_class___range__93_93_, new int[] {93}, null, null);
+      tmp[5] = new NonTerminalStackNode<IConstructor>(4512, 5, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new SeparatedListStackNode<IConstructor>(4511, 4, regular__iter_seps__ArraySize__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4507, 0, "ArraySize", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4508, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4509, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(4510, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4506, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4505, 2, prod__lit___91__char_class___range__91_91_, new int[] {91}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4504, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4503, 0, "Type", null, null);
       builder.addAlternative(Parser.prod__arrayType_Type__Type_layouts_LAYOUTLIST_lit___91_layouts_LAYOUTLIST_iter_seps__ArraySize__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___93_, tmp);
 	}
     protected static final void _init_prod__astCustomType_Type__CapsIdentifier_layouts_LAYOUTLIST_opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new OptionalStackNode<IConstructor>(4401, 2, regular__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41, new SequenceStackNode<IConstructor>(4400, 0, regular__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new LiteralStackNode<IConstructor>(4391, 0, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null), new NonTerminalStackNode<IConstructor>(4392, 1, "layouts_LAYOUTLIST", null, null), new SeparatedListStackNode<IConstructor>(4397, 2, regular__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4393, 0, "Exp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4394, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4395, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(4396, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null), new NonTerminalStackNode<IConstructor>(4398, 3, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4399, 4, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null)}, null, null), null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(4390, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(4389, 0, "CapsIdentifier", null, null);
+      tmp[2] = new OptionalStackNode<IConstructor>(4482, 2, regular__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41, new SequenceStackNode<IConstructor>(4481, 0, regular__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new LiteralStackNode<IConstructor>(4472, 0, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null), new NonTerminalStackNode<IConstructor>(4473, 1, "layouts_LAYOUTLIST", null, null), new SeparatedListStackNode<IConstructor>(4478, 2, regular__iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4474, 0, "Exp", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4475, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4476, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(4477, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null), new NonTerminalStackNode<IConstructor>(4479, 3, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4480, 4, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null)}, null, null), null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4471, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(4470, 0, "CapsIdentifier", null, null);
       builder.addAlternative(Parser.prod__astCustomType_Type__CapsIdentifier_layouts_LAYOUTLIST_opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Exp__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41_, tmp);
 	}
     protected static final void _init_prod__boolean_Type__lit_bool_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4435, 0, prod__lit_bool__char_class___range__98_98_char_class___range__111_111_char_class___range__111_111_char_class___range__108_108_, new int[] {98,111,111,108}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4516, 0, prod__lit_bool__char_class___range__98_98_char_class___range__111_111_char_class___range__111_111_char_class___range__108_108_, new int[] {98,111,111,108}, null, null);
       builder.addAlternative(Parser.prod__boolean_Type__lit_bool_, tmp);
 	}
     protected static final void _init_prod__byte_Type__lit_byte_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4419, 0, prod__lit_byte__char_class___range__98_98_char_class___range__121_121_char_class___range__116_116_char_class___range__101_101_, new int[] {98,121,116,101}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4500, 0, prod__lit_byte__char_class___range__98_98_char_class___range__121_121_char_class___range__116_116_char_class___range__101_101_, new int[] {98,121,116,101}, null, null);
       builder.addAlternative(Parser.prod__byte_Type__lit_byte_, tmp);
 	}
     protected static final void _init_prod__float_Type__lit_float_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4438, 0, prod__lit_float__char_class___range__102_102_char_class___range__108_108_char_class___range__111_111_char_class___range__97_97_char_class___range__116_116_, new int[] {102,108,111,97,116}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4519, 0, prod__lit_float__char_class___range__102_102_char_class___range__108_108_char_class___range__111_111_char_class___range__97_97_char_class___range__116_116_, new int[] {102,108,111,97,116}, null, null);
       builder.addAlternative(Parser.prod__float_Type__lit_float_, tmp);
 	}
     protected static final void _init_prod__index_Type__lit_index_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4404, 0, prod__lit_index__char_class___range__105_105_char_class___range__110_110_char_class___range__100_100_char_class___range__101_101_char_class___range__120_120_, new int[] {105,110,100,101,120}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4485, 0, prod__lit_index__char_class___range__105_105_char_class___range__110_110_char_class___range__100_100_char_class___range__101_101_char_class___range__120_120_, new int[] {105,110,100,101,120}, null, null);
       builder.addAlternative(Parser.prod__index_Type__lit_index_, tmp);
 	}
     protected static final void _init_prod__int_Type__lit_int_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4416, 0, prod__lit_int__char_class___range__105_105_char_class___range__110_110_char_class___range__116_116_, new int[] {105,110,116}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4497, 0, prod__lit_int__char_class___range__105_105_char_class___range__110_110_char_class___range__116_116_, new int[] {105,110,116}, null, null);
       builder.addAlternative(Parser.prod__int_Type__lit_int_, tmp);
 	}
     protected static final void _init_prod__void_Type__lit_void_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new LiteralStackNode<IConstructor>(4441, 0, prod__lit_void__char_class___range__118_118_char_class___range__111_111_char_class___range__105_105_char_class___range__100_100_, new int[] {118,111,105,100}, null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4522, 0, prod__lit_void__char_class___range__118_118_char_class___range__111_111_char_class___range__105_105_char_class___range__100_100_, new int[] {118,111,105,100}, null, null);
       builder.addAlternative(Parser.prod__void_Type__lit_void_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2732,27 +3097,27 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_TypeDef__char_class___range__0_0_lit___115_111_114_116_40_34_84_121_112_101_68_101_102_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__TypeDef(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(4013, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(4012, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4011, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(4010, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(4009, 1, prod__lit___115_111_114_116_40_34_84_121_112_101_68_101_102_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_char_class___range__68_68_char_class___range__101_101_char_class___range__102_102_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,84,121,112,101,68,101,102,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(4008, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(4073, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(4072, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(4071, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(4070, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(4069, 1, prod__lit___115_111_114_116_40_34_84_121_112_101_68_101_102_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__84_84_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_char_class___range__68_68_char_class___range__101_101_char_class___range__102_102_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,84,121,112,101,68,101,102,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(4068, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_TypeDef__char_class___range__0_0_lit___115_111_114_116_40_34_84_121_112_101_68_101_102_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__TypeDef, tmp);
 	}
     protected static final void _init_prod__astTypeDef_TypeDef__lit_type_layouts_LAYOUTLIST_CapsIdentifier_layouts_LAYOUTLIST_opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_lit___123_layouts_LAYOUTLIST_iter_seps__seq___Decl_layouts_LAYOUTLIST_lit___59__layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___125_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[11];
       
-      tmp[10] = new LiteralStackNode<IConstructor>(4005, 10, prod__lit___125__char_class___range__125_125_, new int[] {125}, null, null);
-      tmp[9] = new NonTerminalStackNode<IConstructor>(4004, 9, "layouts_LAYOUTLIST", null, null);
-      tmp[8] = new SeparatedListStackNode<IConstructor>(4003, 8, regular__iter_seps__seq___Decl_layouts_LAYOUTLIST_lit___59__layouts_LAYOUTLIST, new SequenceStackNode<IConstructor>(4001, 0, regular__seq___Decl_layouts_LAYOUTLIST_lit___59, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(3998, 0, "Decl", null, null), new NonTerminalStackNode<IConstructor>(3999, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4000, 2, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null)}, null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4002, 1, "layouts_LAYOUTLIST", null, null)}, true, null, null);
-      tmp[7] = new NonTerminalStackNode<IConstructor>(3997, 7, "layouts_LAYOUTLIST", null, null);
-      tmp[6] = new LiteralStackNode<IConstructor>(3996, 6, prod__lit___123__char_class___range__123_123_, new int[] {123}, null, null);
-      tmp[5] = new NonTerminalStackNode<IConstructor>(3995, 5, "layouts_LAYOUTLIST", null, null);
-      tmp[4] = new OptionalStackNode<IConstructor>(3994, 4, regular__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41, new SequenceStackNode<IConstructor>(3993, 0, regular__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new LiteralStackNode<IConstructor>(3984, 0, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null), new NonTerminalStackNode<IConstructor>(3985, 1, "layouts_LAYOUTLIST", null, null), new SeparatedListStackNode<IConstructor>(3990, 2, regular__iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(3986, 0, "Decl", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(3987, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(3988, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(3989, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null), new NonTerminalStackNode<IConstructor>(3991, 3, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(3992, 4, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null)}, null, null), null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(3983, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new NonTerminalStackNode<IConstructor>(3982, 2, "CapsIdentifier", null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(3981, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new LiteralStackNode<IConstructor>(3980, 0, prod__lit_type__char_class___range__116_116_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_, new int[] {116,121,112,101}, null, null);
+      tmp[10] = new LiteralStackNode<IConstructor>(4065, 10, prod__lit___125__char_class___range__125_125_, new int[] {125}, null, null);
+      tmp[9] = new NonTerminalStackNode<IConstructor>(4064, 9, "layouts_LAYOUTLIST", null, null);
+      tmp[8] = new SeparatedListStackNode<IConstructor>(4063, 8, regular__iter_seps__seq___Decl_layouts_LAYOUTLIST_lit___59__layouts_LAYOUTLIST, new SequenceStackNode<IConstructor>(4061, 0, regular__seq___Decl_layouts_LAYOUTLIST_lit___59, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4058, 0, "Decl", null, null), new NonTerminalStackNode<IConstructor>(4059, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4060, 2, prod__lit___59__char_class___range__59_59_, new int[] {59}, null, null)}, null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4062, 1, "layouts_LAYOUTLIST", null, null)}, true, null, null);
+      tmp[7] = new NonTerminalStackNode<IConstructor>(4057, 7, "layouts_LAYOUTLIST", null, null);
+      tmp[6] = new LiteralStackNode<IConstructor>(4056, 6, prod__lit___123__char_class___range__123_123_, new int[] {123}, null, null);
+      tmp[5] = new NonTerminalStackNode<IConstructor>(4055, 5, "layouts_LAYOUTLIST", null, null);
+      tmp[4] = new OptionalStackNode<IConstructor>(4054, 4, regular__opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41, new SequenceStackNode<IConstructor>(4053, 0, regular__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41, (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new LiteralStackNode<IConstructor>(4044, 0, prod__lit___40__char_class___range__40_40_, new int[] {40}, null, null), new NonTerminalStackNode<IConstructor>(4045, 1, "layouts_LAYOUTLIST", null, null), new SeparatedListStackNode<IConstructor>(4050, 2, regular__iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST, new NonTerminalStackNode<IConstructor>(4046, 0, "Decl", null, null), (AbstractStackNode<IConstructor>[]) new AbstractStackNode[]{new NonTerminalStackNode<IConstructor>(4047, 1, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4048, 2, prod__lit___44__char_class___range__44_44_, new int[] {44}, null, null), new NonTerminalStackNode<IConstructor>(4049, 3, "layouts_LAYOUTLIST", null, null)}, true, null, null), new NonTerminalStackNode<IConstructor>(4051, 3, "layouts_LAYOUTLIST", null, null), new LiteralStackNode<IConstructor>(4052, 4, prod__lit___41__char_class___range__41_41_, new int[] {41}, null, null)}, null, null), null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(4043, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new NonTerminalStackNode<IConstructor>(4042, 2, "CapsIdentifier", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(4041, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new LiteralStackNode<IConstructor>(4040, 0, prod__lit_type__char_class___range__116_116_char_class___range__121_121_char_class___range__112_112_char_class___range__101_101_, new int[] {116,121,112,101}, null, null);
       builder.addAlternative(Parser.prod__astTypeDef_TypeDef__lit_type_layouts_LAYOUTLIST_CapsIdentifier_layouts_LAYOUTLIST_opt__seq___lit___40_layouts_LAYOUTLIST_iter_seps__Decl__layouts_LAYOUTLIST_lit___44_layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___41_layouts_LAYOUTLIST_lit___123_layouts_LAYOUTLIST_iter_seps__seq___Decl_layouts_LAYOUTLIST_lit___59__layouts_LAYOUTLIST_layouts_LAYOUTLIST_lit___125_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2775,27 +3140,27 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__$MetaHole_Var__char_class___range__0_0_lit___115_111_114_116_40_34_86_97_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Var(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new CharStackNode<IConstructor>(2598, 4, new int[][]{{0,0}}, null, null);
-      tmp[3] = new ListStackNode<IConstructor>(2597, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2596, 0, new int[][]{{48,57}}, null, null), true, null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2595, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
-      tmp[1] = new LiteralStackNode<IConstructor>(2594, 1, prod__lit___115_111_114_116_40_34_86_97_114_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__86_86_char_class___range__97_97_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,86,97,114,34,41}, null, null);
-      tmp[0] = new CharStackNode<IConstructor>(2593, 0, new int[][]{{0,0}}, null, null);
+      tmp[4] = new CharStackNode<IConstructor>(2653, 4, new int[][]{{0,0}}, null, null);
+      tmp[3] = new ListStackNode<IConstructor>(2652, 3, regular__iter__char_class___range__48_57, new CharStackNode<IConstructor>(2651, 0, new int[][]{{48,57}}, null, null), true, null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2650, 2, prod__lit___58__char_class___range__58_58_, new int[] {58}, null, null);
+      tmp[1] = new LiteralStackNode<IConstructor>(2649, 1, prod__lit___115_111_114_116_40_34_86_97_114_34_41__char_class___range__115_115_char_class___range__111_111_char_class___range__114_114_char_class___range__116_116_char_class___range__40_40_char_class___range__34_34_char_class___range__86_86_char_class___range__97_97_char_class___range__114_114_char_class___range__34_34_char_class___range__41_41_, new int[] {115,111,114,116,40,34,86,97,114,34,41}, null, null);
+      tmp[0] = new CharStackNode<IConstructor>(2648, 0, new int[][]{{0,0}}, null, null);
       builder.addAlternative(Parser.prod__$MetaHole_Var__char_class___range__0_0_lit___115_111_114_116_40_34_86_97_114_34_41_lit___58_iter__char_class___range__48_57_char_class___range__0_0__tag__holeType__Var, tmp);
 	}
     protected static final void _init_prod__astDot_Var__BasicVar_layouts_LAYOUTLIST_lit___46_layouts_LAYOUTLIST_Var_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[5];
       
-      tmp[4] = new NonTerminalStackNode<IConstructor>(2590, 4, "Var", null, null);
-      tmp[3] = new NonTerminalStackNode<IConstructor>(2589, 3, "layouts_LAYOUTLIST", null, null);
-      tmp[2] = new LiteralStackNode<IConstructor>(2588, 2, prod__lit___46__char_class___range__46_46_, new int[] {46}, null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2587, 1, "layouts_LAYOUTLIST", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2586, 0, "BasicVar", null, null);
+      tmp[4] = new NonTerminalStackNode<IConstructor>(2645, 4, "Var", null, null);
+      tmp[3] = new NonTerminalStackNode<IConstructor>(2644, 3, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new LiteralStackNode<IConstructor>(2643, 2, prod__lit___46__char_class___range__46_46_, new int[] {46}, null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2642, 1, "layouts_LAYOUTLIST", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2641, 0, "BasicVar", null, null);
       builder.addAlternative(Parser.prod__astDot_Var__BasicVar_layouts_LAYOUTLIST_lit___46_layouts_LAYOUTLIST_Var_, tmp);
 	}
     protected static final void _init_prod__var_Var__BasicVar_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[1];
       
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2602, 0, "BasicVar", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2657, 0, "BasicVar", null, null);
       builder.addAlternative(Parser.prod__var_Var__BasicVar_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){
@@ -2820,9 +3185,9 @@ public class Parser extends org.rascalmpl.parser.gtd.SGTDBF<IConstructor, IConst
     protected static final void _init_prod__start__Module__layouts_LAYOUTLIST_top_Module_layouts_LAYOUTLIST_(ExpectBuilder<IConstructor> builder) {
       AbstractStackNode<IConstructor>[] tmp = (AbstractStackNode<IConstructor>[]) new AbstractStackNode[3];
       
-      tmp[2] = new NonTerminalStackNode<IConstructor>(2873, 2, "layouts_LAYOUTLIST", null, null);
-      tmp[1] = new NonTerminalStackNode<IConstructor>(2871, 1, "Module", null, null);
-      tmp[0] = new NonTerminalStackNode<IConstructor>(2870, 0, "layouts_LAYOUTLIST", null, null);
+      tmp[2] = new NonTerminalStackNode<IConstructor>(2933, 2, "layouts_LAYOUTLIST", null, null);
+      tmp[1] = new NonTerminalStackNode<IConstructor>(2931, 1, "Module", null, null);
+      tmp[0] = new NonTerminalStackNode<IConstructor>(2930, 0, "layouts_LAYOUTLIST", null, null);
       builder.addAlternative(Parser.prod__start__Module__layouts_LAYOUTLIST_top_Module_layouts_LAYOUTLIST_, tmp);
 	}
     public static void init(ExpectBuilder<IConstructor> builder){

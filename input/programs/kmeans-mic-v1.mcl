@@ -1,0 +1,98 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module kmeans
+
+
+
+
+import perfect;
+import mic;
+
+
+
+
+
+// Modified to compute more than one element per thread.
+
+
+
+mic void kmeans_kernel(const int npoints, const int nclusters, const int 
+        nfeatures, const dev float[nfeatures,npoints] points, const dev 
+        float[nclusters,nfeatures] clusters, dev int[npoints] pointsCluster) {
+    const int nrVectorsNpoints = mic.hierarchy.threads.thread.vectors.nr_units;
+    const int nrThreads = 16 * 4 * 59 * 8;
+    const int nrElementsPerThread = (npoints + nrThreads - 1) / nrThreads;
+    const int nrThreadsNpoints = (nrThreads + nrVectorsNpoints - 1) / (1 * nrVectorsNpoints);
+    foreach (const int tpid in nrThreadsNpoints threads) {
+        foreach (const int vpid in nrVectorsNpoints vectors) {
+            for (int elNo = 0; elNo < nrElementsPerThread; elNo++) {
+                // const int pid = nrElementsPerThread * (tpid * (1 * nrVectorsNpoints) + vpid) + elNo;
+                const int pid = (tpid * nrElementsPerThread + elNo) * nrVectorsNpoints + vpid;
+	        if (pid < npoints) {	// FIX
+	            reg int ind = 0;
+	            float[nfeatures] point;
+	            for (reg int feature = 0; feature < nfeatures; feature++) {
+	            	point[feature] = points[feature,pid];
+	            }
+	            reg float min_dist = 3.0E+38;
+	     	    for (reg int cluster = 0; cluster < nclusters; cluster++) {
+	                reg float dist = 0;
+	                for (reg int feature = 0; feature < nfeatures; feature++) {
+	                    const float d = point[feature] - clusters[cluster, feature];
+	                    dist += d * d;
+	                }
+	                if (dist < min_dist) {
+	                    min_dist = dist;
+	                    ind = cluster;
+	                }
+	            }
+	            pointsCluster[pid] = ind;
+	        }
+	    }
+        }
+    }
+}
+
+/*
+getFeedback("kmeans-mic-v1")
+crashes with:
+
+|rascal://List|(24651,105,<1203,0>,<1204,63>): IllegalArgument(bool (Exp, Exp);,"Bad comparator: Did you use less-or-equals instead of less-than?")
+	at *** somewhere ***(|rascal://List|(24651,105,<1203,0>,<1204,63>))
+	at sort(|rascal://raw_passes::f_simplify::CanonicalForm|(14241,46,<648,10>,<648,56>))
+	at sortAdd(|rascal://raw_passes::f_simplify::CanonicalForm|(14371,21,<653,10>,<653,31>))
+	at toCanonicalForm(|rascal://raw_passes::f_simplify::CanonicalForm|(21078,11,<972,6>,<972,17>))
+	at simplify(|rascal://raw_passes::f_simplify::Simplify|(7769,19,<348,5>,<348,24>))
+	at analyzeVar2(|rascal://raw_passes::g_getSharingInfo::GetSharingInfo|(4981,17,<203,10>,<203,27>))
+	at analyzeVarExtensive2(|rascal://raw_passes::g_getSharingInfo::GetSharingInfo|(6668,34,<284,9>,<284,43>))
+	at analyzeVarExtensive(|rascal://raw_passes::g_getSharingInfo::GetSharingInfo|(7027,44,<302,7>,<302,51>))
+	at analyzeDependentLoops(|rascal://raw_passes::g_getDataReuse::GetDataReuse|(10582,1,<318,67>,<318,68>))
+	at getDataReuse(|rascal://raw_passes::g_getDataReuse::GetDataReuse|(10524,61,<318,9>,<318,70>))
+	at getDataReuse(|rascal://raw_passes::g_getDataReuse::GetDataReuse|(13977,2,<464,2>,<464,4>))
+	at doGetDataReuse(|rascal://passes::GetDataReuse|(679,19,<35,10>,<35,29>))
+	at runPass(|rascal://Passes|(1906,6,<88,7>,<88,13>))
+	at runPass(|rascal://Passes|(5304,5,<209,64>,<209,69>))
+	at main(|rascal://Main|(859,5,<46,66>,<46,71>))
+	at main(|rascal://Main|(720,146,<45,0>,<46,73>))
+	at getFeedback(|rascal://Main|(3436,48,<135,1>,<135,49>))
+	at $shell$(|stdin:///|(0,29,<1,0>,<1,29>))
+
+
+*/

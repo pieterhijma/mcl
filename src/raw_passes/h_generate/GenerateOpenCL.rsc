@@ -206,9 +206,10 @@ str genParamOpenCL(astDecl(list[DeclModifier] m, list[BasicDecl] bds),
 		OutputBuilder b) = genParamOpenCL(bds[0], m, b);
 
 public str genOpenCLIf(Exp astCond, Stat astStat, list[Stat] astElseStat, OutputBuilder b) {
-	return "if (<genExp(astCond, b)>) <genOpenCLStat(astStat, b)> else {
-			'    <gen(astElseStat, genOpenCLStat, b)>
-			'}";
+	str result = "if (<genExp(astCond, b)>) <genOpenCLStat(astStat, b)>";
+	return result + (isEmpty(astElseStat) ? 
+		"" : 
+		" else <gen(astElseStat, genOpenCLStat, b)>");
 }
 
 public str genOpenCLFor(astForLoop(Decl d, Exp c, Increment i, Stat s), 
@@ -229,7 +230,10 @@ tuple[Type, OutputBuilder] replaceVarArrays(Type t, OutputBuilder b) {
 		case ve:astVarExp(_): {
 			str newId = "MCL_<ve.astVar.basicVar.id.string>";
 			ve.astVar.basicVar.id.string = newId;
+			BasicDeclID bdID = getBasicDeclVar(ve.astVar@key, b.t);
+			// println("Replacing: bdID = <bdID>, id = <getIdBasicDecl(bdID, b.t).string>");
 			DeclID dID = getDeclVar(ve.astVar@key, b.t);
+			b.macrod += {bdID};
 			FuncID fID = getFunc(b.t.decls[dID].at);
 			Func f = getFunc(fID, b.t);
 			b.macros += [<newId, indexOf(f.params, dID)>];

@@ -1,0 +1,222 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module barnes
+
+
+
+
+import perfect;
+import math;
+import accelerator;
+import mic;
+import xeon_phi;
+
+
+
+
+
+
+
+
+
+
+xeon_phi void computeAcceleration(const int start, const int nCompute, const 
+        int nBodies, const dev float[nBodies,3] positions, const dev 
+        float[nBodies] mass, dev float[nCompute,3] accel, const float softsq) {
+    const int nrVectorsNCompute = mic.hierarchy.threads.thread.vectors.
+            nr_units;
+    const int nrThreadsNCompute = (nCompute + nrVectorsNCompute - 1) / (1 * 
+            nrVectorsNCompute);
+    foreach (const int tbody in nrThreadsNCompute threads) {
+        foreach (const int vbody in nrVectorsNCompute vectors) {
+            const int body = tbody * (1 * nrVectorsNCompute) + vbody;
+            const int bodyOffset = body + start;
+            if (bodyOffset < nBodies) {
+                reg float acc0 = 0.0;
+                reg float acc1 = 0.0;
+                reg float acc2 = 0.0;
+                const float pos0 = positions[bodyOffset,0];
+                const float pos1 = positions[bodyOffset,1];
+                const float pos2 = positions[bodyOffset,2];
+                for (reg int i = 0; i < nBodies; i++) {
+                    const float diff_x = positions[i,0] - pos0;
+                    const float diff_y = positions[i,1] - pos1;
+                    const float diff_z = positions[i,2] - pos2;
+                    const float distsq = diff_x * diff_x + diff_y * diff_y + 
+                            diff_z * diff_z + softsq;
+                    const float factor = mass[i] / (distsq * sqrt(distsq));
+                    acc0 = acc0 + diff_x * factor;
+                    acc1 = acc1 + diff_y * factor;
+                    acc2 = acc2 + diff_z * factor;
+                }
+                accel[body,0] = acc0;
+                accel[body,1] = acc1;
+                accel[body,2] = acc2;
+            }
+        }
+    }
+}
+/*
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(120,19,<21,14>,<21,33>): This is a cache-oriented architecture. Make sure that each access benefits from the cache(s)
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1759,5,<50,16>,<50,21>): Var accel[body,0]:
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1835,5,<52,16>,<52,21>): Var accel[body,2]:
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1797,5,<51,16>,<51,21>): Var accel[body,1]:
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1537,4,<45,41>,<45,45>): Var mass[i]:
+  in loop i:
+    may benefit from cache l1_cache:
+      best case: nBodies / 16 cache line fetches
+      worst case: nBodies cache line fetches
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1213,9,<40,41>,<40,50>): Var positions[i,0]:
+  in loop i:
+    may benefit from cache l1_cache:
+      best case: 3 * nBodies / 16 cache line fetches
+      worst case: nBodies cache line fetches
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1091,9,<38,35>,<38,44>): Var positions[bodyOffset,2]:
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1031,9,<37,35>,<37,44>): Var positions[bodyOffset,1]:
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(971,9,<36,35>,<36,44>): Var positions[bodyOffset,0]:
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1341,9,<42,41>,<42,50>): Var positions[i,2]:
+  in loop i:
+    may benefit from cache l1_cache:
+      best case: 3 * nBodies / 16 cache line fetches
+      worst case: nBodies cache line fetches
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1277,9,<41,41>,<41,50>): Var positions[i,1]:
+  in loop i:
+    may benefit from cache l1_cache:
+      best case: 3 * nBodies / 16 cache line fetches
+      worst case: nBodies cache line fetches
+  in foreach loop vbody:
+    does benefit from cache l1_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1759,5,<50,16>,<50,21>): Var accel[body,0]:
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1835,5,<52,16>,<52,21>): Var accel[body,2]:
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1797,5,<51,16>,<51,21>): Var accel[body,1]:
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1537,4,<45,41>,<45,45>): Var mass[i]:
+  in loop i:
+    may benefit from cache l2_cache:
+      best case: nBodies / 16 cache line fetches
+      worst case: nBodies cache line fetches
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1213,9,<40,41>,<40,50>): Var positions[i,0]:
+  in loop i:
+    may benefit from cache l2_cache:
+      best case: 3 * nBodies / 16 cache line fetches
+      worst case: nBodies cache line fetches
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1091,9,<38,35>,<38,44>): Var positions[bodyOffset,2]:
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1031,9,<37,35>,<37,44>): Var positions[bodyOffset,1]:
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(971,9,<36,35>,<36,44>): Var positions[bodyOffset,0]:
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      3 cache line fetches
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1341,9,<42,41>,<42,50>): Var positions[i,2]:
+  in loop i:
+    may benefit from cache l2_cache:
+      best case: 3 * nBodies / 16 cache line fetches
+      worst case: nBodies cache line fetches
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1277,9,<41,41>,<41,50>): Var positions[i,1]:
+  in loop i:
+    may benefit from cache l2_cache:
+      best case: 3 * nBodies / 16 cache line fetches
+      worst case: nBodies cache line fetches
+  in foreach loop vbody:
+    does benefit from cache l2_cache:
+      1 cache line fetch
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(120,19,<21,14>,<21,33>): pcie transfers 16 * nBodies + 16 bytes from host to device
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(120,19,<21,14>,<21,33>): pcie transfers 12 * nCompute bytes from device to host
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1091,9,<38,35>,<38,44>): Data reuse: For positions[bodyOffset,2]:
+  For dimension 0:
+    the loops const int tbody, const int vbody may have a positive data reuse ratio: (nCompute + 15) / (nCompute + start + 15)
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(1031,9,<37,35>,<37,44>): Data reuse: For positions[bodyOffset,1]:
+  For dimension 0:
+    the loops const int tbody, const int vbody may have a positive data reuse ratio: (nCompute + 15) / (nCompute + start + 15)
+  For dimension 1:
+    the loops const int tbody, const int vbody may have a positive data reuse ratio: (nCompute + 15) / 2
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(971,9,<36,35>,<36,44>): Data reuse: For positions[bodyOffset,0]:
+  For dimension 0:
+    the loops const int tbody, const int vbody may have a positive data reuse ratio: (nCompute + 15) / (nCompute + start + 15)
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(120,19,<21,14>,<21,33>): computation:
+  vectors:
+    loads: 
+      main: nBodies*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-xeon_phi.mcl|(798,20,<32,16>,<32,36>))
+      dev: 4*nBodies*nrThreadsNCompute*nrVectorsNCompute+3*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-xeon_phi.mcl|(798,20,<32,16>,<32,36>))
+    instructions: 
+      18*nBodies*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-xeon_phi.mcl|(798,20,<32,16>,<32,36>))
+    stores: 
+      main: nBodies*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-xeon_phi.mcl|(798,20,<32,16>,<32,36>))
+      dev: 3*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-xeon_phi.mcl|(798,20,<32,16>,<32,36>))
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(120,19,<21,14>,<21,33>): control flow:
+  host:
+    instructions: 
+      4
+  vectors:
+    instructions: 
+      2*nBodies*nrThreadsNCompute*nrVectorsNCompute+4*nrThreadsNCompute*nrVectorsNCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes-xeon_phi.mcl|(798,20,<32,16>,<32,36>))
+INFO at |project://mcl/input/programs/barnes-xeon_phi.mcl|(120,19,<21,14>,<21,33>): Arithmetic intensity: 18*nBodies*nrThreadsNCompute*nrVectorsNCompute*(6*nBodies*nrThreadsNCompute*nrVectorsNCompute+
+6*nrThreadsNCompute*nrVectorsNCompute)^(-1)
+*/

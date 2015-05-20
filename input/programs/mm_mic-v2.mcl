@@ -47,7 +47,7 @@ mic void matmul(const int n, const int m, const int p, float[n,m] c, const
         foreach (const int tj in nrThreadsM threads) {
             foreach (const int vj in nrVectorsM vectors) {
             	for (int ei = 0; ei < nrElsN; ei++) {
-            		dev float[p] aTemp;
+            		float[p] aTemp;
             		
             		for (int k = 0; k < p; k++) {
             			aTemp[k] = a2[ti, k][ei, 0];

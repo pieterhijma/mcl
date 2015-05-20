@@ -1,0 +1,50 @@
+module barnes
+
+import perfect;
+import math;
+
+perfect void computeAcceleration(int start, int nCompute, int nBodies, float[nBodies,3] positions, float[nBodies] mass, float[nCompute,3] accel, float softsq) {
+	foreach (int body in nCompute threads) {
+		int bodyOffset = body + start;
+		if (bodyOffset < nBodies) {
+			float acc0 = 0.0;
+			float acc1 = 0.0;
+			float acc2 = 0.0;
+			float pos0 = positions[bodyOffset,0];
+			float pos1 = positions[bodyOffset,1];
+			float pos2 = positions[bodyOffset,2];
+			for (int i = 0; i < nBodies; i++) {
+	            float diff_x = positions[i,0] - pos0;
+	            float diff_y = positions[i,1] - pos1;
+	            float diff_z = positions[i,2] - pos2;
+	
+	            float distsq = diff_x * diff_x + diff_y * diff_y + diff_z * diff_z
+	                      + softsq;
+	
+	            float factor = mass[i] / (distsq * sqrt(distsq));
+	
+	            acc0 = acc0 + diff_x * factor;
+	            acc1 = acc1 + diff_y * factor;
+	            acc2 = acc2 + diff_z * factor;
+			}
+			accel[body,0] = acc0;
+			accel[body,1] = acc1;
+			accel[body,2] = acc2;
+		}
+	}
+}
+
+/*INFO at |project://mcl/input/programs/barnes.mcl|(58,19,<6,13>,<6,32>): computation:
+  threads:
+    loads: 
+      main: 5*nBodies*nCompute+3*nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes.mcl|(287,20,<9,6>,<9,26>))
+    instructions: 
+      18*nBodies*nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes.mcl|(287,20,<9,6>,<9,26>))
+    stores: 
+      main: nBodies*nCompute+3*nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes.mcl|(287,20,<9,6>,<9,26>))
+INFO at |project://mcl/input/programs/barnes.mcl|(58,19,<6,13>,<6,32>): control flow:
+  threads:
+    instructions: 
+      2*nBodies*nCompute+nCompute (may not be accurate: control flow at |project://mcl/input/programs/barnes.mcl|(287,20,<9,6>,<9,26>))
+INFO at |project://mcl/input/programs/barnes.mcl|(58,19,<6,13>,<6,32>): Arithmetic intensity: 18*nBodies*nCompute*(6*nBodies*nCompute+6*nCompute)^(-1)
+*/

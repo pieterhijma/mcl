@@ -43,8 +43,8 @@ xeon_phi void matmul(const int n, const int m, const int p, float[n,m] c, const
         foreach (const int tj in nrThreadsM threads) {
             foreach (const int vj in nrVectorsM vectors) {
                 for (int ej = 0; ej < nrElsM; ej++) {
-                    dev float[p] bTemp;
-                    dev float[nrElsN] cTemp;
+                    float[p] bTemp;
+                    float[nrElsN] cTemp;
                     for (int k = 0; k < p; k++) {
                         bTemp[k] = b2[k,tj][0, ej][0,vj];
                     }

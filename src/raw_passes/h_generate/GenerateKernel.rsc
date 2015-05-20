@@ -39,13 +39,14 @@ import data_structs::table::Retrieval;
 
 import raw_passes::d_prettyPrint::PrettyPrint;
 import raw_passes::h_generate::GenerateGeneral;
+import raw_passes::h_generate::GenerateCPP;
 
 import raw_passes::h_generate::data_structs::OutputBuilder;
 
 
 
 Funcs getFuncsKernel() {
-	return <genDeclModifierKernel, genBasicDecl, genExp, genOpenCLCallKernel>;
+	return <genDeclModifierKernel, genBasicDecl, genExp, genOpenCLCallKernel, genVarCPP>;
 }
 
 

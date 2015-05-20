@@ -129,11 +129,16 @@ int priority(div(_, _)) = 12;
 int priority(add(_, _)) = 11;
 int priority(sub(_, _)) = 11;
 int priority(bitshl(_, _)) = 10;
+int priority(bitshr(_, _)) = 10;
 int priority(lt(_, _)) = 9;
 int priority(gt(_, _)) = 9;
+int priority(le(_, _)) = 9;
+int priority(ge(_, _)) = 9;
 int priority(eq(_, _)) = 8;
 int priority(ne(_, _)) = 8;
 int priority(bitand(_, _)) = 7;
+int priority(bitor(_, _)) = 6;
+int priority(and(_, _)) = 5;
 
 default bool isLeftAssociative(Exp e) = false;
 bool isLeftAssociative(mul(_, _)) = true;

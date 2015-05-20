@@ -38,6 +38,7 @@ import data_structs::level_04::ASTConcreteCustomType;
 //}
 
 public Exp getSize(\int()) = intConstant(4);
+public Exp getSize(uint()) = intConstant(4);
 public Exp getSize(int2()) = intConstant(8);
 public Exp getSize(int4()) = intConstant(16);
 public Exp getSize(int8()) = intConstant(32);

@@ -97,6 +97,18 @@ list[Operation] getOpsBinaryExp(ExpID eID, Exp e, str operation, Table t) =
 	getOpsExp(eID, e.l, t) +
 	getOpsExp(eID, e.r, t);
 	
+list[Operation] getOpsExp(ExpID eID, e:bitor(_, _), Table t) = 
+	getOpsBinaryExp(eID, e, "bit", t);
+
+list[Operation] getOpsExp(ExpID eID, e:bitand(_, _), Table t) = 
+	getOpsBinaryExp(eID, e, "bit", t);
+
+list[Operation] getOpsExp(ExpID eID, e:bitshl(_, _), Table t) = 
+	getOpsBinaryExp(eID, e, "bit", t);
+
+list[Operation] getOpsExp(ExpID eID, e:bitshr(_, _), Table t) = 
+	getOpsBinaryExp(eID, e, "bit", t);
+
 list[Operation] getOpsExp(ExpID eID, e:div(_, _), Table t) = 
 	getOpsBinaryExp(eID, e, "div", t);
 	
@@ -115,6 +127,12 @@ list[Operation] getOpsExp(ExpID eID, e:lt(_, _), Table t) =
 list[Operation] getOpsExp(ExpID eID, e:gt(_, _), Table t) = 
 	getOpsBinaryExp(eID, e, "cmp", t);
 	
+list[Operation] getOpsExp(ExpID eID, e:le(_, _), Table t) = 
+	getOpsBinaryExp(eID, e, "cmp", t);
+
+list[Operation] getOpsExp(ExpID eID, e:ge(_, _), Table t) = 
+	getOpsBinaryExp(eID, e, "cmp", t);
+	
 list[Operation] getOpsExp(ExpID eID, e:eq(_, _), Table t) = 
 	getOpsBinaryExp(eID, e, "cmp", t);
 
@@ -123,6 +141,9 @@ list[Operation] getOpsExp(ExpID eID, e:ne(_, _), Table t) =
 
 list[Operation] getOpsExp(ExpID eID, e:not(_), Table t) = 
 	getOpsUnaryExp(eID, e, "cmp", t);
+
+list[Operation] getOpsExp(ExpID eID, e:and(_, _), Table t) = 
+	getOpsBinaryExp(eID, e, "cmp", t);
 
 list[Operation] getOpsExp(ExpID eID, e:minus(_), Table t) = 
 	getOpsUnaryExp(eID, e, "sub", t);

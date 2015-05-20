@@ -21,7 +21,7 @@
 
 module raw_passes::f_simplify::ExpExtension
 import IO;
-
+//import raw_passes::f_simplify::util::Print;
 
 import List;
 
@@ -73,6 +73,10 @@ bool ltVar(var(BasicVar l), var(BasicVar r)) = ltBasicVar(l, r);
 //	ignored
 // in the end, the ltExp is used for the expressions.
 bool ltMulList(list[Exp] l, list[Exp] r) {
+	// TODO: check whether this is right....
+	if (l == r) return false;
+	
+	
 	// constant is always less than another term
 	switch (r) {
 		case [expo(intConstant(_), _)]: return false; 

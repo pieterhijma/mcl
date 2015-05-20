@@ -51,6 +51,10 @@ set[tuple[Type, Identifier, list[Decl]]] CORE_LIBRARY = {
 	<\int(), id("toInt"), [
 			astDecl([const()], [basicDecl(\float(), id("arg"))])
 		]
+	>,
+	<\float(), id("toFloat"), [
+			astDecl([const()], [basicDecl(\int(), id("arg"))])
+		]
 	>
 };
 
@@ -72,6 +76,11 @@ map[str, set[tuple[Type, Identifier, list[Decl]]]] LIBRARIES =
 					astDecl([const()], [basicDecl(\float(), id("arg2"))])
 				]
 			>,
+			<\float(), id("max"), [
+					astDecl([const()], [basicDecl(\float(), id("arg1"))]),
+					astDecl([const()], [basicDecl(\float(), id("arg2"))])
+				]
+			>,
 			<\float(), id("pow"), [
 					astDecl([const()], [basicDecl(\float(), id("arg1"))]),
 					astDecl([const()], [basicDecl(\float(), id("arg2"))])
@@ -86,6 +95,18 @@ map[str, set[tuple[Type, Identifier, list[Decl]]]] LIBRARIES =
 				]
 			>,
 			<\float(), id("fabs"), [
+					astDecl([const()], [basicDecl(\float(), id("arg"))])
+				]
+			>,
+			<\float(), id("sin"), [
+					astDecl([const()], [basicDecl(\float(), id("arg"))])
+				]
+			>,
+			<\float(), id("cos"), [
+					astDecl([const()], [basicDecl(\float(), id("arg"))])
+				]
+			>,
+			<\float(), id("sign"), [
 					astDecl([const()], [basicDecl(\float(), id("arg"))])
 				]
 			>

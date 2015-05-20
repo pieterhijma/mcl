@@ -46,7 +46,7 @@ alias Builder = tuple[Table t, list[Message] ms];
 
 
 Builder setDeclConstant(DeclID dID, Builder b) {
-	if (!b.t.decls[dID].written) {
+	if (!b.t.decls[dID].written && !isTypeDefDecl(dID, b.t)) {
 		b.t.decls[dID].decl.modifier = insertNoDouble(b.t.decls[dID].decl.modifier, const());
 	}
 	return b;

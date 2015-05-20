@@ -1,0 +1,87 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module kmeans
+
+
+
+
+import perfect;
+import gpu;
+
+
+
+
+
+
+
+
+
+
+gpu void kmeans_kernel(const int npoints, const int nclusters, const int 
+        nfeatures, const dev float[nfeatures,npoints] points, const dev 
+        float[nclusters,nfeatures] clusters, dev int[npoints] pointsCluster) {
+    const int nrThreadsNpoints = gpu.hierarchy.blocks.block.threads.
+            max_nr_units;
+    const int nrBlocksNpoints = npoints / (1 * nrThreadsNpoints);
+    foreach (const int bpid in nrBlocksNpoints blocks) {
+        foreach (const int tpid in nrThreadsNpoints threads) {
+            const int pid = bpid * (1 * nrThreadsNpoints) + tpid;
+            reg int ind = 0;
+            reg float min_dist = 3.0E+38;
+            for (reg int cluster = 0; cluster < nclusters; cluster++) {
+                reg float dist = 0;
+                for (reg int feature = 0; feature < nfeatures; feature++) {
+                    const float d = points[feature,pid] - clusters[cluster,
+                            feature];
+                    dist = dist + d * d;
+                }
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    ind = cluster;
+                }
+            }
+            pointsCluster[pid] = ind;
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/kmeans-gpu.mcl|(65,13,<18,9>,<18,22>): pcie transfers 4 * (nclusters * nfeatures) + 4 * (nfeatures * npoints) + 12 bytes from host to device
+INFO at |project://mcl/input/programs/kmeans-gpu.mcl|(65,13,<18,9>,<18,22>): pcie transfers 4 * npoints bytes from device to host
+INFO at |project://mcl/input/programs/kmeans-gpu.mcl|(65,13,<18,9>,<18,22>): computation:
+  threads:
+    instructions: 
+      nclusters*nrBlocksNpoints*nrThreadsNpoints
+    stores: 
+      dev: nrBlocksNpoints*nrThreadsNpoints
+INFO at |project://mcl/input/programs/kmeans-gpu.mcl|(65,13,<18,9>,<18,22>): control flow:
+  threads:
+    loads: 
+      dev: 2*nclusters*nfeatures*nrBlocksNpoints*nrThreadsNpoints
+    instructions: 
+      5*nclusters*nfeatures*nrBlocksNpoints*nrThreadsNpoints+nclusters*nrBlocksNpoints*nrThreadsNpoints+
+      3*nrBlocksNpoints*nrThreadsNpoints
+  host:
+    instructions: 
+      2
+INFO at |project://mcl/input/programs/kmeans-gpu.mcl|(65,13,<18,9>,<18,22>): Arithmetic intensity: nclusters
+INFO at |project://mcl/input/programs/kmeans-gpu.mcl|(265,13,<20,62>,<20,75>): It may be beneficial to consider computing more than one element of pointsCluster per thread.
+--> kmeans-gpu-v1.mcl (also includes fix for when nrThreadPoints does not exactly divide npoints
+*/

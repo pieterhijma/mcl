@@ -68,6 +68,16 @@ public Table removeHardwareVars(Table t) {
 	b = removeHardwareVars(expWithHardwareVars, b);
 	return b.t;
 }
+
+
+bool gpuToAMD(VarID vID, Table t, int val) {
+	list[Key] keys = t.vars[vID].at;
+	FuncID fID = getFunc(keys);
+	Func f = getFunc(fID, t);
+	str hwDesc = f.hwDescription.string;
+	// this is kind of the pattern...
+	return (hwDesc == "amd" || hwDesc == "hd7970") && val == 1024;
+}
 	
 
 Builder2 removeHardwareVars(set[ExpID] eIDs, Builder2 b) {
@@ -77,6 +87,11 @@ Builder2 removeHardwareVars(set[ExpID] eIDs, Builder2 b) {
 			case varExp(VarID vID): {
 				if (isHardwareVar(vID, b.t)) {
 					int r = resolveHardwareVarInt(vID, b.t);
+					// FIXME, hack to make AMD work.
+					// gpu.hierarchy....nrThreads = 1024 should actually be 256
+					if (gpuToAMD(vID, b.t, r)) {
+						r = 256;
+					}
 					
 					b = removeVar(vID, b);
 					

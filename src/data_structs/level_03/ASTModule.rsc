@@ -104,7 +104,7 @@ data Exp 	= emptyArray()
 //public bool isConstant(oneof(list[Exp] es)) = all(e <- es, isConstant(e));
 
 
-public Identifier getIdVar(dot(_, Var v)) = getIdVar(v);
+//public Identifier getIdVar(dot(_, Var v)) = getIdVar(v);
 
 
 public Type getBaseType(arrayType(Type bt, _)) = getBaseType(bt);

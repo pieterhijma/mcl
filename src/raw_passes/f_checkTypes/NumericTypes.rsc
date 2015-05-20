@@ -41,7 +41,7 @@ import raw_passes::f_checkTypes::Messages;
 
 
 
-private set[Type] numericTypes = {\index(), \int(), \float(), byte()};
+private set[Type] numericTypes = {\index(), \int(), uint(), \float(), byte()};
 
 public default bool isVectorType(Type t) = false;
 public bool isVectorType(arrayType(Type t, list[ArraySize] sizes)) {
@@ -89,6 +89,10 @@ public bool isNumericType(Type t) =
 
 
 public void checkNumericType(Exp e) {
+	if (!(e@evalType)?) {
+		iprintln(e);
+		throw "shit";
+	}
 	if (!isNumericType(e@evalType)) {
 		throw noNumericType(e@location);
 	}

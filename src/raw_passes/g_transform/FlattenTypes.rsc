@@ -65,6 +65,7 @@ bool isPartOfVar(VarID vID, Table table) {
 	return false;
 }
 
+
 public Table flattenTypes(Table table) {
 	set[VarID] vars = domain(table.vars);
 	
@@ -165,13 +166,19 @@ public Table flattenTypes(Table table) {
 		
 		list[Key] keys = [basicDeclID(bdID)] + table.basicDecls[bdID].at;
 		Builder2 b = <table, {}, [], keys, [], (), {}, {}>;
+		//println("before");
+		//iprintln(t);
 		t = visit (t) {
 			case astArraySize(Exp e, list[Decl] ds): {
 				<eID, b> = insertNewExp(convertBack(e), b);
 				<dIDs, b> = insertNewDecls([convertBack(d) | d <- ds], b);
 				insert arraySize(eID, dIDs);
 			}
+			case astCustomType(Identifier id, list[Exp] es) =>
+				customType(id, [e@key | e <- es])
 		}
+		//println("after");
+		//iprintln(t);
 		
 		BasicDecl new = bd;
 		new.\type = t;

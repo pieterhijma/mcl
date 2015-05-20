@@ -1,0 +1,122 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module barnes
+
+
+
+
+import perfect;
+import math;
+import accelerator;
+import gpu;
+import nvidia;
+import cc_2_0;
+
+
+
+
+
+// Example values of parameters.
+
+
+
+
+cc_2_0 void computeAcceleration(const int start = 0, const int nCompute = 32, const int 
+        nBodies = 128, const global float[nBodies,3] positions, const global 
+        float[nBodies] mass, global float[nCompute,3] accel, const float 
+        softsq) {
+    const int nrThreadsNCompute = 128;
+    const int nrBlocksNCompute = (nCompute + nrThreadsNCompute - 1) / (1 * 
+            nrThreadsNCompute);
+    foreach (const int bbody in nrBlocksNCompute blocks) {
+        shared float[nrThreadsNCompute] xcopy;
+        shared float[nrThreadsNCompute] ycopy;
+        shared float[nrThreadsNCompute] zcopy;
+        shared float[nrThreadsNCompute] mcopy;
+        const int nrThreadsNrThreadsNCompute = cc_2_0.hierarchy.blocks.block.
+                warps.warp.threads.nr_units;
+        const int nrWarpsNrThreadsNCompute = nrThreadsNCompute / (1 * 
+                nrThreadsNrThreadsNCompute);
+        foreach (const int wtbody in nrWarpsNrThreadsNCompute warps) {
+            foreach (const int ttbody in nrThreadsNrThreadsNCompute threads) {
+                const int tbody = wtbody * (1 * nrThreadsNrThreadsNCompute) + 
+                        ttbody;
+                const int body = bbody * (1 * nrThreadsNCompute) + tbody;
+                const int bodyOffset = body + start;
+                if (bodyOffset < nBodies) {
+                    local float acc0 = 0.0;
+                    local float acc1 = 0.0;
+                    local float acc2 = 0.0;
+                    const float pos0 = positions[bodyOffset,0];
+                    const float pos1 = positions[bodyOffset,1];
+                    const float pos2 = positions[bodyOffset,2];
+                    const int l = nBodies / nrThreadsNCompute * 
+                            nrThreadsNCompute;
+                    for (local int k = 0; k < l; k += nrThreadsNCompute) {
+                        xcopy[tbody] = positions[k + tbody,0];
+                        ycopy[tbody] = positions[k + tbody,1];
+                        zcopy[tbody] = positions[k + tbody,2];
+                        mcopy[tbody] = mass[k + tbody];
+                        barrier(shared);
+                        for (local int i = 0; i < nrThreadsNCompute; i++) {
+                            const float diff_x = xcopy[i] - pos0;
+                            const float diff_y = ycopy[i] - pos1;
+                            const float diff_z = zcopy[i] - pos2;
+                            const float distsq = diff_x * diff_x + diff_y * 
+                                    diff_y + diff_z * diff_z + softsq;
+                            const float factor = mcopy[i] / (distsq * 
+                                    sqrt(distsq));
+                            acc0 = acc0 + diff_x * factor;
+                            acc1 = acc1 + diff_y * factor;
+                            acc2 = acc2 + diff_z * factor;
+                        }
+                        barrier(shared);
+                    }
+                    if (l < nBodies) {
+                        const int amount = nBodies - l;
+                        if (tbody < amount) {
+                            xcopy[tbody] = positions[l + tbody,0];
+                            ycopy[tbody] = positions[l + tbody,1];
+                            zcopy[tbody] = positions[l + tbody,2];
+                            mcopy[tbody] = mass[l + tbody];
+                        }
+                        barrier(shared);
+                        for (local int i = 0; i < amount; i++) {
+                            const float diff_x = xcopy[i] - pos0;
+                            const float diff_y = ycopy[i] - pos1;
+                            const float diff_z = zcopy[i] - pos2;
+                            const float distsq = diff_x * diff_x + diff_y * 
+                                    diff_y + diff_z * diff_z + softsq;
+                            const float factor = mcopy[i] / (distsq * 
+                                    sqrt(distsq));
+                            acc0 = acc0 + diff_x * factor;
+                            acc1 = acc1 + diff_y * factor;
+                            acc2 = acc2 + diff_z * factor;
+                        }
+                        barrier(shared);
+                    }
+                    accel[body,0] = acc0;
+                    accel[body,1] = acc1;
+                    accel[body,2] = acc2;
+                }
+            }
+        }
+    }
+}

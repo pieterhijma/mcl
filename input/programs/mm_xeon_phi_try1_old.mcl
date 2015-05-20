@@ -42,7 +42,7 @@ xeon_phi void matmul(const int n = 2048, const int m = 2048, const int p = 2048,
 	foreach (int iN in nrThreadsN threads) {
 		foreach (int jM in nrThreadsM threads) {
 			foreach (int vM in nrVectors vectors) {
-				reg float[nrBlocks] cTemp;
+				float[nrBlocks] cTemp;
 				
 				for (int j = 0; j < nrBlocks; j++) {
 					cTemp[j] = 0.0;

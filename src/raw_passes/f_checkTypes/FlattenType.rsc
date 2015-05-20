@@ -84,13 +84,20 @@ Exp computeSize(at:arrayType(Type t, list[ArraySize] sizes), int dim) {
 /*
 Type combine(\int(), \int(), Table table) = 
 	arrayType(\int(), [astArraySize(intConstant(2))]);
+*/
 Type combine(\float(), \float(), Table table) = 
-	arrayType(\float(), [astArraySize(intConstant(2))]);
+	arrayType(\float(), [astArraySize(intConstant(2), [])]);
+Type combine(arrayType(\float(), [astArraySize(Exp e, [])]), \float(), Table table) = 
+	arrayType(\float(), [astArraySize(add(e, intConstant(1)), [])]);
+Type combine(\float(), arrayType(\float(), [astArraySize(Exp e, [])]), Table table) = 
+	arrayType(\float(), [astArraySize(add(e, intConstant(1)), [])]);
+Type combine(arrayType(\float(), [astArraySize(Exp e1, [])]), 
+	arrayType(\float(), [astArraySize(Exp e2, [])]), Table table) = 
+	arrayType(\float(), [astArraySize(add(e1, e2), [])]);
 	
+	/*
 Type combine(\int(), arrayType(\int(), list[Exp] es), Table table) = 
 	arrayType(\int(), [astArraySize(add(es[0], intConstant(1)))]);
-Type combine(float(), arrayType(float(), list[Exp] es), Table table) = 
-	arrayType(float(), [astArraySize(add(es[0], intConstant(1)))]);
 	
 Type combine(arrayType(\int(), list[Exp] es), \int(), Table table) = 
 	arrayType(\int(), [astArraySize(add(es[0], intConstant(1)))]);
@@ -130,20 +137,23 @@ public Type flattenType(t:astConcreteCustomType(Identifier id,
 
 
 public Type flattenType(t:astCustomType(Identifier id, list[Exp] params), 
-		Table table) = flattenType(makeConcrete(t, table), table);
+		Table table) = 
+		//flattenType(makeConcrete(t, table), table);
+		t;
 		
 
 
-public Type flattenType(t:customType(_, _), Table table) = 
-	flattenType(convertAST(t, table), table);
+public Type flattenType(t:customType(_, _), Table table) = t;
+	//flattenType(convertAST(t, table), table);
 	
 
 
 
 public Type flattenType(at:arrayType(_, _), Table table) {
 	at = convertAST(at, table);
+	//iprintln(at);
 	
-	at = makeConcrete(at, table);
+	//at = makeConcrete(at, table);
 	Type bt = getBaseType(at);
 	bt = flattenType(bt, table);
 	
@@ -171,6 +181,7 @@ public Type flattenType(at:arrayType(_, _), Table table) {
 public Type flattenType(t:\void(), Table table) = t;
 public Type flattenType(t:byte(), Table table) = t;
 public Type flattenType(t:\int(), Table table) = t;
+public Type flattenType(t:uint(), Table table) = t;
 public Type flattenType(t:\int2(), Table table) = t;
 public Type flattenType(t:\int4(), Table table) = t;
 public Type flattenType(t:\int8(), Table table) = t;

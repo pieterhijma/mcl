@@ -88,4 +88,14 @@ Effective Bandwidth: 170.93 GB/s
 Bandwidth: 0.25001 GB/s
 
 
+
+
+hd7970
+matmulKernel             : avg = 60.2 ms, total =  301 ms, count =         5
+
+#GFLOPS: 285.67 GFLOPS
+
+
+
+
 */

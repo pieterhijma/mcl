@@ -86,6 +86,7 @@ syntax BasicDecl 	= basicDecl: Type Id
 
 
 syntax Type 	= \int: "int"
+				| uint: "uint"
 				| \void: "void"
 				| index: "index"
 				| float: "float"
@@ -108,12 +109,17 @@ syntax Exp 	= trueConstant: "true"
             |		div: Exp "/" Exp)
             > left (add: Exp "+" Exp
             |  		sub: Exp "-" Exp)
-            > left bitshl: Exp "\<\<" Exp
+            > left (bitshl: Exp "\<\<" Exp
+            |		bitshr: Exp "\>\>" Exp)
             > non-assoc (lt: Exp "\<" Exp 
-            |		gt: Exp "\>" Exp)
+            |		gt: Exp "\>" Exp
+            |		ge: Exp "\>=" Exp
+            |		le: Exp "\<=" Exp)
             > non-assoc (eq: Exp "==" Exp
             |		ne: Exp "!=" Exp)
             > left bitand: Exp "&" Exp
+            > left bitor: Exp "|" Exp
+            > non-assoc and: Exp "&&" Exp
             | bracket "(" Exp ")"
             ;
             
@@ -205,6 +211,7 @@ keyword Keyword	= "module"
 				| "int"
 				| "void"
 				| "index"
+				| "bool"
 				| "float"
 				| "const"
 				| "if"

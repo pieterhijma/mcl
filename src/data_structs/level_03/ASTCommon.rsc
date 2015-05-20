@@ -93,6 +93,7 @@ data BasicDecl	= basicDecl(Type \type, Identifier id)
 
 
 data Type	= \int()
+			| uint()
 			| \void()
 			| index()
 			| float()
@@ -116,9 +117,14 @@ data Exp 	= trueConstant()
 			| sub(Exp l, Exp r)
 			| lt(Exp l, Exp r)
 			| bitshl(Exp l, Exp r)
+			| bitshr(Exp l, Exp r)
 			| bitand(Exp l, Exp r)
+			| bitor(Exp l, Exp r)
 			| gt(Exp l, Exp r)
+			| ge(Exp l, Exp r)
+			| le(Exp l, Exp r)
 			| eq(Exp l, Exp r)
+			| and(Exp l, Exp r)
 			| ne(Exp l, Exp r)
 			;
 			
@@ -237,7 +243,7 @@ public str getMemorySpace(Decl d) {
 }
 
 public bool isPrimitive(Type t) {
-	return t in {byte(), \int(), \void(), index(), float(), boolean()};
+	return t in {byte(), \int(), uint(), \void(), index(), float(), boolean()};
 }
 
 

@@ -231,6 +231,7 @@ public ParGroupMapping findEquivalentParGroups(ParGroupMapping m,
 	hwConstruct pTo = getParGroupParent(to[0].name, hdTo);
 	ParGroup pgTo = createParGroup(pTo, hdTo);
 
+
 	if (equalsSize(from, to)) {
 		m = [<pgFrom, [pgTo]>] + m;
 		
@@ -270,10 +271,16 @@ public ParGroupMapping findEquivalentParGroups(str from, str to, Table t) {
 	str pgFromName = hdFrom.cmap[executingParUnitFrom].super.id;
 	ParGroup pgFrom = createParGroup(pgFromName, puFrom, hdFrom);
 	
+	// FIXME, terrible hack to make AMD work...
+	if (from == "gpu" && to == "amd") {
+		pgFrom.nrUnits.exp = 256;
+	}
+	
 	str pgToName = hdTo.cmap[executingParUnitTo].super.id;
 	ParGroup pgTo = createParGroup(pgToName, puTo, hdTo);
 	
 	ParGroupMapping m = [<pgFrom, [pgTo]>];
+	
 	
 	return findEquivalentParGroups(m, hdFrom, hdTo, t);
 }

@@ -59,6 +59,8 @@ public FuncID getEntryPoint(CallGraph cg) {
 		}
 	}
 	set[FuncID] fIDs = top(cg.graph);
-	if (size(fIDs) != 1) throw "getEntryPoint(CallGraph), multiple entrypoints?";
+	if (size(fIDs) != 1) {
+		throw "getEntryPoint(CallGraph), multiple entrypoints? + <fIDs>";
+	}
 	return getOneFrom(fIDs);
 }

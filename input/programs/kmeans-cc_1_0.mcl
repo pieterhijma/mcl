@@ -1,0 +1,138 @@
+/*
+ * Copyright 2014 Pieter Hijma
+ *
+ * This file is part of MCL.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+module kmeans
+
+
+
+
+import perfect;
+import gpu;
+import nvidia;
+import cc_1_0;
+
+
+
+
+
+
+
+
+
+
+cc_1_0 void kmeans_kernel(const int npoints, const int nclusters, const int 
+        nfeatures, const global float[nfeatures,npoints] points, const global 
+        float[nclusters,nfeatures] clusters, global int[npoints] 
+        pointsCluster) {
+    const int nPointsPerThread = 16;
+    const int nrThreadsNpoints = gpu.hierarchy.blocks.block.threads.
+            max_nr_units;
+    const int nrBlocksNpoints = (npoints + nrThreadsNpoints * nPointsPerThread 
+            - 1) / (1 * nrThreadsNpoints * nPointsPerThread);
+    foreach (const int bpid in nrBlocksNpoints blocks) {
+        const int nrThreadsNrThreadsNpoints = cc_1_0.hierarchy.blocks.block.
+                warps.warp.threads.nr_units;
+        const int nrWarpsNrThreadsNpoints = nrThreadsNpoints / (1 * 
+                nrThreadsNrThreadsNpoints);
+        foreach (const int wttpid in nrWarpsNrThreadsNpoints warps) {
+            foreach (const int tttpid in nrThreadsNrThreadsNpoints threads) {
+                const int ttpid = wttpid * (1 * nrThreadsNrThreadsNpoints) + 
+                        tttpid;
+                const int tpid = bpid * (1 * nrThreadsNpoints * 
+                        nPointsPerThread) + ttpid;
+                for (local int p = 0; p < nPointsPerThread; p++) {
+                    const int pid = bpid * (1 * nrThreadsNpoints * 
+                            nPointsPerThread) + tpid * nPointsPerThread + p;
+                    if (pid < npoints) {
+                        local int ind = 0;
+                        local float min_dist = 3.0E+38;
+                        for (local int cluster = 0; cluster < nclusters; 
+                                cluster++) {
+                            local float dist = 0;
+                            for (local int feature = 0; feature < nfeatures; 
+                                    feature++) {
+                                const float d = points[feature,pid] - 
+                                        clusters[cluster,feature];
+                                dist = dist + d * d;
+                            }
+                            if (dist < min_dist) {
+                                min_dist = dist;
+                                ind = cluster;
+                            }
+                        }
+                        pointsCluster[pid] = ind;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
+INFO at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(98,13,<20,12>,<20,25>): pcie transfers 4 * (nclusters * nfeatures) + 4 * (nfeatures * npoints) + 12 bytes from host to device
+INFO at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(98,13,<20,12>,<20,25>): pcie transfers 4 * npoints bytes from device to host
+INFO at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(98,13,<20,12>,<20,25>): computation:
+  threads:
+    loads: 
+      local: 2*nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+nPointsPerThread*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>), control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(2174,15,<55,32>,<55,47>))
+      global: 0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>))
+    instructions: 
+      nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>), control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(2174,15,<55,32>,<55,47>))
+    stores: 
+      local: 2*nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+
+      2*nPointsPerThread*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>), control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(2174,15,<55,32>,<55,47>))
+      global: nPointsPerThread*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>))
+INFO at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(98,13,<20,12>,<20,25>): indexing:
+  threads:
+    loads: 
+      local: 3*nPointsPerThread*nclusters*nfeatures*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>))
+    instructions: 
+      0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>))
+    stores: 
+      local: 0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>))
+INFO at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(98,13,<20,12>,<20,25>): control flow:
+  threads:
+    loads: 
+      local: 3*nPointsPerThread*nclusters*nfeatures*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+
+      2*nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+
+      3*nPointsPerThread*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>), control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(2174,15,<55,32>,<55,47>))
+      global: 2*nPointsPerThread*nclusters*nfeatures*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>))
+    instructions: 
+      5*nPointsPerThread*nclusters*nfeatures*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+
+      8*nPointsPerThread*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+
+      7*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>), control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(2174,15,<55,32>,<55,47>))
+    stores: 
+      local: 2*nPointsPerThread*nclusters*nfeatures*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+
+      3*nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+
+      2*nPointsPerThread*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>), control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(2174,15,<55,32>,<55,47>))
+      global: 0 (may not be accurate: control flow at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(1509,13,<43,24>,<43,37>))
+  host:
+    instructions: 
+      6
+  blocks:
+    instructions: 
+      2*nrBlocksNpoints
+INFO at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(98,13,<20,12>,<20,25>): Arithmetic intensity: nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints*(
+4*nPointsPerThread*nclusters*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints+
+4*nPointsPerThread*nrBlocksNpoints*nrThreadsNrThreadsNpoints*nrWarpsNrThreadsNpoints)^(
+-1)
+INFO at |project://mcl/input/programs/kmeans-cc_1_0.mcl|(98,13,<20,12>,<20,25>): Memory on_chip is shared by more than one block, carefully consider the usage of memory spaces {"shared"}
+
+No new feedback. Done.
+*/

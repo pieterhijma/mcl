@@ -162,7 +162,7 @@ tuple[FuncID, FuncID, Module, Table] cutToCall(FuncID fID, list[StatID] sIDs,
 	Func f = getFunc(fID, t);
 	
 	set[VarID] varsStat = { vID | VarID vID <- domain(t.vars),
-		any(sID <- sIDs, statID(sID) in t.vars[vID].at) };
+		any(sID <- sIDs, statID(sID) in t.vars[vID].at, !isTypeDefVar(vID, t)) };
 	
 	set[DeclID] declsStat = { getDeclVar(vID, t) | vID <- varsStat };
 	// the vars in declarations should also be included in the 
@@ -175,7 +175,6 @@ tuple[FuncID, FuncID, Module, Table] cutToCall(FuncID fID, list[StatID] sIDs,
 	
 	list[DeclID] declsParameters = sort({ dID | DeclID dID <- declsStat,
 		all(StatID sID <- sIDs, !definedInStat(dID, sID, t)) });
-	
 	
 	<called, t> = createCalled(f, sIDs, declsParameters, suffix, t);
 	<caller, t> = createCaller(fID, sIDs, declsParameters, suffix, t);

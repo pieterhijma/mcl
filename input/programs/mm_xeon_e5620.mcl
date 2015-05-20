@@ -50,8 +50,8 @@ xeon_e5620 void matmul(const int n = 2048, const int m = 2048, const int p = 204
         foreach (const int tj in nrThreadsM threads) {
             foreach (const int vj in nrVectorsM vectors) {
                 for (reg int ej = 0; ej < nrElsM; ej++) {
-                    main float[p] bTemp;
-                    main float[nrElsN] sums;
+                    float[p] bTemp;
+                    float[nrElsN] sums;
                     for (reg int ei = 0; ei < nrElsN; ei++) {
                         sums[ei] = 0.0;
                     }

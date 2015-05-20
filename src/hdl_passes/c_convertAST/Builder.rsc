@@ -142,7 +142,7 @@ Builder checkConstruct(ConstructID constructId, HDLDescription hdl, Builder b) {
 			if (! (nested.kind in allowedConstructs[construct.kind])) {
 				b.messages += [error("construct <qid> of kind <nested.kind> is not allowed inside construct <constructId> of kind <construct.kind>", construct.location)];
 			}
-		} catch Message m : b.messages += {m};
+		} catch Message m : b.messages += [m];
 	}
 	for (s <- hdl.cmap[constructId].nested) {
 		try {
@@ -150,7 +150,7 @@ Builder checkConstruct(ConstructID constructId, HDLDescription hdl, Builder b) {
 			if (! (nested.kind in allowedConstructs[construct.kind])) {
 				b.messages += [error("construct <s> of kind <nested.kind> is not allowed inside construct <constructId> of kind <construct.kind>", construct.location)];
 			}
-		} catch Message m : b.messages += {m};
+		} catch Message m : b.messages += [m];
 	}
 	
 	for (prop <- domain(construct.props)) {
