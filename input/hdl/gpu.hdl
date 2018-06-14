@@ -1,0 +1,88 @@
+hardware_description gpu;
+
+specializes accelerator;
+
+parallelism hierarchy {
+    memory_space dev {
+	default;
+    }
+
+    par_group blocks {
+	max_nr_units = 65000;
+	
+	par_unit block {
+	    memory_space local {
+	    }
+	
+	    par_group threads {
+		max_nr_units = 1024;
+	
+		perfect.hierarchy.threads.thread;
+	    }
+	}
+    }
+}
+
+device host {
+}
+
+interconnect pcie {
+    connects(host, gpu.mem);
+    latency = 1000 cycles;
+    bandwidth = 8 GB/s;
+}
+
+device gpu {
+    mem;
+    ic;
+    processors;
+}
+
+memory mem {
+    space(dev);
+    capacity = 2 GB;
+}
+
+memory on_chip {
+    space(local);
+    capacity = 16 B;
+}
+
+memory regs {
+    space(reg);
+    capacity = 400 B;
+    addressable = false;
+}
+
+interconnect ic {
+    connects(mem, processors.processor[*]);
+    latency = 20 cycles;
+}
+
+execution_group processors {
+    nr_units = 16;
+
+    execution_unit processor {
+	slots(block, 1);
+
+	on_chip;
+	ls_units;	
+	regs;
+	
+	execution_group alus {
+	    nr_units = 32;
+		    
+	    execution_unit alu {
+		slots(thread, 1);
+				
+		perfect.cores.core.ops;
+	    }
+	}
+    }
+}
+
+load_store_group ls_units {
+    max_nr_units = 32;
+	
+    perfect.cores.core.ls_units.ls_unit;
+}

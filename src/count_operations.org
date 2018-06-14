@@ -1,0 +1,13 @@
+* Count operations
+
+In this micro-pass we are going to count the operations of a kernel.  We make a
+distiction between three types of operations: compute operations, memory
+operations, and overhead operations.  Compute operations contribute to the
+result that is computed by the kernel, memory operations are loads and stores
+that are needed to compute the result.  Overhead instruction can be separated
+by control-flow instructions and indexing instructions.  
+
+We count these operations per basic block and summarize them in a Summary.
+This Summary datastructure keeps track of whether it is based on a condition
+and whether it is the true or false branch, the condition it is based on or, if
+the basic block is in some loop, how many iterations it is executed.  

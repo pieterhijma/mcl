@@ -1,0 +1,49 @@
+hardware_description accelerator;
+
+specializes perfect;
+
+parallelism hierarchy {
+    memory_space dev {
+	default;
+    }
+
+    perfect.hierarchy.threads;
+}
+
+device host {
+}
+
+interconnect pcie {
+    connects(host, accelerator.mem);
+    latency = 1000 cycle;
+    bandwidth = 8 GB/s;
+}
+
+device accelerator {
+    mem;
+    ic;
+    cores;
+}
+
+memory mem {
+    space(dev);
+    capacity = 4 GB;
+}
+
+memory regs {
+    space(reg);
+    capacity = unlimited B;
+    addressable = false;
+}
+
+interconnect ic {
+    connects(mem, cores.core[*]);
+    latency = 1 cycle;
+    bandwidth = unlimited bit/s;
+}
+
+execution_group cores {
+    max_nr_units = unlimited;
+
+    perfect.cores.core;
+}

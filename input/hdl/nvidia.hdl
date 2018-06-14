@@ -1,0 +1,99 @@
+hardware_description nvidia;
+
+specializes gpu;
+
+parallelism hierarchy {
+    memory_space global {
+	default;
+    }
+
+    par_group blocks {
+	max_nr_units = 65000;
+	
+	par_unit block {
+	
+	    memory_space shared {
+	    }
+	
+	    par_group threads {
+		max_nr_units = 1024;
+	
+		par_unit thread {
+		    memory_space reg {
+			default;
+		    }
+		    memory_space local {
+		    }
+		}
+	    }
+	}
+    }
+}
+
+device host {
+}
+
+interconnect pcie {
+    connects(host, mem);
+    latency = 1000 cycles;
+    bandwidth = 8 GB/s;
+}
+
+device nvidia {
+    mem;
+    ic;
+    smps;
+}
+
+memory mem {
+    space(global);
+    space(local);
+    capacity = 2 GB;
+}
+
+memory on_chip {
+    space(shared);
+    capacity = 48 kB;
+}
+
+memory regs {
+    space(reg);
+    capacity = 32 kB;
+    addressable = false;
+}
+
+interconnect ic {
+    connects(mem, smps.smp[*]);
+    latency = 20 cycles;
+}
+
+execution_group smps {
+    nr_units = 16;
+
+    execution_unit smp {
+	slots(block, 8);
+	slots(thread, 1024);
+
+	performance_feedback("shared_mem_parallelism");
+		
+	on_chip;
+	ls_units;
+	regs;
+	
+	execution_group alus {
+	    nr_units = 32;
+		    
+	    execution_unit alu {
+		slots(thread, 1);
+				
+		perfect.cores.core.ops;
+	    }
+	}
+    }
+}
+
+load_store_group ls_units {
+    max_nr_units = 32;
+	
+    perfect.cores.core.ls_units.ls_unit;
+}

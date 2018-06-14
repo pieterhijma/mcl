@@ -1,0 +1,21 @@
+package lib.fft;
+
+module negateImag;
+
+
+import perfect;
+
+import lib.math.complex;
+
+
+perfect void negateImag(int h, int w, Complex[h][w] complex, bool scale) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    complex[i][j].imag = -complex[i][j].imag;
+	    if (scale) {
+		complex[i][j].real = complex[i][j].real / (h * w);
+		complex[i][j].imag = complex[i][j].imag / (h * w);
+	    }
+	}
+    }
+}

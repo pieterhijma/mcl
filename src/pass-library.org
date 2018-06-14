@@ -1,0 +1,345 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* The pass library
+
+This library contains all the functionality to define passes.
+
+#+toc: headlines 4 local
+
+** The package
+   :PROPERTIES:
+   :header-args+: :package ":cl-user"
+   :header-args+: :tangle "system/library/pass-library/packages.lisp"
+   :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :pass-library
+  (:use :cl :cl-log :cl-graph :cl-graph-extension :simple-sets
+	:errors :ast :ast-mcpl
+	:check-consistency-ast :logging)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:import-from :cl-strings :replace-all)
+  (:export :pass-data :modules :exports :callgraph :root-directory
+	   :defpass :run-pass :enable-pass
+	   :get-key :get-key-from-filename
+	   :resolve-exports
+	   :domodules)
+  (:shadow :exports))
+#+end_src
+
+** The functionality
+   :PROPERTIES:
+   :header-args+: :package ":pass-library"
+   :header-args+: :tangle "system/library/pass-library/pass-library.lisp"
+   :END:
+
+First, the pass library defines a datastructure ~pass-data~ that holds all
+kinds of data to perform all passes.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :pass-library)
+#+end_src
+
+#+begin_src lisp
+(defclass pass-data ()
+  ((modules :initform (make-hash-table :test 'equal) :accessor modules)
+   (callgraph :initform nil :accessor callgraph)
+   (exports :initform (make-hash-table :test 'equal) :accessor exports)
+   (root-directory :initform nil :accessor root-directory)))
+
+(defun make-pass-data ()
+  (make-instance 'pass-data))
+#+end_src
+
+This package allows one to define a pass with the following macro:
+
+#+begin_src lisp
+(defmacro defpass (name &body properties)
+  (check-properties properties)
+  (let ((instructions 
+	 (loop for (type . args) in properties
+	    append (case type
+		     (:dependencies
+		      (add-dependencies '*pass-graph* name args))
+		     (:options
+		      (add-dependencies '*options-graph* name args))
+		     (:at-most-one
+		      (add-dependencies '*at-most-one-graph* name args))))))
+    (push `(export ',name) instructions)
+    (push `(add-vertex *pass-graph* ',name) instructions)
+    `(progn ,@instructions)))
+#+end_src
+
+It has three types of properties: ~:dependencies~, passes on which it depends;
+~:options~, optional passes that can be run together with this pass; and
+~:at-most-one~, which contains lists of passes of which only one should be
+chosen.  The function ~check-properties~ verifies whether everything is in
+order.
+
+An example use of the ~defpass~ macro is:
+
+#+begin_src lisp :tangle no
+(defpass generate-code
+  (:dependencies semantic-analysis)
+  (:at-most-one (choose-first-option choose-all-options))
+  (:options with-measurement))
+
+
+#+end_src
+
+The ~generate-code~ pass depends on ~semantic-analysis~, must use at most one
+out of ~choose-first-option~ or ~choose-all-options~ and it is possible to turn
+the optional pass ~with-measurement~ on.
+
+
+The following is a convenience macro:
+
+#+begin_src lisp
+(defmacro domodules ((var modules) &body body)
+  `(loop for ,var being the hash-values in ,modules
+      do ,@body))
+#+end_src
+
+#+begin_src lisp
+(defun check-properties (properties)
+  (let ((allowed-properties '(:dependencies :options :at-most-one)))
+    (loop for p in properties
+       do (when (not
+		 (and (typep p 'list)
+		      (member (car p) allowed-properties)))
+	    (error "Expecting one of ~a" allowed-properties)))))
+#+end_src
+
+The function ~add-dependencies~ adds all passes to several graphs:
+
+#+begin_src lisp
+(defparameter *pass-graph* (make-directed-graph))
+(defparameter *options-graph* (make-directed-graph))
+(defparameter *at-most-one-graph* (make-directed-graph))
+
+(defun add-dependencies (graph vertex-from vertices-to)
+  (loop for v-to in vertices-to
+     collect `(add-edge-between-vertexes ,graph ',vertex-from ',v-to)))
+#+end_src
+
+The function ~run-pass~ runs a pass with several options.  It is defined in a
+closure to allow the function ~enable-pass~ to set optional passes for the pass
+to run.
+
+#+begin_src lisp
+(defmacro with-graph-initialized (graph &body body)
+  `(progn
+     (when (null ,graph)
+       (setf ,graph (make-directed-graph)))
+     ,@body))
+
+(let ((graph nil))
+  (defun reset ()
+    (setf graph nil))
+  (defun run-pass (pass options)
+    (initialize-logging)
+    (with-graph-initialized graph
+      ;;(handler-case)
+      (progn
+        (add-graph graph *pass-graph*)
+        (let ((closure (closure graph (list pass))))
+          (check-at-most-one closure)
+          (let ((result (run-passes
+                         (mapcar #'element
+                                 (reverse
+                                  (topological-sort closure)))
+                         options)))
+            (setf graph nil)
+            result)))
+	;; (pass-error (e) (progn
+	;; 		 (setf graph nil)
+	;; 		 (error "~a" (text e))))
+	;; (mcl-error (e) (progn
+	;; 		 (report-mcpl-error e)
+	;; 		 (error  "~a" (text e))))
+        
+      ))
+
+
+  (defun enable-pass (pass pass-to-be-enabled)
+    (with-graph-initialized graph
+      (let ((possible-passes (append (get-children *options-graph* pass)
+				      (get-at-most-one-options pass))))
+	(if (member pass-to-be-enabled possible-passes)
+	    (add-edge-between-vertexes graph pass pass-to-be-enabled)
+	    (error 'pass-error "pass ~a cannot be enabled for pass ~a"
+		   pass-to-be-enabled pass))
+	nil))))
+
+(defun visualize-dependency-graph (graph)
+  (graph->dot graph "passes.dot" :edge-labeler nil
+              :vertex-formatter #'format-vertex
+              :vertex-labeler #'format-vertex-label))
+
+(defun format-vertex (vertex stream)
+  (declare (ignore vertex))
+  (format stream ""))
+
+(defun format-vertex-label (vertex stream)
+  (format stream "~a" vertex))
+#+end_src
+
+#+begin_src lisp :tangle no
+(defun report-mcpl-error (e)
+  (with-slots (text loc) e
+    (destructuring-bind ((line . column) file) loc
+      ,#+swank
+      (swank:eval-in-emacs
+       `(progn
+	  (defun find-position (line column)
+	    (save-excursion
+	      (goto-line line)
+	      (move-to-column column)
+	      (point)))
+	  (find-file ,file)
+	  (let* ((position (find-position ,line ,column))
+		 (overlay (make-overlay position (+ position 5))))
+	    (overlay-put overlay 'face '(:underline t))
+	    (overlay-put overlay 'help-echo ,text))
+	  (goto-line ,line)
+	  (move-to-column ,column)))
+      #-swank
+      (progn
+        (format t "~a~%" e)))))
+#+end_src
+
+#+begin_src lisp
+(defun get-children (graph vertex)
+  (let ((vertex (find-vertex graph vertex nil)))
+    (if vertex
+	(mapcar #'element (child-vertexes vertex))
+	nil)))
+
+(defun add-graph (result-graph graph)
+  (dolist (v (vertexes graph))
+    (add-vertex result-graph (element v)))
+  (dolist (e (edges graph))
+    (add-edge-between-vertexes result-graph
+			       (element (vertex-1 e))
+			       (element (vertex-2 e)))))
+
+
+(defun get-at-most-one-options (pass)
+  (loop for c in (get-children *at-most-one-graph* pass)
+     appending c))
+
+
+(defun run-passes (passes options)
+  (let ((pass-data (make-pass-data)))
+    (loop for p in passes
+       for r = (progn
+		 (log-message :pass "Running pass ~a~%" p)
+		 (funcall (intern (format nil "DO-~a" p) :passes)
+		 	  pass-data
+		 	  (cdr (assoc p options))))
+       do (check-consistency pass-data)
+	 ;; (loop for m being the hash-values in (modules pass-data)
+	 ;;      do (format t (print-pretty:pp m)))
+       finally (return r))))
+
+(defun check-consistency (pass-data)
+  (loop for m being the hash-values in (modules pass-data)
+       do (check-consistency-ast m)))
+
+(defun check-at-most-one (graph)
+  (let ((passes (mapcar #'element (vertexes graph))))
+    (loop for p in passes do (check-at-most-one-pass p passes))))
+
+(defun check-at-most-one-pass (pass all-passes)
+  (let ((at-most-specs (get-children *at-most-one-graph* pass)))
+    (loop for spec in at-most-specs
+       do
+         (let ((enabled-passes (cl:intersection spec all-passes)))
+           (when (not (eql (length enabled-passes) 1))
+             (pass-error nil "Need one of ~a for ~a, enabled now: ~a"
+                         spec pass enabled-passes))))))
+#+end_src
+
+
+The following functions resolve identifiers in exports:
+
+#+begin_src lisp
+(defgeneric resolve-exports (imports-module id exports)
+  (:documentation "Given the imports from a module, resolve identifier in the
+ exports data structure"))
+
+(defmethod resolve-exports (imports-module (id id) exports)
+  (let ((result (make-set :test #'ast=)))
+    (dolist (i imports-module)
+      (let ((exported-ids (gethash (get-key i) exports)))
+        (when exported-ids
+          (setf result (union result (subscribe-rel id exported-ids))))))
+    (cond ((empty-set-p result)
+           nil)
+          ((eql (size-set result) 1)
+           (get-element-set result))
+          (t       
+           (export-error (location id) "~a not uniquely exported" (name id))))))
+#+end_src
+
+
+The function ~get-key~ computes a unique identifier of module based on the
+package and the module-name:
+
+#+begin_src lisp
+(defgeneric get-key (ast))
+
+(defmethod get-key ((module module))
+  (with-slots (id pkg) module
+    (format nil "~a/~a" (get-key pkg) (get-key id))))
+
+(defmethod get-key ((id id))
+  (format nil "~a" (name id)))
+
+(defmethod get-key ((ci compound-id))
+  (with-slots (name compound) ci
+    (format nil "~a/~a" name (get-key compound))))
+
+(defmethod get-key ((i lib-import))
+  (get-key (id i)))
+#+end_src
+
+Likewise, it is possible to retrieve the key from a filename, given pass-data:
+
+#+begin_src lisp
+(defun get-key-from-filename (filename pass-data)
+  (let ((root-name (namestring (root-directory pass-data))))
+    (if (string= root-name "")
+        (remove-extension filename)
+        (remove-extension (replace-all filename root-name "")))))
+
+(defun remove-extension (filename)
+  (subseq filename 0 (- (length filename) 4)))
+#+end_src

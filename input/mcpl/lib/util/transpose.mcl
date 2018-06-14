@@ -1,0 +1,12 @@
+package lib.util;
+
+module transpose;
+
+perfect void transpose(int h, int w, float[h][w] output, 
+	const float[w][h] input) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    output[i][j] = input[j][i];
+	}
+    }
+}

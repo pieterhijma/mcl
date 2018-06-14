@@ -1,0 +1,114 @@
+package matrixmultiplication;
+
+module matrixmultiplication;
+
+
+
+import perfect;
+
+
+perfect void matmul(int n, int m, int p, 
+	float[n, m] c, 
+	float[n, p] a, float[p, m] b) {
+			
+    foreach (int i in n threads) {
+	foreach (int j in m threads) {
+	    float sum = 0.0;
+
+	    for (int k = 0; k < p; k++) {
+		sum = sum + a[i, k] * b[k, j];
+	    }
+	    c[i, j] += sum;
+	}
+    }
+}
+
+
+
+/*
+INFO at |project://mcl/input/programs/matrixmultiplication.mcl|(292,1,<15,26>,<15,27>): Data reuse: b[k,j] is accessed for n threads i.
+INFO at |project://mcl/input/programs/matrixmultiplication.mcl|(282,1,<15,16>,<15,17>): Data reuse: a[i,k] is accessed for m threads j.
+INFO at |project://mcl/input/programs/matrixmultiplication.mcl|(60,6,<6,13>,<6,19>): Arithmetic intensity: 2 * (m * (n * p)) / (m * n + 2 * (m * (n * p)))
+INFO at |project://mcl/input/programs/matrixmultiplication.mcl|(60,6,<6,13>,<6,19>): control flow:
+  threads:
+    loads: 
+    instructions: 
+      2*m*n*p
+    stores: 
+  host:
+    loads: 
+    instructions: 
+    stores: 
+ok
+
+INFO at |project://mcl/input/programs/matrixmultiplication.mcl|(60,6,<6,13>,<6,19>): computation:
+  threads:
+    loads: 
+      main: 2*m*n*p
+    instructions: 
+      2*m*n*p
+    stores: 
+      main: m*n
+  host:
+    loads: 
+    instructions: 
+    stores: 
+INFO at |project://mcl/input/programs/matrixmultiplication.mcl|(60,6,<6,13>,<6,19>): indexing:
+  threads:
+    loads: 
+    instructions: 
+    stores: 
+*/
+
+
+/*
+2048 x 2048 x 2048
+  GTX480: 
+  
+matmulKernel             : avg =  193 ms, total =  965 ms, count =         5
+
+#GFLOPS: 89 GFLOPS
+Effective Bandwidth: 331.63 GB/s
+Bandwidth: 0.24283 GB/s
+
+
+
+
+
+
+
+
+
+
+2048 x 2048 x 2048
+   Xeon Phi
+   
+   matmulKernel             : avg =  430 ms, total = 2.15  s, count =         5
+
+#GFLOPS: 39.953 GFLOPS
+Effective Bandwidth: 148.87 GB/s
+Bandwidth: 0.10901 GB/s
+   
+   
+   
+ 
+ 
+2048 x 2048 x 2048
+	xeon_e5620
+
+	matmulKernel             : avg = 3.32  s, total = 16.6  s, count =         5
+	
+#GFLOPS: 5.1719 GFLOPS
+	
+	
+	
+	
+2048 x 2048 x 2048
+	hd7970
+	
+	matmulKernel             : avg =  125 ms, total =  624 ms, count =         5
+
+#GFLOPS: 137.78 GFLOPS
+	
+
+*/  

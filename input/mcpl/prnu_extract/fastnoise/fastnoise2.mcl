@@ -1,0 +1,27 @@
+package prnu_extract.fastnoise;
+
+module fastnoise2;
+
+export fastnoise2;
+
+import perfect;
+import lib.math.common;
+
+const float EPS = 1.0;
+
+perfect void fastnoise2(int h, int w, float[h][w] output, 
+	float[2][h][w] dxsdys) {
+
+    foreach (int i in h threads) {
+    	foreach (int j in w threads) {
+    	    if (j == 0) output[i][j] = dxsdys[0][i][j + 1] - dxsdys[0][i][j];
+    	    else if (j == w - 1) output[i][j] = dxsdys[0][i][j] - dxsdys[0][i][j - 1];
+    	    else output[i][j] = 0.5 * (dxsdys[0][i][j + 1] - dxsdys[0][i][j - 1]);
+			
+    	    if (i == 0) output[i][j] += dxsdys[1][i + 1][j] - dxsdys[1][i][j];
+    	    else if (i == h - 1) output[i][j] += dxsdys[1][i][j] - dxsdys[1][i - 1][j];
+    	    else output[i][j] += 0.5 * (dxsdys[1][i+1][j] - dxsdys[1][i-1][j]);
+
+    	}
+    }
+}

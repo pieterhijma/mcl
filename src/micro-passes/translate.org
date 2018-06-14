@@ -1,0 +1,1168 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Translating between abstraction levels
+** The package
+   :PROPERTIES:
+   :header-args+: :package ":cl-user"
+   :header-args+: :tangle "../system/micro-passes/translate/packages.lisp"
+   :END:
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :translate
+  (:use :cl :cl-log :logging :ast :callgraph :ast-mcpl
+        :ast-hdl :logging :parse-hdl :hardware-descriptions :set-parents
+        :resolve-vars :set-vars-written :set-cfgraphs
+        :load-hardware-descriptions :query-hdl-mcpl)
+  (:shadowing-import-from :ast-hdl :id :compound-id :left :right :expr :make-add
+			  :make-sub :make-mul :make-div :add :sub :div :mul
+			  :make-id :make-compound-id :name :compound)
+  (:import-from :alexandria :last-elt)
+  (:import-from :anaphora :aif :it)
+  (:import-from :utility-directory :def-standard-class :filter)
+  (:shadow :get-memory-spaces)
+  (:export :translate))
+#+end_src
+
+** The translation functions
+   :PROPERTIES:
+   :header-args+: :package ":translate"
+   :header-args+: :tangle "../system/micro-passes/translate/translate.lisp"
+   :END:
+
+*** toplevel
+
+Translating a module to a target is done by finding a path from hardware
+description ~perfect~ to the target hardware description and then translating
+each function to this target.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :translate)
+#+end_src
+
+#+begin_src lisp
+(defun translate (modules callgraph target exports)
+  "Translate the modules and the functions of the callgraph to 
+hardware-description target."
+  (log-micro-pass "translate" callgraph)
+  (translate-callgraph callgraph target exports)
+  (translate-modules modules target exports))
+
+(defun translate-callgraph (callgraph target exports)
+  (let ((path (find-path "perfect" target))
+	(fs (reverse (funcs-ordered callgraph))))
+    (dolist (f fs)
+      (translate-function-over-path f path exports))))
+#+end_src
+
+When we translate functions, we perform a ~resolve-vars~ and ignore unresolved
+variable errors.  However, this means that global values will not be resolved
+in the final code.  We therefore, need to perform ~resolve-vars~ again on the
+whole module.
+
+#+begin_src lisp
+(defun translate-modules (modules target exports)
+  (dolist (module modules)
+    (nconc (imports module)
+	   (list (make-lib-import (ast-mcpl:make-id target))))
+    (set-parents module)
+    (resolve-vars module exports)
+    (set-cfgraphs module)))
+#+end_src
+
+Finding the path from ~perfect~ to a target is done in the following way:
+
+#+begin_src lisp
+(defun find-path (start end)
+  (reverse (find-path-2 start end)))
+
+(defun find-path-2 (start end)
+  (if (string= start end)
+      (list (load-hardware-description start))
+      (cons (load-hardware-description end)
+	    (find-path-2 start (get-parent-hardware-description end)))))
+
+#+end_src
+
+#+begin_src lisp
+(in-package :translate)
+
+(defun translate-function-over-path (f path exports)
+  (loop for i from 0 below (1- (length path))
+     do (let ((current-hwd (elt path i))
+	      (next-hwd (elt path (1+ i))))
+	  (when (string= (name (id current-hwd)) (ast-mcpl:name (hw-desc f)))
+	    (translate-function f current-hwd next-hwd exports)))))
+
+(defun skip (condition)
+  (declare (ignore condition))
+  (invoke-restart 'skip))
+#+end_src
+
+The function ~translate-function~ translates all statements.  Afterwards it
+performs a ~resolve-vars~ on the function to make sure that the next
+translations can find all the memory spaces of the variables.  However, since
+~resolve-vars~ is performed on the function ~f~ instead of the whole module, it
+will not be able to find global variables or exported variables.  Therefore,
+the ~underclared-var-error~ is ignored.
+
+#+begin_src lisp
+(defun translate-function (f hwd-from hwd-to exports)
+  (log-message :translate "translating ~a to ~a" (ast-mcpl:name (ast-mcpl:id f))
+	       (name (id hwd-to)))
+  (let ((name-hwd-to (name (id hwd-to)))
+	(par-group-mapping 
+	 (find-equivalent-par-groups 
+	  (create-initial-par-group-mapping hwd-from hwd-to) hwd-from hwd-to)))
+    (translate-declarations f par-group-mapping)
+    (translate-barriers f par-group-mapping)
+    (translate-foreach-stats f par-group-mapping name-hwd-to)
+    (setf (ast-mcpl:name (ast-mcpl:hw-desc f)) name-hwd-to)
+    (set-parents f)
+    (handler-bind ((errors:undeclared-var-error #'(lambda (c)
+						    (declare (ignore c))
+						    (invoke-restart 'skip))))
+      (resolve-vars f exports))))
+#+end_src
+
+** Equivalence
+   :PROPERTIES:
+   :header-args+: :package ":translate"
+   :header-args+: :tangle "../system/micro-passes/translate/equivalence.lisp"
+   :END:
+
+In this section we discuss the equivalence between parallelism groups or
+par-groups.  
+
+*** data-types
+
+First, we set up several datatypes to properly define the equivalence or the
+mapping between par-groups:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :translate)
+#+end_src
+
+#+begin_src lisp
+(def-standard-class memory-space () (name read-only-p default-p))
+(def-standard-class par-group () (memory-spaces))
+(def-standard-class parallelism (par-group) ())
+(def-standard-class sub-par-group  (par-group)
+  (name par-unit nr-units max-nr-units))
+(def-standard-class par-unit () (name memory-spaces))
+(defclass tuple () 
+  ((from :initarg :from :initform (error "Must supply from.") :accessor from)
+   (to :initarg :to :initform (error "Must supply to.") :accessor to)))
+
+(defun make-tuple (from to)
+  (make-instance 'tuple :from from :to to))
+#+end_src
+
+*** initial par-group-mapping
+
+Before we can find the equivalent par-groups, we have to set up an initial
+mapping.  In this function we find the executing par-units, and the par-groups
+in which they are defined. 
+
+#+begin_src lisp
+(defun create-initial-par-group-mapping (hwd-from hwd-to)
+  (let* ((executing-par-unit-from-block
+	  (retrieve-all hwd-from (block-with-name
+			      (get-executing-par-unit hwd-from))))
+	 (executing-par-unit-to-block
+	  (retrieve-all hwd-to (block-with-name
+			    (get-executing-par-unit hwd-to))))
+	 (par-group-from-block (parent executing-par-unit-from-block))
+	 (par-group-to-block (parent executing-par-unit-to-block)))
+    (let* ((par-unit-from
+	    (create-par-unit executing-par-unit-from-block))
+	   (par-unit-to
+	    (create-par-unit executing-par-unit-to-block))
+	   (par-group-from
+	    (create-par-group par-unit-from par-group-from-block))
+	   (par-group-to
+	    (create-par-group par-unit-to par-group-to-block)))
+      (list (make-tuple par-group-from (list par-group-to))))))
+#+end_src
+
+Creating a par-unit is done as follows:
+
+#+begin_src lisp
+(defun create-par-unit (par-unit-block)
+  (make-instance 'par-unit
+		 :name (name (id par-unit-block))
+		 :memory-spaces (create-memory-spaces par-unit-block)))
+#+end_src
+
+Creating memory spaces can be done from par-units or par-group blocks:
+
+#+begin_src lisp
+(defun create-memory-spaces (par-block)
+  (let ((memory-spaces
+	 (collect par-block (block-with-type "memory_space"))))
+    (mapcar #'create-memory-space memory-spaces)))
+
+(defun create-memory-space (memory-space-block)
+  (make-instance 'memory-space
+		 :name (name (id memory-space-block))
+		 :read-only-p (retrieve-all memory-space-block
+					(property-with-name "read-only"))
+		 :default-p (retrieve-all memory-space-block
+				      (property-with-name "default"))))
+#+end_src
+
+Creating a par-group is done as follows:
+		   
+#+begin_src lisp
+(defun create-par-group (par-unit par-group-block)
+  (let ((type (hdl-block-type par-group-block))
+	(memory-spaces (create-memory-spaces par-group-block)))
+    (if (string= "parallelism" type)
+	(make-instance 'parallelism
+		       :memory-spaces memory-spaces)
+	(make-instance 'sub-par-group
+		       :name (name (id par-group-block))
+		       :par-unit par-unit
+		       :nr-units (get-nr-units par-group-block)
+		       :max-nr-units (get-nr-units par-group-block "max")
+		       :memory-spaces memory-spaces))))
+#+end_src
+
+*** Finding equivalence
+
+Finding equivalence starts with the initial par-group-mapping with the
+par-groups with the executing par-units.  It starts analyzing the first tuple
+in the par-group-mapping.  The stop-condition verifies whether both par-groups
+are of type ~parallelism~.  Otherwise, we continue with retrieving the parent
+par-groups and continue with them.
+
+#+begin_src lisp
+(defun find-equivalent-par-groups (par-group-mapping hwd-from hwd-to)
+  (let ((pg-from (from (first par-group-mapping)))
+	(pgs-to (to (first par-group-mapping))))
+    (cond ((and (typep pg-from 'parallelism)
+		(typep (first pgs-to) 'parallelism))
+	   par-group-mapping)
+	  ((or (typep pg-from 'parallelism)
+	       (typep (first pgs-to) 'parallelism))
+	   (error "not equivalent ~a, ~a" pg-from (first pgs-to)))
+	  (t
+	   (let ((parent-from (get-parent-par-group pg-from hwd-from))
+		 (parent-to (get-parent-par-group (first pgs-to) hwd-to)))
+	     (add-parents-to-mapping par-group-mapping
+				     parent-from parent-to
+				     hwd-from hwd-to))))))
+#+end_src
+
+If the size of the parallelism groups are equal, we add a tuple with
+~parent-from~ and a list of ~parent-to~.  If the size of ~pg-from~ is greater,
+then there are two cases: If the type of ~parent-to~ is ~parallelism~, we are
+done and we add a new tuple to the par-group-mapping.  Otherwise, we add
+~parent-to~ to the list of par-groups in the ~to~ part of the tuple.  We
+continue to find equivalent par-groups with this mapping.
+
+#+begin_src lisp
+(defun add-parents-to-mapping (par-group-mapping parent-from parent-to
+			       hwd-from hwd-to)
+  (let ((pg-from (from (first par-group-mapping)))
+	(pgs-to (to (first par-group-mapping))))
+    (cond ((equals-size pg-from pgs-to)
+	   (find-equivalent-par-groups
+	    (cons (make-tuple parent-from (list parent-to)) par-group-mapping)
+	    hwd-from
+	    hwd-to))
+	  ((less-size pg-from pgs-to)
+	   (error "from less than to"))
+	  ((greater-size pg-from pgs-to)
+	   (if (typep parent-to 'parallelism)
+	       (push (make-tuple parent-from (list parent-to))
+		     par-group-mapping)
+	       (push parent-to (to (first par-group-mapping))))
+	   (find-equivalent-par-groups par-group-mapping hwd-from hwd-to)))))
+#+end_src
+
+*** Retrieving the parent par-groups
+
+#+begin_src lisp
+(defgeneric get-parent-par-group (par-group hwd))
+  
+(defmethod get-parent-par-group ((par-group sub-par-group) hwd)
+  (let* ((par-group-block (retrieve-all hwd (block-with-name (name par-group))))
+	 (parent-block (parent par-group-block)))
+    (if (string= (hdl-block-type parent-block) "parallelism")
+	(make-instance 'parallelism
+		       :memory-spaces (create-memory-spaces parent-block))
+	(let ((parent-par-group-block (parent parent-block))
+	      (par-unit (create-par-unit parent-block)))
+	  (create-par-group par-unit parent-par-group-block)))))
+#+end_src
+
+*** Comparing the size of par-groups
+
+The following functions compare the size of the par-groups.  Checking for
+equality:
+
+#+begin_src lisp
+(defgeneric equals-size (par-groups-l par-groups-r))
+
+(defmethod equals-size ((l par-group) (r list))
+  (equals-size (list l) r))
+
+(defmethod equals-size ((l list) (r list))
+  (ast= (get-size l) (get-size r)))
+#+end_src
+
+Less than comparison:
+
+#+begin_src lisp
+(defgeneric less-size (par-groups-l par-groups-r))
+
+(defmethod less-size ((l par-group) (r list))
+  (less-size (list l) r))
+
+(defmethod less-size ((l list) (r list))
+  (let ((size-l (get-size l))
+	(size-r (get-size r)))
+    (cond ((typep size-l 'unlimited-literal)
+	   nil)
+	  ((typep size-r 'unlimited-literal)
+	   t)
+	  (t
+	   (< (value size-l) (value size-r))))))
+#+end_src
+
+Greater than comparison:
+
+#+begin_src lisp
+(defgeneric greater-size (par-groups-l par-groups-r))
+
+(defmethod greater-size ((l par-group) (r list))
+  (greater-size (list l) r))
+
+(defmethod greater-size ((l list) (r list))
+  (let ((size-l (get-size l))
+	(size-r (get-size r)))
+    (cond ((typep size-r 'unlimited-literal)
+	   nil)
+	  ((typep size-l 'unlimited-literal)
+	   t)
+	  (t
+	   (> (value size-l) (value size-r))))))
+#+end_src
+
+*** Computing the size of par-groups
+
+Computing the size uses a multiply.
+
+#+begin_src lisp
+(defun get-size (par-groups)
+  (reduce #'multiply par-groups :initial-value (make-int-literal 1)))
+#+end_src
+
+This special multiply is aware of the constant ~unlimited~.  Everything times
+unlimited is always unlimited.
+
+#+begin_src lisp
+(defgeneric multiply (l r))
+
+(defmethod multiply ((l int-literal) (r sub-par-group))
+  (multiply l (nr-units r)))
+
+(defmethod multiply ((l int-literal) (r unit-expr))
+  (multiply l (expr r)))
+
+(defmethod multiply ((l int-literal) (r int-literal))
+  (make-int-literal (* (value l) (value r))))
+
+(defmethod multiply ((l int-literal) (r unlimited-literal))
+  r)
+#+end_src
+  
+
+** Translating memory spaces
+   :PROPERTIES:
+   :header-args+: :package ":translate"
+   :header-args+: :tangle "../system/micro-passes/translate/translate-memory-spaces.lisp"
+   :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :translate)
+#+end_src
+
+#+begin_src lisp
+(defun translate-barriers (function par-group-mapping)
+  (mapcar #'(lambda (b) (translate-barrier b par-group-mapping))
+          (collect-all function #'(lambda (x) (typep x 'barrier-stat)))))
+
+(defun translate-barrier (barrier par-group-mapping)
+  (with-slots (mem-space) barrier
+    (let ((ms-to (find-equivalent-memory-space
+                  (get-memory-space
+                   (ast-mcpl:name mem-space)
+                   par-group-mapping)
+                  par-group-mapping)))
+      (setf (ast-mcpl:name mem-space) (ast-hdl:name ms-to)))))
+  
+  
+
+(defun translate-declarations (function par-group-mapping)
+  (mapcar #'(lambda (d) (translate-decl d par-group-mapping))
+	  (collect-all function #'(lambda (x) (typep x 'decl)))))
+
+(defun translate-decl (decl par-group-mapping)
+  (unless (memory-space-disallowed decl)
+    (let* ((mss-from (get-memory-spaces
+		      (query-hdl-mcpl:get-memory-spaces decl)
+		      par-group-mapping))
+	   (mss-to (find-equivalent-memory-spaces mss-from par-group-mapping)))
+      (set-memory-spaces decl mss-from mss-to))))
+
+#+end_src
+
+The following 2 functions are technically not completely correct if an
+equivalent memory space from the lower level is similar to the one of a higher
+level.  To solve this, we should build up a completely new list of modifier. 
+   
+#+begin_src lisp
+(defun set-memory-spaces (decl mss-from mss-to)
+  (loop
+     for ms-from in mss-from
+     for ms-to in mss-to
+     do (set-memory-space decl ms-from ms-to)))
+
+(defun set-memory-space (decl ms-from ms-to)
+  (flet ((ms-equal (ms-name modifier)
+	   (and (typep modifier 'user-defined)
+		(string= ms-name
+			 (ast-mcpl:name (ast-mcpl:modifier modifier))))))
+    (let ((position (position (name ms-from)
+			      (modifiers decl) :test #'ms-equal)))
+      (if position
+	  (setf (ast-mcpl:name
+		 (ast-mcpl:modifier (nth position (modifiers decl))))
+		(name ms-to))
+	  (let ((new-modifier (list (make-user-defined
+				     (ast-mcpl:make-id (name ms-to))))))
+	    (if (null (modifiers decl))
+		(setf (modifiers decl) new-modifier)
+		(nconc (modifiers decl) new-modifier)))))))
+#+end_src
+
+
+#+begin_src lisp
+(defun get-memory-spaces (names par-group-mapping)
+  (mapcar #'(lambda (name) (get-memory-space name par-group-mapping)) names))
+
+(defun get-memory-space (name par-group-mapping)
+  (let* ((par-groups
+	  (loop for tuple in par-group-mapping collect (from tuple)))
+	 (memory-spaces
+	  (loop for pg in par-groups append (get-all-memory-spaces pg))))
+    (find name memory-spaces :test #'(lambda (n ms) (string= n (name ms))))))
+
+(defgeneric get-all-memory-spaces (par-group)
+  (:documentation "Get all memory-spaces in a par-group"))
+
+(defmethod get-all-memory-spaces ((par-group par-group))
+  (memory-spaces par-group))
+
+(defmethod get-all-memory-spaces ((par-group sub-par-group))
+  (append (memory-spaces par-group) (memory-spaces (par-unit par-group))))
+
+(defun find-equivalent-memory-spaces (mss-from par-group-mapping)
+  (mapcar #'(lambda (ms-from)
+	      (find-equivalent-memory-space ms-from par-group-mapping))
+	  mss-from))
+
+(defun find-equivalent-memory-space (ms-from par-group-mapping)
+  (multiple-value-bind (level in-unit)
+      (find-memory-space ms-from par-group-mapping)
+    (let ((pgs (to (nth level par-group-mapping))))
+      (if in-unit
+	  (let ((pg (last-elt pgs)))
+	    (if (typep pg 'sub-par-group)
+		(find-equivalent-memory-space-2
+		 ms-from (memory-spaces (par-unit pg)))
+		(error "Cannot find an equivalent memory-space for ~s"
+		       (name ms-from))))
+	  (find-equivalent-memory-space-2
+	   ms-from
+	   (memory-spaces (first pgs)))))))
+
+(defun find-equivalent-memory-space-2 (ms-from memory-spaces)
+  (dolist (ms-to memory-spaces)
+    (when (or (and (read-only-p ms-to) (read-only-p ms-from))
+	    (and (not (read-only-p ms-to)) (not (read-only-p ms-from))))
+      (return-from find-equivalent-memory-space-2 ms-to)))
+  (dolist (ms-to memory-spaces)
+    (when (read-only-p ms-from)
+      (return-from find-equivalent-memory-space-2 ms-to)))
+  (error "Cannot find an equivalent memory-space for ~s" (name ms-from)))
+
+(defun find-memory-space (ms-from par-group-mapping)
+  (loop for tuple in par-group-mapping
+     for i from 0
+     do (let ((pg (from tuple)))
+	  (flet ((name-equal (x)
+		   (string= (name ms-from) (name x))))
+	    (when (filter #'name-equal (memory-spaces pg))
+	      (return-from find-memory-space (values i nil)))
+	    (when (and (typep pg 'sub-par-group)
+		       (filter #'name-equal (memory-spaces (par-unit pg))))
+	      (return-from find-memory-space (values i t))))))
+  (error "Did not find ~s in ~a" ms-from par-group-mapping))
+#+end_src
+  
+
+
+** Translating foreach statements
+   :PROPERTIES:
+   :header-args+: :package ":translate"
+   :header-args+: :tangle "../system/micro-passes/translate/translate-foreach.lisp"
+   :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :translate)
+#+end_src
+
+#+begin_src lisp
+(defgeneric translate-foreach-stats (ast par-group-mapping hwd-to))
+
+(defmethod translate-foreach-stats ((func func) par-group-mapping hwd-to)
+  (let ((foreach-stat-roots (get-for-each-stat-roots func)))
+    (dolist (fe foreach-stat-roots)
+      (translate-foreach-stat fe par-group-mapping hwd-to))
+    func))
+
+(defmethod translate-foreach-stats ((block-stat block-stat) par-group-mapping 
+				    hwd-to)
+  (translate-foreach-stats (code-block block-stat) par-group-mapping hwd-to))
+
+(defmethod translate-foreach-stats ((code-block code-block) par-group-mapping
+				    hwd-to)
+  (translate-foreach-stats (stats code-block) par-group-mapping hwd-to))
+
+(defmethod translate-foreach-stats ((stats list) par-group-mapping hwd-to)
+  (dolist (stat stats)
+    (when (typep stat 'foreach-stat)
+      (translate-foreach-stat stat par-group-mapping hwd-to))))
+
+(defun get-for-each-stat-roots (function)
+  (flet ((foreach-stat (ast)
+	   (typep ast 'foreach-stat)))
+    (let ((foreach-stats (collect-all function #'foreach-stat)))
+      (filter #'(lambda (ast)
+		  (null (collect-all-parent ast #'foreach-stat)))
+	      foreach-stats))))
+
+(defun translate-foreach-stat (foreach-stat par-group-mapping hwd-to)
+  (let ((current-level (get-level foreach-stat par-group-mapping)))
+    (if (eql (length (to (nth current-level par-group-mapping))) 1)
+	(translate-foreach-simple foreach-stat par-group-mapping hwd-to)
+	(translate-foreach-advanced foreach-stat par-group-mapping hwd-to))))
+
+(defun get-level (foreach-stat par-group-mapping)
+  (let ((par-group-name (ast-mcpl:name (par-group foreach-stat))))
+    (loop for tuple in par-group-mapping
+       for i from 0
+       do (let ((from (from tuple)))
+	    (when (and (typep from 'sub-par-group)
+		       (string= (name from) par-group-name))
+	      (return-from get-level i))))))
+
+(defun translate-foreach-simple (foreach-stat par-group-mapping hwd-to)
+  (let* ((current-level (get-level foreach-stat par-group-mapping))
+	 (to (first (to (nth current-level par-group-mapping)))))
+    (setf (ast-mcpl:name (par-group foreach-stat)) (name to))
+    (translate-foreach-stats (stat foreach-stat) par-group-mapping hwd-to)))
+
+(defun translate-foreach-advanced (foreach-stat par-group-mapping hwd-to)
+  (let* ((par-group-name (ast-mcpl:name (par-group foreach-stat)))
+	 (nr-dimensions (get-nr-dimensions foreach-stat par-group-name))
+	 (inner-stats (get-stats-dimension (1- nr-dimensions) foreach-stat))
+	 (current-level (get-level foreach-stat par-group-mapping))
+	 (pgs-to (to (nth current-level par-group-mapping))))
+    (multiple-value-bind (dimension-stats foreach-stats indexing-stats
+                                          guard-conditions)
+	(create-all-stats foreach-stat nr-dimensions pgs-to hwd-to)
+      (setf inner-stats (append indexing-stats
+                                (create-guard guard-conditions inner-stats)))
+      (setf inner-stats (set-inner-stats inner-stats foreach-stats))
+      (let ((stats (append dimension-stats inner-stats)))
+	(replace-in-ast foreach-stat :with stats))
+      foreach-stat)))
+
+(defun create-guard (guard-conditions inner-stats)
+  (list (make-if-stat (first guard-conditions)
+                      (make-block-stat (make-code-block inner-stats))
+                      nil)))
+
+(defun set-inner-stats (inner-stats foreach-stats)
+  (loop for fe in foreach-stats
+     do (setf (stats (code-block (stat fe))) inner-stats)
+       (setf inner-stats (list fe)))
+  inner-stats)
+
+(defun create-all-stats (foreach-stat nr-dimensions pgs-to hwd-to)
+  (loop for dim from (1- nr-dimensions) downto 0
+     for stat = (get-stat-dimension dim foreach-stat)
+     for (ds fes is pgs gcs) =
+       (multiple-value-list (create-foreach-stat stat pgs-to hwd-to))
+     then
+       (multiple-value-list (create-foreach-stat stat pgs hwd-to))
+     appending ds into dimension-stats
+     appending fes into foreach-stats
+     appending is into index-stats
+     appending gcs into guard-conditions
+     finally (return (values dimension-stats foreach-stats index-stats
+                             guard-conditions))))
+
+(defun get-nr-dimensions (foreach-stat par-group-name)
+  (if (and (typep foreach-stat 'foreach-stat)
+	   (string= (ast-mcpl:name (par-group foreach-stat)) par-group-name))
+      (+ 1 (let ((stats (stats (code-block (stat foreach-stat)))))
+	     (if (eql (length stats) 1)
+		 (get-nr-dimensions (first stats) par-group-name)
+		 0)))
+      0))
+
+(defun get-stats-dimension (dimension foreach-stat)
+  (let ((stats (stats (code-block (stat foreach-stat)))))
+    (if (eql dimension 0)
+	stats
+	(get-stats-dimension (1- dimension) (first stats)))))
+
+(defun get-stat-dimension (dimension foreach-stat)
+  (if (eql dimension 0)
+      foreach-stat
+      (get-stat-dimension (1- dimension)
+			  (first (stats (code-block (stat foreach-stat)))))))
+
+#+end_src
+
+The following ~create-foreach-stat-*~ functions return:
+- the dimension statements,
+- the foreach statements
+- the new indexing statements
+- the parallelism groups
+- the guard conditions
+
+#+begin_src lisp
+(defun create-foreach-stat (foreach-stat par-groups-to hwd-to)
+  (if (eql (length par-groups-to) 1)
+      (values nil
+	      (list (create-new-foreach-stat foreach-stat
+					     (first par-groups-to)))
+	      nil
+	      par-groups-to
+              nil)
+      (create-foreach-stat-more-par-groups foreach-stat par-groups-to hwd-to)))
+
+(defun create-foreach-stat-more-par-groups (foreach-stat par-groups-to hwd-to)
+  (let* ((nr-iters (nr-iters foreach-stat))
+         (old-index-name (ast-mcpl:name (get-id (decl foreach-stat))))
+         (names (get-names-in-scope foreach-stat))
+         (guard-condition (make-lt (create-var-expr old-index-name)
+                                   (copy-ast nr-iters))))
+    (loop for pg in (reverse par-groups-to)
+       for name-pg = (name pg)
+       for dim-expr = (create-dim-expr nil nr-iters pg hwd-to) then
+	 (create-dim-expr dim-names nr-iters pg hwd-to)
+       for dim-name = (check-name (create-dim-name nr-iters name-pg) names)
+       for index-name =
+	 (check-name (create-index-name name-pg old-index-name) names)
+       for dim-stat = (create-dim-stat dim-name dim-expr)
+       for new-foreach = (create-new-foreach-stat2 index-name dim-name name-pg)
+       collecting dim-name into dim-names
+       collecting index-name into index-names
+       collecting dim-stat into dim-stats
+       collecting new-foreach into foreach-stats
+       finally (return (values dim-stats
+			       foreach-stats
+			       (list (create-index-stat old-index-name
+							(reverse index-names)
+							(reverse dim-names)))
+			       (list pg)
+                               (list guard-condition))))))
+#+end_src
+
+#+begin_src lisp
+(defun get-names-in-scope (ast)
+  (let ((names (make-hash-table :test 'equal)))
+    (loop for bd in (get-basic-decls-in-scope ast)
+	 do (setf (gethash (ast-mcpl:name (get-id bd)) names) 0))
+    names))
+
+(defun create-index-stat (old-index-name index-names dim-names)
+  (let ((dim-names (rest dim-names)))
+    (create-decl-stat old-index-name
+		      (create-index-expr index-names dim-names))))
+
+(defun create-index-expr (index-names dim-names)
+  (if (eql (length index-names) 1)
+      (create-var-expr (first index-names))
+      (let ((size-exp (create-size-expr dim-names)))
+	(destructuring-bind (index-name &rest rest-index-names) index-names
+	  (ast-mcpl:make-add
+	   (ast-mcpl:make-mul (create-var-expr index-name) size-exp)
+	   (create-index-expr rest-index-names (rest dim-names)))))))
+
+(defun create-size-expr (dim-names)
+  (reduce #'(lambda (result dim-name)
+	      (ast-mcpl:make-mul result (create-var-expr dim-name)))
+	  dim-names
+	  :initial-value (make-int-constant 1)))
+
+(defun create-new-foreach-stat2 (index-name dim-name name-par-group)
+  (make-foreach-stat
+   (make-normal-decl (list (make-const))
+		     (list (make-basic-decl (make-int)
+					    (ast-mcpl:make-id index-name))))
+   (create-var-expr dim-name)
+   (ast-mcpl:make-id name-par-group)
+   (make-block-stat (make-code-block nil))))
+
+(defun create-decl-stat (name expr)
+  (make-decl-stat
+   (make-assign-decl (list (make-const))
+		     (make-basic-decl (make-int)
+				      (ast-mcpl:make-id name))
+		     expr)))
+
+(defun create-dim-stat (name expr)
+  (create-decl-stat name expr))
+
+(defun create-dim-name (nr-iters name-par-group)
+  (format nil "nr~a~a"
+	  (string-upcase name-par-group :end 1)
+	  (string-upcase (get-some-var-name nr-iters) :end 1)))
+
+(defun create-index-name (par-group old-index-name)
+  (format nil "~a~a" (subseq par-group 0 1) old-index-name))
+
+(defgeneric get-some-var-name (expr))
+
+(defmethod get-some-var-name ((expr var-expr))
+  (ast-mcpl:name (ast-mcpl:id (basic-var (var expr)))))
+
+(defun check-name (name names)
+  (aif (gethash name names)
+       (progn
+	 (setf (gethash name names) (1+ it))
+	 (format nil "~a~a" name it))
+       (progn
+	 (setf (gethash name names) 0)
+	 name)))
+
+(defun create-dim-expr (dim-names nr-iters par-group hwd-to)
+  (let ((max (max-nr-units par-group)))
+    (if (or (null dim-names) (not max))
+	(create-min-call (create-hardware-var hwd-to (name par-group) max)
+                         (copy-ast nr-iters))
+	(create-div-call dim-names (copy-ast nr-iters)))))
+
+(defun create-hardware-var (name-hwd name-block max)
+  (let* ((hwd (get-hardware-description name-hwd))
+	 (block (retrieve-all hwd (block-with-name name-block)))
+	 (bv (create-basic-var (if max "max_nr_units" "nr_units")))
+	 (var (make-normal-var bv)))
+    (loop for b = block then (parent b)
+       while b
+       for v = (make-dot-var (create-basic-var (name (id b))) var)
+       then (make-dot-var (create-basic-var (name (id b))) v)
+       finally (return (make-var-expr v)))))
+
+(defun create-min-call (exp1 exp2)
+  (make-call-expr (make-call (ast-mcpl:make-id "min") (list exp1 exp2))))
+
+(defun create-basic-var (name)
+  (make-basic-var (ast-mcpl:make-id name) nil))
+
+(defun create-div-call (names exp)
+  (make-call-expr
+   (make-call (ast-mcpl:make-id "divide_up")
+              (list
+               exp
+               (reduce #'(lambda (result name)
+                           (ast-mcpl:make-mul result (create-var-expr name)))
+                       names :initial-value (make-int-constant 1))))))
+
+(defun create-var-expr (name)
+  (make-var-expr  (make-normal-var (create-basic-var name))))
+
+(defun create-new-foreach-stat (foreach-stat par-group-to)
+  (make-foreach-stat (decl foreach-stat)
+		     (nr-iters foreach-stat)
+		     (ast-mcpl:make-id (name par-group-to))
+		     (make-block-stat (make-code-block nil))))
+#+end_src
+
+  
+
+** Testing translation
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-translate/packages.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-translate
+  (:use :cl :test-mcl :fiveam :ast :ast-mcpl :parse-mcpl :print-pretty :translate
+	:set-parents :resolve-calls :set-cfgraphs :resolve-vars
+	:set-callgraph :set-vars-written)
+  (:shadow :skip)
+  (:export :test-translate))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":test-translate"
+    :header-args+: :tangle "../system/tests/test-translate/test-translate.lisp"
+    :END:
+
+**** The tests
+
+Before we start with the actual tests, we define several inputs/outputs:
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-translate)
+#+end_src
+
+#+begin_src lisp
+(defun tostring (&rest lines)
+  (format nil "~{~a~^~%~}" lines))
+
+
+(defparameter *output-gpu* (tostring
+
+"package matrixmultiplication;"
+""
+"module matrixmultiplication;"
+""
+""
+""
+"import perfect;"
+"import gpu;"
+""
+""
+""
+"gpu void matmul(const int n, const int m, const int p, dev float[n, m] c, const dev float[n, p] a, const dev float[p, m] b) {"
+"    const int nrThreadsM = min(gpu.hierarchy.blocks.block.threads.max_nr_units, m);"
+"    const int nrBlocksM = divide_up(m, 1 * nrThreadsM);"
+"    foreach (const int i in n blocks) {"
+"        foreach (const int bj in nrBlocksM blocks) {"
+"            foreach (const int tj in nrThreadsM threads) {"
+"                const int j = bj * (1 * nrThreadsM) + tj;"
+"                if (j < m) {"
+"                    reg float sum = 0.0;"
+"                    for (reg int k = 0; k < p; k++) {"
+"                        sum = sum + a[i, k] * b[k, j];"
+"                    }"
+"                    c[i, j] += sum;"
+"                }"
+"            }"
+"        }"
+"    }"
+"}"
+""))
+
+
+(defparameter *output-accelerator* (tostring
+
+"package matrixmultiplication;"
+""
+"module matrixmultiplication;"
+""
+""
+""
+"import perfect;"
+"import accelerator;"
+""
+""
+""
+"accelerator void matmul(const int n, const int m, const int p, dev float[n, m] c, const dev float[n, p] a, const dev float[p, m] b) {"
+"    foreach (const int i in n threads) {"
+"        foreach (const int j in m threads) {"
+"            reg float sum = 0.0;"
+"            for (reg int k = 0; k < p; k++) {"
+"                sum = sum + a[i, k] * b[k, j];"
+"            }"
+"            c[i, j] += sum;"
+"        }"
+"    }"
+"}"
+""))
+
+
+
+(defparameter *output-fermi* (tostring
+
+"package matrixmultiplication;"
+""
+"module matrixmultiplication;"
+""
+""
+""
+"import perfect;"
+"import fermi;"
+""
+""
+""
+"fermi void matmul(const int n, const int m, const int p, global float[n, m] c, const global float[n, p] a, const global float[p, m] b) {"
+"    const int nrThreadsM = min(gpu.hierarchy.blocks.block.threads.max_nr_units, m);"
+"    const int nrBlocksM = divide_up(m, 1 * nrThreadsM);"
+"    foreach (const int i in n blocks) {"
+"        foreach (const int bj in nrBlocksM blocks) {"
+"            const int nrThreadsNrThreadsM = min(fermi.hierarchy.blocks.block.warps.warp.threads.nr_units, nrThreadsM);"
+"            const int nrWarpsNrThreadsM = divide_up(nrThreadsM, 1 * nrThreadsNrThreadsM);"
+"            foreach (const int wtj in nrWarpsNrThreadsM warps) {"
+"                foreach (const int ttj in nrThreadsNrThreadsM threads) {"
+"                    const int tj = wtj * (1 * nrThreadsNrThreadsM) + ttj;"
+"                    if (tj < nrThreadsM) {"
+"                        const int j = bj * (1 * nrThreadsM) + tj;"
+"                        if (j < m) {"
+"                            reg float sum = 0.0;"
+"                            for (reg int k = 0; k < p; k++) {"
+"                                sum = sum + a[i, k] * b[k, j];"
+"                            }"
+"                            c[i, j] += sum;"
+"                        }"
+"                    }"
+"                }"
+"            }"
+"        }"
+"    }"
+"}"
+""))
+
+
+(defparameter *input-accelerator-with-double-decl* (tostring
+
+"package matrixmultiplication;"
+""
+"module matrixmultiplication;"
+""
+""
+""
+"import perfect;"
+"import accelerator;"
+""
+""
+""
+"accelerator void matmul(const int n, const int m, const int p, dev float[n, m] c, const dev float[n, p] a, const dev float[p, m] b) {"
+"    int nrThreadsM = 3;"
+"    foreach (const int i in n threads) {"
+"        foreach (const int j in m threads) {"
+"            reg float sum = 0.0;"
+"            for (reg int k = 0; k < p; k++) {"
+"                sum = sum + a[i, k] * b[k, j];"
+"            }"
+"            c[i, j] += sum;"
+"        }"
+"    }"
+"}"
+""))
+
+
+(defparameter *output-gpu-with-double-decl* (tostring
+
+"package matrixmultiplication;"
+""
+"module matrixmultiplication;"
+""
+""
+""
+"import perfect;"
+"import accelerator;"
+"import gpu;"
+""
+""
+""
+"gpu void matmul(const int n, const int m, const int p, dev float[n, m] c, const dev float[n, p] a, const dev float[p, m] b) {"
+"    const int nrThreadsM = 3;"
+"    const int nrThreadsM0 = min(gpu.hierarchy.blocks.block.threads.max_nr_units, m);"
+"    const int nrBlocksM = divide_up(m, 1 * nrThreadsM0);"
+"    foreach (const int i in n blocks) {"
+"        foreach (const int bj in nrBlocksM blocks) {"
+"            foreach (const int tj in nrThreadsM0 threads) {"
+"                const int j = bj * (1 * nrThreadsM0) + tj;"
+"                if (j < m) {"
+"                    reg float sum = 0.0;"
+"                    for (reg int k = 0; k < p; k++) {"
+"                        sum = sum + a[i, k] * b[k, j];"
+"                    }"
+"                    c[i, j] += sum;"
+"                }"
+"            }"
+"        }"
+"    }"
+"}"
+""))
+
+(defparameter *template-fermi*
+"package a;
+
+module a;
+
+
+
+import perfect;
+import fermi;
+
+
+
+~a
+")
+
+(defparameter *template-perfect*
+"package a;
+ module a;
+ import perfect;
+
+ ~a
+")
+#+end_src
+
+
+
+#+begin_src lisp
+(in-package :test-translate)
+
+(def-suite translate :in mcl-test-suite)
+(in-suite translate)
+
+(test files ()
+  (is (string= 
+       ,*output-accelerator* 
+       (do-translation-file
+	   "input/mcpl/matrixmultiplication/matrixmultiplication.mcl"
+	 "accelerator")))
+  (is (string= 
+       ,*output-gpu* 
+       (do-translation-file
+	   "input/mcpl/matrixmultiplication/matrixmultiplication.mcl"
+	 "gpu")))
+  (is (string= 
+       ,*output-fermi* 
+       (do-translation-file
+	   "input/mcpl/matrixmultiplication/matrixmultiplication.mcl"
+	 "fermi")))
+  (is (string=
+       ,*output-gpu-with-double-decl*
+       (do-translation-string *input-accelerator-with-double-decl* "gpu"))))
+#+end_src
+
+
+
+
+Testing multiple calls:
+
+#+begin_src lisp
+(test multiple-calls
+  (is 
+    (translate-ok (translate-funcs
+"perfect void h(int n, float[n] a) {
+   a[0] = 0.0;
+ }
+
+ perfect void g(int n, float[n] a) {
+   h(n, a);
+ }
+
+ perfect void f(int n, float[n] a) {
+   g(n, a);
+   h(n, a);
+ }"
+"fermi")
+"fermi void h(const int n, global float[n] a) {
+    a[0] = 0.0;
+}
+
+fermi void g(const int n, global float[n] a) {
+    h(n, a);
+}
+
+fermi void f(const int n, global float[n] a) {
+    g(n, a);
+    h(n, a);
+}")))
+#+end_src
+
+
+**** Helper functions
+
+#+begin_src lisp
+(defun do-translation-file (file-name-input target)
+  (do-translation (parse-mcpl-file file-name-input) target))
+
+(defun do-translation-string (string target)
+  (do-translation (parse-mcpl string) target))
+
+(defun do-translation (module target)
+  (set-parents module)
+  (resolve-calls module nil)
+  (let ((callgraph (set-callgraph (funcs (code module)))))
+    (resolve-vars module nil)
+    (set-cfgraphs module)
+    (set-vars-written callgraph)
+    (translate (list module) callgraph target target)
+    (pp module)))
+
+(defun translate-ok (translation wanted-funcs)
+  (string= translation
+	   (format nil *template-fermi* wanted-funcs)))
+
+
+(defun translate-funcs (funcs target)
+  (do-translation (funcs->perfect-ast funcs) target))
+
+
+(defun funcs->perfect-ast (input-string)
+  (parse-mcpl (format nil *template-perfect* input-string)))
+#+end_src
+
+

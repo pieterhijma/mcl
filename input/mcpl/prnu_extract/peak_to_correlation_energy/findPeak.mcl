@@ -1,0 +1,58 @@
+package prnu_extract.peak_to_correlation_energy;
+
+module findPeak;
+
+import gpu;
+
+import lib.math.common;
+
+
+gpu void findPeak(int nrBlocks, int n, float peak, float[nrBlocks] peaks, 
+	int[nrBlocks] indicesPeak, Complex[n] input) {
+    
+    const int nrThreads = 256;
+    const int stepSize = nrBlocks * nrThreads;
+    
+    foreach (int bi in nrBlocks blocks) {
+	local float[nrThreads] reduceMem;
+	local int[nrThreads] indexMem;
+	foreach (int ti in nrThreads threads) {
+	    float max = -1.0;
+	    int index = -1;
+
+	    for (int i = bi * nrThreads + ti; i < n;i += stepSize) {
+		float val = fabs(input[i].real);
+		if (val > max) {
+		    max = val;
+		    index = i;
+		}
+	    }
+
+	    reduceMem[ti] = max;
+	    indexMem[ti] = index;
+	    barrier(local);
+
+	    for (int i = nrThreads/2; i > 0; i >>= 1) {
+		if (ti < i) {
+		    float v1 = reduceMem[ti];
+		    float v2 = reduceMem[ti + i];
+
+		    if (v2 > v1) {
+			reduceMem[ti] = v2;
+			indexMem[ti] = indexMem[ti + i];
+		    }
+		}
+		barrier(local);
+	    }
+
+	    if (ti == 0) {
+		//peak = reduceMem[ti];
+		peaks[bi] = reduceMem[0];
+		indicesPeak[bi] = indexMem[0];
+		if (bi == 0) {
+		    peak = input[n-1].real;
+		}
+	    }
+	}
+    }
+}

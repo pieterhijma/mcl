@@ -1,0 +1,55 @@
+package lib.fft;
+
+module fft;
+
+import perfect;
+
+import lib.math.complex;
+import lib.math.common;
+
+
+perfect void twiddle(reg Complex result, const main Complex a, int k, float alpha) {
+    Complex tmp;
+    tmp.imag = sincos(toFloat(k) * alpha, tmp.real);
+
+    assign(result, a);	
+		
+    mul(result, tmp);
+}
+
+perfect void dft2(reg Complex a, reg Complex b) {
+    Complex temp;
+	
+    temp.real = a.real - b.real;
+    temp.imag = a.imag - b.imag;
+	
+    a.real += b.real;
+    a.imag += b.imag;
+	
+    assign(b, temp);
+}
+
+
+perfect void fftRadix2Iteration2D(int h, int w, Complex[h][w] output,
+	const Complex[h][w] input, int p) {
+
+    foreach (int l in h threads) {
+	for (int i = 0; i < w/2; i++) {
+	    int k = i & (p - 1);
+	    int j = ((i - k) << 1) + k;
+	    float alpha = -PI * toFloat(k) / toFloat(p);
+		
+	    Complex u0;
+	    Complex u1;
+		
+	    assign(u0, input[l][i]);
+	    twiddle(u1, input[l][i + w/2], 1, alpha);
+		
+	    dft2(u0, u1);
+		
+	    assign(output[l][j], u0);
+	    assign(output[l][j + p], u1);
+	}
+    }
+}
+

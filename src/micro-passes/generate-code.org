@@ -1,0 +1,2085 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Generate Code
+
+** The package
+   :PROPERTIES:
+   :header-args+: :package ":cl-user"
+   :header-args+: :tangle "../system/micro-passes/generate-code/packages.lisp"
+   :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :generate-code
+  (:use :cl :code-emitter
+	:mcl-util :ast :ast-mcpl :callgraph :check-types :print-pretty
+	:move-foreach-to-func)
+  (:import-from :alexandria :appendf :compose)
+  (:import-from :anaphora :aif :acond :it)
+  (:import-from :string-case :string-case)
+  (:import-from :cl-fad :pathname-as-directory)
+  (:import-from :utility-directory :cartesian-product :def-methods :fixed-point)
+  (:export :generate-code :cashmere-info :default-func :copy-func-header
+           :call-conditions :set-argument))
+#+end_src
+
+** The generic methods and classes
+   :PROPERTIES:
+   :header-args+: :package ":generate-code"
+   :header-args+: :tangle "../system/micro-passes/generate-code/gen-generic.lisp"
+   :END:
+
+*** Defining the class
+
+To generate code from AST-forms, we use the generic ~gen~ function.  These
+functions take as parameter an AST-form and an ~*-generator~ object.  These
+objects effectively direct what kind of forms are generated.  Below, the
+~generic-generator~ class is defined that has a ~codegen-info~ object as slot.
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :generate-code)
+#+end_src
+
+#+begin_src lisp
+(defclass generic-generator ()
+  ((codegen-info :initform (error "Need a codegen-info")
+		 :initarg :codegen-info
+		 :reader codegen-info)
+   (callgraph :initform (error "Need a callgraph")
+	      :initarg :callgraph
+	      :reader callgraph)))
+#+end_src
+
+*** The entry-point
+
+As of now, the code-generation generates C++ code:
+
+#+begin_src lisp
+(defun generate-code (module type-code codegen-info entry-funcs output-dir
+                      callgraph)
+  (string-case (type-code)
+    ("cpp" (gen
+            module
+            (create-cpp-generator module codegen-info entry-funcs output-dir
+                                  callgraph)))
+    ("cashmere"
+     (let ((entry-funcs (get-kernel-callers callgraph)))
+       (if (> (length entry-funcs) 1)
+           (errors:mcl-error nil "Expect only one entry-function.")
+           (gen
+            module
+            (create-cashmere-generator module codegen-info entry-funcs
+                                       output-dir callgraph)))))))
+
+(defun get-kernel-callers (callgraph)
+  (mapcar (compose #'name #'id)
+          (remove-if (complement #'calls-kernel-p) (tops-callgraph callgraph))))
+
+(defun calls-kernel-p (func)
+  (let ((call-stats (remove-if (complement #'call-stat-p) (stats (code-block func)))))
+    (loop for call-stat in call-stats thereis (kernel-func-p call-stat))))
+#+end_src
+
+*** The gen-* functions
+
+The following functions operate on the generic generator and are expected to be
+the same for each generator.  The standard solution is to raise an error if a
+complex AST form is not implemented for a more specific generator:
+
+#+begin_src lisp
+(defgeneric gen (ast generator))
+
+(defun not-implemented-error (ast gen)
+  (error "gen(~a ~a) not implemented" (type-of ast) (type-of gen)))
+
+(defmethod gen (ast (generator generic-generator))
+  (not-implemented-error ast generator))
+#+end_src
+
+If an AST form is very common, we generate a standard form of it:
+
+#+begin_src lisp
+(defmethod gen ((code code) (gen generic-generator))
+  (with-slots (top-decls funcs) code
+    (emit "~a" (gen top-decls gen)
+	  ""
+	  ""
+	  "~a" (gen funcs gen)
+	  ""
+	  "")))
+
+(defmethod gen ((mcl-type mcl-type) (gen generic-generator))
+  (typecase mcl-type
+    ((or void int flt bool double)
+     (pp mcl-type))
+    (t
+     (not-implemented-error mcl-type gen))))
+
+(defmethod gen ((id id) (gen generic-generator))
+  (pp id))
+
+(defmethod gen ((e expr) (gen generic-generator))
+  (do-pp e gen))
+
+(defmethod gen ((cb code-block) (gen generic-generator))
+  (do-pp cb gen))
+
+(defmethod gen ((ds decl-stat) (gen generic-generator))
+  (do-pp ds gen))
+
+(defmethod gen ((nd normal-decl) (gen generic-generator))
+  (do-pp nd gen))
+
+(defmethod gen ((ad assign-decl) (gen generic-generator))
+  (do-pp ad gen))
+
+(defmethod gen ((das decl-array-size) (gen generic-generator))
+  (do-pp das gen))
+
+(defmethod gen ((cs call-stat) (gen generic-generator))
+  (do-pp cs gen))
+
+(defmethod gen ((c call) (gen generic-generator))
+  (do-pp c gen))
+
+(defmethod gen ((is if-stat) (gen generic-generator))
+  (do-pp is gen))
+
+(defmethod gen ((as assign-stat) (gen generic-generator))
+  (do-pp as gen))
+
+(defmethod gen ((is inc-stat) (gen generic-generator))
+  (do-pp is gen))
+
+(defmethod gen ((i inc) (gen generic-generator))
+  (do-pp i gen))
+
+(defmethod gen ((bs block-stat) (gen generic-generator))
+  (do-pp bs gen))
+
+(defmethod gen ((as as-stat) (gen generic-generator))
+  "")
+#+end_src
+
+There are other generic functions that play a role:
+
+#+begin_src lisp
+(defgeneric gen-params (params gen))
+(defgeneric gen-param (param gen))
+(defgeneric gen-param2 (basic-decl constant-p gen))
+
+(defgeneric gen-func-decl (func generator))
+(defgeneric gen-func-decl-2 (func generator))
+#+end_src
+
+
+
+The function ~do-pp~ performs a pretty-print on an AST-form with the function
+~gen~ as pretty-printing function.  Since the class directs, which ~gen~
+function is called, we need to include that.  Hence, the ~get-gen~ function
+which returns a function that calls ~gen~ with the original generator.
+
+#+begin_src lisp
+(defun do-pp (ast gen)
+  (pp ast (get-gen gen)))
+
+(defun get-gen (gen)
+  #'(lambda (x pp) (declare (ignore pp)) (gen x gen)))
+#+end_src
+
+For lists, we use a similar construct:
+    
+#+begin_src lisp
+(defmethod gen ((l list) (gen generic-generator))
+  (pp l #'(lambda (element) (gen element gen))))
+#+end_src
+   
+** Outputfiles
+   :PROPERTIES:
+   :header-args+: :package ":generate-code"
+   :header-args+: :tangle "../system/micro-passes/generate-code/output-files.lisp"
+   :END:
+
+An ~output-file~ contains the code and some properties about the file:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-code)
+#+end_src
+
+#+begin_src lisp
+(defclass output-file ()
+  ((output-dir :initform (error "Need to supply an output dir")
+               :initarg :output-dir
+               :reader output-dir)
+   (module-dir :initform (error "Need to supply a module dir")
+               :initarg :module-dir
+               :reader module-dir)
+   (base-filename :initform (error "Need to supply a base-file-name")
+		  :initarg :base-filename
+		  :reader base-filename)
+   (extension :initform (error "Need to supply an extension")
+	      :initarg :extension
+	      :reader extension)
+   (header :initform (make-string-output-stream) :accessor header)
+   (contents :initform (make-string-output-stream) :accessor contents)
+   (footer :initform (make-string-output-stream) :accessor footer)))
+
+(defun make-output-file (output-dir module-dir base-filename extension)
+  (make-instance 'output-file :output-dir output-dir :module-dir module-dir
+                 :base-filename base-filename :extension extension))
+#+end_src
+
+Some useful functions:
+
+#+begin_src lisp
+(defgeneric get-dir (module))
+
+(defmethod get-dir ((m module))
+  (get-dir (pkg m)))
+
+(defmethod get-dir ((id id))
+  (name id))
+
+(defmethod get-dir ((ci compound-id))
+  (with-slots (name compound) ci
+    (format nil "~a/~a" name (get-dir compound))))
+
+(defgeneric write-output (output-file))
+
+(defmethod write-output ((of output-file))
+  (with-slots (output-dir module-dir base-filename extension
+                          header contents footer) of
+    (let* ((base-dir (pathname-as-directory output-dir))
+	   (dir (merge-pathnames
+		 (pathname-as-directory module-dir)
+		 base-dir))
+	   (file (merge-pathnames
+		  (format nil "~a~a" base-filename extension)
+		  dir)))
+      (with-open-file (out (ensure-directories-exist file) 
+			   :direction :output :if-exists :supersede)
+	(format out (get-output-stream-string header))
+	(format out (get-output-stream-string contents))
+	(format out (get-output-stream-string footer))))))
+#+end_src
+
+** Library
+   :PROPERTIES:
+   :header-args+: :package ":generate-code"
+   :header-args+: :tangle "../system/micro-passes/generate-code/library.lisp"
+   :END:
+
+Below useful code is listed, such as whether something is exported or is a
+kernel function.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-code)
+#+end_src
+
+#+begin_src lisp
+(defgeneric exported-p (ast gen))
+
+(defmethod exported-p ((cd const-decl) (gen generic-generator))
+  (exported-p (decl cd) gen))
+
+(defmethod exported-p ((ad assign-decl) (gen generic-generator))
+  (exported-p (basic-decl ad) gen))
+
+(defmethod exported-p ((bd basic-decl) (gen generic-generator))
+  (exported-p (id bd) gen))
+
+(defmethod exported-p ((f func) (gen generic-generator))
+  (exported-p (id f) gen))
+
+(defmethod exported-p ((td typedef) (gen generic-generator))
+  (exported-p (id td) gen))
+
+(defmethod exported-p ((id id) (gen generic-generator))
+  (find id (exports gen) :test #'ast=))
+#+end_src
+
+
+** Generic generators
+   :PROPERTIES:
+   :header-args+: :package ":generate-code"
+   :header-args+: :tangle "../system/micro-passes/generate-code/generators.lisp"
+   :END:
+
+*** The generators
+
+Using the ~generic-generator~ as base, we define three subclasses that provide
+functionality.  The ~c-base-generator~ provides several ~gen-*~ functions that
+can be used by C-like languages.  The ~kernel-generator~ supplies a file with
+kernels, the ~exports generator~ needs a list of exports, and the
+~entry-funcs-generator~ expects a variable with entry functions that need to be
+generated.
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :generate-code)
+#+end_src
+
+#+begin_src lisp
+(defclass c-base-generator (generic-generator) ())
+(defclass kernel-generator (generic-generator)
+  ((kernels-file :initform (error "Need to supply a kernels-file")
+		 :initarg :kernels-file
+		 :accessor kernels-file)))
+
+(defclass exports-generator (generic-generator)
+  ((exports :initform (error "Need to supply exports")
+	    :initarg :exports :reader exports)))
+(defclass entry-funcs-generator (generic-generator)
+  ((entry-funcs :initform (error "Need to supply entry-funcs")
+                :initarg :entry-funcs :reader entry-funcs)))
+#+end_src
+
+
+*** The gen-* functions
+
+#+begin_src lisp
+(defmethod gen-func-decl-2 ((f func) (gen c-base-generator))
+  (with-slots (mcl-type id params) f
+    (emit "~a ~a(~a);" (gen mcl-type gen)
+	  (gen id gen)
+	  (gen-params params gen))))
+#+end_src
+
+Types:
+
+#+begin_src lisp
+(defmethod gen ((ct custom-type) (gen c-base-generator))
+  (with-slots (id params) ct
+    (if params
+	(not-implemented-error ct gen)
+	(gen id gen))))
+
+(defmethod gen ((b mcl-byte) (gen c-base-generator))
+  (emit "unsigned char"))
+#+end_src
+
+
+Declarations:
+
+This doesn't work, since it will add a " " because of the list.
+
+#+begin_src lisp
+(defmethod gen ((ud user-defined) (gen c-base-generator))
+  "")
+
+(defmethod gen ((c const) (gen c-base-generator))
+  "const")
+#+end_src
+
+
+
+
+#+begin_src lisp
+(defgeneric gen-builtin (ast generator))
+
+(defmethod gen-builtin ((c call) (gen c-base-generator))
+  (with-slots (params id) c
+    (string-case ((name id))
+      ("toFloat"
+       (emit "(float) ~a" (gen (first params) gen)))
+      ("toDouble"
+       (emit "(double) ~a" (gen (first params) gen)))
+      ("min"
+       (if (a-param-has-type-p params 'flt)
+           (emit "fmin(~a)" (emit-list params :separator ", "
+                                       :function #'(lambda (x) (gen x gen))))
+           (emit "min(~a)" (emit-list params :separator ", "
+                                      :function #'(lambda (x) (gen x gen))))))
+      ("max"
+       (if (a-param-has-type-p params 'flt)
+           (emit "fmax(~a)" (emit-list params :separator ", "
+                                       :function #'(lambda (x) (gen x gen))))
+           (emit "max(~a)" (emit-list params :separator ", "
+                                      :function #'(lambda (x) (gen x gen))))))
+      ("divide_up" (gen-divide-up params gen)))))
+
+
+
+(defun a-param-has-type-p (params type)
+  (loop for p in params thereis (typep (eval-type p) type)))
+#+end_src
+
+
+#+begin_src lisp
+(defun gen-divide-up (params gen)
+  (let ((l (first params))
+        (r (second params)))
+    (emit "~a ?" (gen (make-equ l r) gen)
+          "    1 :"
+          "    ~a ?" (gen (make-equ (make-modulo l r)
+                                    (make-int-constant 0)) gen)
+          "        ~a :" (gen (make-div l r) gen)
+          "        ~a" (gen (make-add (make-div l r)
+                                      (make-int-constant 1)) gen))))
+
+#+end_src
+
+Variables:
+
+#+begin_src lisp
+(defmethod gen ((nv normal-var) (gen c-base-generator))
+  (gen-var nv gen))
+
+(defun gen-var (var gen)
+  (with-slots (basic-var) var
+    (with-slots (array-exprs basic-decl) basic-var
+      (with-slots (decl) basic-decl
+	(let ((array-expr-string
+	       (if (null array-exprs)
+		   ""
+		   (emit "[~a]" (gen (first array-exprs) gen)))))
+	  (dereference var decl (get-id decl) array-expr-string gen))))))
+#+end_src
+
+For dereferencing variables, there are basically these possibilities:
+
+| ~a~       |
+| ~&a~      |
+| ~*a~      |
+| ~a[1]~    |
+| ~&a[1]~   |
+| ~a.b~     |
+| ~a->b~    |
+| ~&a.b~    |
+| ~&a->b~   |
+| ~a[1].b~  |
+| ~&a[1].b~ |
+
+First, it is important to know when a declaration is a pointer.  This is
+the case when:
+- a declaration is a pointer if the type of the declaration is not primitive
+  and is a parameter of a function
+- a declaration is a pointer if the type of the declaration is an array type
+- a declaration is a pointer if the type is primitive, a parameter of a
+  function, and is written in the function
+
+Subsequently, it is necessary to know whether a variable is a pointer.  This is
+the case if 
+- the type is non-primitive 
+- of if the type is primitive it is part of a call to a function where the
+  matching declaration is a pointer
+
+#+caption: For normal variables
+| variable form | cases                       |
+|---------------+-----------------------------|
+| ~a~           | - decl is no pointer        |
+|               | - var is no pointer         |
+|---------------+-----------------------------|
+|               | - decl is pointer           |
+|               | - var is no pointer         |
+|---------------+-----------------------------|
+| ~*a~          | - decl is pointer           |
+|               | - type of decl is primitive |
+|               | - var is no pointer         |
+|---------------+-----------------------------|
+| ~&a~          | - decl is no pointer        |
+|               | - var is pointer            |
+|---------------+-----------------------------|
+| ~a[1]~        | - decl is pointer           |
+|               | - type of decl is array     |
+|---------------+-----------------------------|
+|               | - (var is no pointer        |
+|               | - type of var is not array) |
+|---------------+-----------------------------|
+|               | - (var is pointer           |
+|               | - type of var is array)     |
+|---------------+-----------------------------|
+| ~&a[1]~       | - decl is pointer           |
+|               | - type of decl is array     |
+|               | - var is pointer            |
+|               | - type of var is not array  |
+
+
+#+begin_src lisp
+(defgeneric dereference (var decl id array-expr-string gen))
+
+(defmethod dereference ((nv normal-var) decl id array-expr-string gen)
+  (let* ((type-decl (get-type-decl decl))
+	 (decl-pointer-p (pointer-p decl))
+	 (var-pointer-p (pointer-p nv))
+	 (type-decl-array-p (typep type-decl 'array-type))
+	 (type-decl-primitive-p (primitive-decl-p decl))
+	 (type-var-array-p (typep (get-type nv) 'array-type))
+	 (prefix 
+	  (if decl-pointer-p
+	      (if var-pointer-p
+		  (if type-decl-array-p
+		      (if type-var-array-p "" "&")
+		      "")
+		  (cond (type-decl-primitive-p
+			 "*")
+			(type-decl-array-p
+			 (if type-var-array-p
+			     (error "type-var cannot be array and not pointer")
+			     ""))
+			(t
+			 (error "type-decl is pointer, but not an array or
+primitive, so a struct, but the var is not a pointer"))))
+	      (if var-pointer-p "&" ""))))
+    (emit "~a~a~a" prefix (name id) array-expr-string)))
+
+#+end_src
+
+For dot variables, it is a bit different.
+
+#+begin_src lisp
+(defmethod gen ((dv dot-var) (gen c-base-generator))
+  (gen-var dv gen))
+#+end_src
+
+#+caption: For dot variables
+| variable form | cases                   |
+|---------------+-------------------------|
+| ~a.b~         | - decl is no pointer    |
+|               | - var is no pointer     |
+|---------------+-------------------------|
+| ~a->b~        | - decl is pointer       |
+|               | - var is no pointer     |
+|---------------+-------------------------|
+| ~&a.b~        | - decl is no pointer    |
+|               | - var is pointer        |
+|---------------+-------------------------|
+| ~&a->b~       | - decl is pointer       |
+|               | - var is pointer        |
+|---------------+-------------------------|
+| ~a[1].b~      | - decl is pointer       |
+|               | - type of decl is array |
+|               | - var is no pointer     |
+|---------------+-------------------------|
+| ~&a[1].b~     | - decl is pointer       |
+|               | - type of decl is array |
+|               | - var is pointer        |
+
+#+begin_src lisp
+(defmethod dereference ((dv dot-var) decl id array-expr-string gen)
+  (let ((prefix "")
+	(dot ""))
+    (let* ((decl-pointer-p (pointer-p decl))
+	   (var-pointer-p (pointer-p dv))
+	   (type-decl-array-p (typep (get-type decl) 'array-type)))
+      (if type-decl-array-p
+	  (if (not decl-pointer-p)
+	      (error "decl not a pointer")
+	      (progn
+		(setf dot ".")
+		(when var-pointer-p (setf prefix "&"))))
+	  (cond ((and (not decl-pointer-p) (not var-pointer-p))
+		 (setf dot "."))
+		((and decl-pointer-p (not var-pointer-p))
+		 (setf dot "->"))
+		((and (not decl-pointer-p) var-pointer-p)
+		 (setf dot ".")
+		 (setf prefix "&"))
+		((and decl-pointer-p var-pointer-p)
+		 (setf dot "->")
+		 (setf prefix "&"))
+		(t
+		 (error "missed a case"))))
+      (emit "~a~a~a~a~a"
+	    prefix (name id) array-expr-string dot (pp (var dv))))))
+#+end_src
+
+Helper functions for deciding whether a variable or declaration is a pointer:
+
+#+begin_src lisp
+(defgeneric pointer-p (var-or-decl))
+
+(defmethod pointer-p ((v var))
+  (let ((primitive-var-p (primitive-p v)))
+    (or (not primitive-var-p)
+	(and primitive-var-p (written-in-call-p v)))))
+
+(defmethod pointer-p ((d decl))
+  (let* ((type-decl (get-type d))
+	 (param-p (param-p d))
+	 (primitive-p (primitive-p d))
+	 (written-p (written d))
+	 (array-type-p (typep type-decl 'array-type)))
+    (or array-type-p
+	(and (not primitive-p) param-p)
+	(and primitive-p param-p written-p))))
+
+(defun written-in-call-p (var)
+  (and (param-p var) (param-written-p var)))
+#+end_src
+
+Increments:
+
+#+begin_src lisp
+(defmethod gen ((is inc-step) (gen c-base-generator))
+  (with-slots (var option expr) is
+    (emit "~a ~a ~a" (gen var gen) option (gen expr gen))))
+		
+#+end_src
+
+For statements:
+
+#+begin_src lisp
+(defmethod gen ((fs for-stat) (gen c-base-generator))
+  (with-slots (decl cond-expr inc stat) fs
+    (emit "for (~a; ~a; ~a) ~a"
+	  (gen decl gen)
+	  (gen cond-expr gen)
+	  (gen inc gen)
+	  (gen stat gen))))
+#+end_src
+
+
+Swap statements:
+
+#+begin_src lisp
+(defmethod gen ((ss swap-stat) (gen c-base-generator))
+  (with-slots (var-left var-right) ss
+    (let ((type (get-type var-left)))
+      (emit "{~a *tmp = ~a; ~a = ~a; ~a = tmp;}"
+	    (gen-swap-type type gen)
+	    (gen var-left gen)
+	    (gen var-left gen)
+	    (gen var-right gen)
+	    (gen var-right gen)))))
+
+(defun gen-swap-type (type gen)
+  (pp-base-type type (get-gen gen)))
+#+end_src
+
+
+Constant declaration:
+
+#+begin_src lisp
+(defmethod gen ((cd const-decl) (gen c-base-generator))
+  (when (not (exported-p cd gen))
+    (gen-const-decl cd gen)))
+
+(defun gen-const-decl (cd gen)
+  (with-slots (basic-decl expr) (decl cd)
+    (emit "#define ~a (~a)" (name (id basic-decl)) (gen expr gen))))
+#+end_src
+
+
+*** The gen-params-* functions
+
+#+begin_src lisp
+(defmethod gen-params (params (gen c-base-generator))
+  (emit-list params :separator ", " :function #'(lambda (x)
+						  (gen-param x gen))))
+
+
+(defmethod gen-param ((d decl) (gen c-base-generator))
+  (gen-param2 (get-basic-decl d) (constant-p d) gen))
+
+
+(defmethod gen-param2 ((basic-decl basic-decl) constant-p
+                       (gen c-base-generator))
+  (with-slots (mcl-type id) basic-decl
+    (with-slots (name) id
+      (if (and (primitive-decl-p basic-decl) constant-p)
+	  (emit "const ~a ~a" (gen mcl-type gen) name)
+	  (emit "~a* ~a" (gen (get-base-type mcl-type) gen) name)))))
+#+end_src
+
+
+
+** Generate C++ code
+   :PROPERTIES:
+   :header-args+: :package ":generate-code"
+   :header-args+: :tangle "../system/micro-passes/generate-code/gen-cpp.lisp"
+   :END:
+
+This section discusses generating C++ code.  
+
+*** Creating the generator
+
+The C++ generator, maintains a list of exports, a header file for incorporating
+it into other C++ code, the C++ file itself and a file for kernels.  This
+generator will switch at some point to the ~header-generator~ and the generator
+for the kernel.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-code)
+#+end_src
+
+#+begin_src lisp
+(defclass cpp-generator (c-base-generator kernel-generator exports-generator
+                                          entry-funcs-generator)
+  ((header-file :initform (error "Need to supply a header file")
+		:initarg :header-file
+		:accessor header-file)
+   (cpp-file :initform (error "Need to supply a cpp-file")
+	     :initarg :cpp-file
+	     :accessor cpp-file)))
+   
+   
+(defun make-cpp-generator (exports header-file cpp-file kernels-file
+			   codegen-info entry-funcs callgraph)
+  (make-instance 'cpp-generator :exports exports :header-file header-file
+		 :cpp-file cpp-file :kernels-file kernels-file
+		 :codegen-info codegen-info :entry-funcs entry-funcs
+		 :callgraph callgraph))
+#+end_src
+
+The following fuction creates a C++ generator based on the module and the
+code-generation information.
+
+#+begin_src lisp
+(defun create-cpp-generator (module codegen-info entry-funcs output-dir
+                             callgraph)
+  (let ((module-dir (get-dir module))
+	(name-module (name (id module))))
+    (make-cpp-generator
+     (exports module)
+     (make-output-file output-dir module-dir name-module ".h")
+     (make-output-file output-dir module-dir name-module ".cpp")
+     (make-output-file output-dir module-dir
+                       (format nil "~a-kernels" name-module) ".cl")
+     codegen-info
+     entry-funcs
+     callgraph)))
+#+end_src
+
+*** The gen-* functions
+
+Generating a module for C++ is done as shown below.  It is necessary that the
+OpenCL code is generated first because it modifies the AST to deal with
+functions with multiple memory-spaces.
+
+#+begin_src lisp
+(defmethod gen ((module module) (gen cpp-generator))
+  (with-slots (cpp-file header-file kernels-file entry-funcs) gen
+    (with-slots (contents) cpp-file
+      (with-slots (code) module
+        (let ((header-file header-file)
+              (cpp-file cpp-file)
+              (entry-funcs entry-funcs))
+          (generate-opencl module gen)
+          (change-class gen 'cpp-generator :header-file header-file
+                        :cpp-file cpp-file :entry-funcs entry-funcs)
+          (generate-header module gen)
+          (add-include module gen)
+          (format contents (gen code gen))
+          (write-output cpp-file)
+          (write-output header-file)
+          (when (funcs-in-module-p entry-funcs module)
+            (write-output kernels-file)))))))
+
+(defun add-include (module gen)
+  (with-slots (imports) module
+    (with-slots (cpp-file) gen
+      (with-slots (header) cpp-file
+	(format header "#include <iostream>~%")
+	(format header "#include <exception>~%~%")
+	(format header "#include \"io_data.h\"~%")
+	(format header "#include \"OpenCL.h\"~%~%")
+	(format header "#include <CL/cl.hpp>~%~%")
+	(format header "~a~%~%" (create-import-includes imports gen))
+	(format header "~%~%#include \"~a.h\"~%~%~%" (create-header module))))))
+
+(defun create-header (module)
+  (with-slots (pkg id) module
+    (format nil "~a/~a" (create-include pkg) (create-include id))))
+
+(defun create-import-includes (imports gen)
+  (let ((modules (remove-if (complement #'module-import-p) imports)))
+    (if (null modules)
+	""
+	(emit-list modules
+		   :function #'(lambda (x) (gen x gen))))))
+
+(defun module-import-p (import)
+  (not (hardware-descriptions:hardware-description-p import)))
+
+(defmethod gen ((li lib-import) (gen cpp-generator))
+  (emit "#include \"~a.h\"" (create-include (id li))))
+
+
+#+end_src
+
+The code:
+
+#+begin_src lisp
+(defmethod gen ((code code) (gen cpp-generator))
+  (with-slots (top-decls funcs) code
+    (emit "~a" (pp funcs #'(lambda (x) (gen-func-decl x gen)))
+	  ""
+	  "~a" (gen top-decls gen)
+	  ""
+	  "~a" (gen funcs gen)
+	  ""
+	  "")))
+
+
+#+end_src
+
+Generate function declarations:
+
+#+begin_src lisp
+
+(defmethod gen-func-decl ((f func) (gen cpp-generator))
+  (when (not (or (exported-p f gen) (kernel-func-p f)))
+    (gen-func-decl-2 f gen)))
+
+
+
+#+end_src
+
+
+Type declarations:
+
+#+begin_src lisp
+(defmethod gen ((td typedef) (gen cpp-generator))
+  (when (not (exported-p td gen))
+    (gen-typedef td gen)))
+
+(defun gen-typedef (td gen)
+  (with-slots (id fields) td
+    (emit "typedef struct __attribute__ ((packed)) {"
+	  "    ~a" (gen-fields fields gen)
+	  "} ~a;" (gen id gen))))
+
+(defun gen-fields (fields gen)
+  (emit-list fields :nr-lines 1 :function #'(lambda (x) (gen-field x gen))))
+
+(defun gen-field (field gen)
+  (emit "~a;" (gen field gen)))
+#+end_src
+
+Declarations:
+
+#+begin_src lisp
+(defmethod gen ((nd normal-decl) (gen cpp-generator))
+  (with-slots (modifiers basic-decls) nd
+    (emit "~a~a" (gen (remove-modifiers-cpp modifiers) gen)
+	  (gen (first basic-decls) gen))))
+
+(defmethod gen ((ad assign-decl) (gen cpp-generator))
+  (with-slots (modifiers basic-decl expr) ad
+    (emit "~a~a = ~a"
+	  (gen (remove-modifiers-cpp modifiers) gen)
+	  (gen basic-decl gen)
+	  (gen expr gen))))
+
+(defun remove-modifiers-cpp (modifiers)
+  (remove-if (complement #'(lambda (x) (not (typep x 'user-defined)))) modifiers))
+#+end_src
+
+Basic declarations:
+
+#+begin_src lisp
+(defmethod gen ((bd basic-decl) (gen cpp-generator))
+  (with-slots (mcl-type id) bd
+    (cond
+      ((or (primitive-decl-p bd) (typep mcl-type 'custom-type))
+       (emit "~a ~a" (gen mcl-type gen) (gen id gen)))
+      ((typep mcl-type 'array-type)
+       (generate-dynamic-array bd gen))
+      (t
+       (error "Not a primitive, array-, or custom-type")))))
+
+(defun generate-dynamic-array (bd gen)
+  (with-slots (mcl-type id) bd
+    (emit "~a *~a = aligned_new<~a>(~a, 32)" 
+	  (pp-base-type mcl-type (get-gen gen))
+	  (gen id gen)
+	  (pp-base-type mcl-type (get-gen gen))
+	  (gen (first (sizes mcl-type)) gen))))
+#+end_src
+
+
+Expressions:
+
+#+begin_src lisp
+(defmethod gen ((p pow) (gen cpp-generator))
+  (with-slots (l r) p
+    (if (ast= r (ast-mcpl:make-int-constant 2))
+	(gen (make-mul l l) gen)
+	(emit "pow(~a, ~a)" (gen l gen) (gen r gen)))))
+#+end_src
+
+Functions:
+
+#+begin_src lisp
+(defmethod gen ((f func) (gen cpp-generator))
+  (unless (or (kernel-func-p f) (builtin-func-p f))
+    (with-slots (mcl-type id params code-block) f
+      (emit "~a ~a(~a) ~a" (gen mcl-type gen)
+	    (gen id gen)
+	    (gen-params params gen)
+	    (if (and (member (name id) (entry-funcs gen) :test #'string=))
+		(gen-entry-code-block code-block gen)
+		(gen code-block gen))))))
+#+end_src
+
+The following method tests whether a codeblock has functions that call kernels,
+if so, it creates the OpenCL wrapping code.  However, this is not sufficient
+for modules with separate functions with kernel calls:
+
+#+begin_src lisp :tangle no
+(defmethod gen ((cb code-block) (gen cpp-generator))
+  (with-slots (stats) cb
+    (with-slots (kernels-file) gen
+      (if (remove-if (complement #'(lambda (x)
+				     (and (typep x 'call-stat) (kernel-func-p (call x)))))
+		     stats)
+	  (emit "{"
+		"    vector<std::string> macros;"
+		"    try {"
+		"        opencl::compile(\"~a/~a\", macros, CL_DEVICE_TYPE_CPU);"
+		(module-dir kernels-file) (base-filename kernels-file)
+		""
+		"        ~a" (gen stats gen)
+		"        opencl::sync();"
+		"    }"
+		"    catch (cl::Error &err) {"
+		"        std::cerr << \"ERROR: \" << err.what() << \" (\" <<"
+		"        opencl::resolveErrorCode(err.err()) \<\< \")\" \<\< std::endl;"
+		"        throw std::exception();"
+		"    }"
+		"}")
+	  (call-next-method)))))
+#+end_src
+
+The following function places this wrapper code only if the function is the
+entry-point:
+
+#+begin_src lisp
+(defun gen-entry-code-block (cb gen)
+  (with-slots (stats) cb
+    (with-slots (kernels-file) gen
+      (emit "{"
+	    "    vector<std::string> macros;"
+	    "    try {"
+	    "        opencl::compile(\"~a/~a\", macros, CL_DEVICE_TYPE_CPU);"
+	    (module-dir kernels-file) (base-filename kernels-file)
+	    ""
+	    "        ~a" (gen stats gen)
+	    "        opencl::sync();"
+	    "    }"
+	    "    catch (cl::Error &err) {"
+	    "        std::cerr << \"ERROR: \" << err.what() << \" (\" <<"
+	    "        opencl::resolveErrorCode(err.err()) \<\< \")\" \<\< std::endl;"
+	    "        throw std::exception();"
+	    "    }"
+	    "}"))))
+#+end_src
+
+
+
+The following code transforms a ~sincos~ function into something that is
+suitable for C++.  It uses GNU extensions.
+
+#+begin_src lisp
+(defmethod gen ((as assign-stat) (gen cpp-generator))
+  (with-slots (var expr) as
+    (if (and (typep expr 'call-expr)
+	     (string= (name (id (call expr))) "sincos"))
+	(gen-cpp-sincos as gen)
+	(call-next-method))))
+
+(defun gen-cpp-sincos (assign-stat gen)
+  (with-slots (var expr) assign-stat
+    (let ((call (call expr)))
+      (with-slots (id params) call
+	(emit "~a((double) ~a, (double *) &~a, (double *) ~a);"
+	      (name id)
+	      (gen (first params) gen)
+	      (gen var gen)
+	      (gen (second params) gen))))))
+#+end_src
+
+
+
+
+
+
+
+
+Calls:
+
+#+begin_src lisp
+(defmethod gen ((cs call-stat) (gen cpp-generator))
+  (with-slots (call) cs
+    (if (kernel-func-p (call cs))
+	(gen call gen)
+	(call-next-method))))
+
+(defmethod gen ((c call) (gen cpp-generator))
+  (if (kernel-func-p c)
+      (gen-opencl-call c gen)
+      (with-slots (codegen-info) gen
+	(with-slots (id params) c
+	  (acond ((builtin-func-p c)
+		  (gen-builtin c gen))
+		 ((get-codegen-builtin c codegen-info)
+		  (gen-builtin-codegen c it gen))
+		 (t
+		  (call-next-method)))))))
+
+
+(defmethod gen-builtin ((c call) (gen cpp-generator))
+  (with-slots (params id) c
+    (string-case ((name id) :default (call-next-method))
+      ("mcl_builtin_read" "")
+      ("mcl_builtin_write" "")
+      ("mcl_builtin_allocate_on_device" 
+       (gen-allocate/transfer params "allocate" gen))
+      ("mcl_builtin_deallocate_on_device"
+       (gen-deallocate params gen))
+      ("mcl_builtin_transfer_to_device"
+       (gen-allocate/transfer params "transferToDevice" gen))
+      ("mcl_builtin_transfer_from_device"
+       (gen-transfer-from-device params gen)))))
+      
+
+(defun gen-builtin-codegen (call name-func gen)
+  (emit "~a(~a)" name-func (gen-params (params call) gen)))
+
+(defgeneric get-codegen-builtin (ast codegen-info))
+
+(defmethod get-codegen-builtin ((c call) codegen-info)
+  (get-codegen-builtin (id c) codegen-info))
+
+(defmethod get-codegen-builtin ((id id) codegen-info)
+  (cdr (assoc (name id) (getf codegen-info :builtin-funcs))))
+
+#+end_src
+
+Generating an allocate:
+
+#+begin_src lisp
+(defun gen-allocate/transfer (params allocate/transfer gen)
+  (assert (eql (length params) 1))
+  (let ((param (first params)))
+    (emit "opencl::~a(~a, ~a, ~a)"
+	  allocate/transfer
+	  (gen param gen)
+	  (if (written-in-kernel-p param) "opencl::READ_WRITE" "opencl::READ")
+	  (gen (get-size param) gen))))
+
+(defun gen-transfer-from-device (params gen)
+  (assert (eql (length params) 1))
+  (let ((param (first params)))
+    (emit "opencl::transferFromDevice(~a)"
+	  (gen param gen))))
+
+(defun gen-deallocate (params gen)
+  (assert (eql (length params) 1))
+  (let ((param (first params)))
+    (emit "opencl::deallocate(~a)"
+	  (gen param gen))))
+
+#+end_src
+
+Getting the size of variables:
+
+#+begin_src lisp
+(defgeneric get-size (expr-var-decl-or-type)
+  (:documentation "Get the size of an expression, variable or declaration."))
+
+(defmethod get-size ((e expr))
+  (assert (typep e 'var-expr))
+  (get-size (var e)))
+
+(defmethod get-size ((v var))
+  (get-size  (get-decl-var v)))
+
+(defmethod get-size ((d decl))
+  (get-size (get-type d)))
+
+(defmethod get-size ((type mcl-type))
+  (etypecase type
+    (void (make-int-constant 4))
+    (int (make-int-constant 4))
+    (flt (make-int-constant 4))
+    (bool (make-int-constant 1))))
+
+(defmethod get-size ((type custom-type))
+  (get-size (typedef type)))
+
+(defmethod get-size ((td typedef))
+  (reduce #'(lambda (result field) (make-add result (get-size field)))
+	  (fields td) :initial-value (make-int-constant 0)))
+
+(defmethod get-size ((at array-type))
+  (with-slots (base-type sizes) at
+    (make-mul (get-size base-type) (size (first sizes)))))
+#+end_src
+
+Whether a parameter for an OpenCL kernel will be written in the kernel:
+
+#+begin_src lisp
+(defun written-in-kernel-p (expr)
+  (assert (typep expr 'var-expr))
+  (not (constant-p (get-decl-var (var expr)))))
+#+end_src
+
+Generating an OpenCL call:
+
+#+begin_src lisp
+(defun gen-opencl-call (c gen)
+  (emit "~a" (gen-macros c gen)
+	"~a" (gen-opencl-args c gen)
+	"~a" (gen-opencl-launch c gen)))
+
+(defun gen-opencl-args (c gen)
+  (with-slots (id params) c
+    (emit-list params :function #'(lambda (x) (gen-opencl-arg id x gen)))))
+
+(defun gen-opencl-arg (id p gen)
+  (emit "opencl::setArg(\"~a\", ~a);" (name id) (gen p gen)))
+
+(defun gen-macros (c gen)
+  (declare (ignore c gen))
+  "")
+
+(defun gen-opencl-launch (c gen)
+  (let* ((func (func c))
+	 (foreach (first (stats (code-block func))))
+	 (local-range-exprs (get-range-exprs foreach "get_local_id" gen))
+	 (group-range-exprs (get-group-range-exprs foreach
+						   local-range-exprs gen)))
+    (emit "std::cerr << \"launch(~a, \"" (name (id c))
+	  "          << \"(\" << ~a << \"), \""
+	  (gen-range-exprs group-range-exprs " << \", \" << " gen)
+	  "          << \"(\" << ~a << \"))\""
+	  (gen-range-exprs local-range-exprs " << \", \" << " gen)
+	  "          << std::endl;"
+	  "opencl::launch(\"~a\"," (name (id c))
+	  "    NDRange(~a),"
+	  (gen-range-exprs group-range-exprs ", " gen)
+	  "    NDRange(~a));"
+	  (gen-range-exprs local-range-exprs ", " gen))))
+
+(defun get-range-exprs (foreach l/g-id gen)
+  (let ((exprs nil)
+	(par-groups (getf (codegen-info gen) :pargroups)))
+    (visit foreach
+	   (constantly t)
+	   #'(lambda (x)
+	       (when (typep x 'foreach-stat)
+		 (with-slots (nr-iters par-group) x
+		   (let ((l/g-id2 (second (assoc (name par-group) par-groups
+						 :test #'string=))))
+		     (when (string= l/g-id l/g-id2)
+		       (push nr-iters exprs)))))))
+    (subseq (append (reverse exprs)
+		    (list (make-int-constant 1)
+			  (make-int-constant 1)
+			  (make-int-constant 1)))
+	    0 3)))
+
+(defun get-group-range-exprs (foreach local-range-exprs gen)
+  (let ((group-range-exprs (get-range-exprs foreach "get_group_id" gen)))
+    (mapcar #'make-mul local-range-exprs group-range-exprs)))
+
+(defun gen-range-exprs (exprs separator gen)
+  (emit-list exprs :separator separator :function #'(lambda (x) (gen x gen))))
+#+end_src
+
+
+** Generate C++ header
+   :PROPERTIES:
+   :header-args+: :package ":generate-code"
+   :header-args+: :tangle "../system/micro-passes/generate-code/gen-cpp-header.lisp"
+   :END:
+
+*** Creating the generator
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-code)
+#+end_src
+
+#+begin_src lisp
+(defun generate-header (module gen)
+  (change-class gen 'header-generator)
+  (gen module gen)
+  (change-class gen 'cpp-generator))
+
+(defclass header-generator (cpp-generator)
+  ())
+#+end_src
+
+*** The gen-* functions
+
+The module:
+
+#+begin_src lisp
+(defmethod gen ((module module) (gen header-generator))
+  (with-slots ((outputfile header-file) exports) gen
+    (with-slots (header contents footer) outputfile
+      (with-slots (imports code) module
+	(format header (create-ifdefs module))
+	(format contents (gen imports gen))
+	(format contents (gen code gen))
+	(format footer "#endif~%")))))
+#+end_src
+
+The code:
+
+#+begin_src lisp
+(defmethod gen ((code code) (gen header-generator))
+  (with-slots (top-decls funcs) code
+    (emit "~a" (gen top-decls gen)
+	  ""
+	  ""
+	  "~a" (gen funcs gen)
+	  ""
+	  "")))
+#+end_src
+
+
+Creating ifdefs:
+    
+#+begin_src lisp
+(defun create-ifdefs (module)
+  (let ((define (create-define module)))
+    (emit "#ifndef ~a_H" define 
+	  "#define ~a_H" define
+	  ""
+	  "")))
+
+(defun create-define (module)
+  (with-slots (pkg id) module
+    (emit "~a_~a" (create-define-pkg pkg) (string-upcase (name id)))))
+
+(defgeneric create-define-pkg (qual-id))
+
+(defmethod create-define-pkg ((id id))
+  (string-upcase (name id)))
+
+(defmethod create-define-pkg ((ci compound-id))
+  (with-slots (name compound) ci
+    (emit "~a_~a" (string-upcase name) (create-define-pkg compound))))
+#+end_src
+
+Imports:
+
+#+begin_src lisp
+(defmethod gen ((import lib-import) (gen header-generator))
+  (declare (ignore gen))
+  (with-slots (id) import
+    (if (hardware-descriptions:hardware-description-p id)
+	""
+	(emit "#include \"~a.h\"" (create-include id)))))
+
+(defgeneric create-include (id))
+
+(defmethod create-include ((id id))
+  (name id))
+
+(defmethod create-include ((ci compound-id))
+  (with-slots (name compound) ci
+    (format nil "~a/~a" name (create-include compound))))
+#+end_src
+
+Constant declaration:
+
+#+begin_src lisp
+(defmethod gen ((cd const-decl) (gen header-generator))
+  (when (exported-p cd gen)
+    (gen-const-decl cd gen)))
+#+end_src
+
+Type declarations:
+
+#+begin_src lisp
+(defmethod gen ((td typedef) (gen header-generator))
+  (when (exported-p td gen)
+    (gen-typedef td gen)))
+#+end_src
+
+Functions:
+
+#+begin_src lisp
+(defmethod gen ((f func) (gen header-generator))
+  (when (exported-p f gen)
+    (unless (builtin-func-p f)
+      (gen-func-decl-2 f gen))))
+#+end_src
+
+
+
+** Generate Cashmere code
+   :PROPERTIES:
+   :header-args+: :package ":generate-code"
+   :header-args+: :tangle "../system/micro-passes/generate-code/gen-cashmere.lisp"
+   :END:
+
+*** Creating the generator
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-code)
+#+end_src
+
+#+begin_src lisp
+(defclass cashmere-generator (kernel-generator
+                              exports-generator entry-funcs-generator)
+  ())
+
+(defun make-cashmere-generator (exports kernels-file codegen-info entry-funcs
+                                callgraph)
+  (make-instance 'cashmere-generator
+                 :exports exports
+                 :kernels-file kernels-file
+                 :entry-funcs entry-funcs
+                 :codegen-info codegen-info
+                 :callgraph callgraph))
+
+#+end_src
+
+#+begin_src lisp
+(defun create-cashmere-generator (module codegen-info entry-funcs output-dir
+                                  callgraph )
+  (let ((module-dir ".")
+        (name-module (name (id module))))
+    (make-cashmere-generator
+     (exports module)
+     (make-output-file output-dir module-dir name-module ".cl")
+     codegen-info
+     entry-funcs
+     callgraph)))
+#+end_src
+
+*** The gen-* methods
+
+#+begin_src lisp
+(defclass cashmere-info ()
+  ((module :initarg :module :initform (error "Must supply module")
+           :reader module)
+   (default-func :initarg :default-func
+     :initform (error "Must supply default-func")
+     :reader default-func)
+   (copy-func-header :initarg :copy-func-header
+                     :initform (error "Must supply copy-func-header")
+                     :reader copy-func-header)
+   (set-argument :initarg :set-argument
+                 :initform (error "Must supply set-argument")
+                 :reader set-argument)
+   (call-conditions :initarg :call-conditions
+                    :initform (error "Must supply call-conditions")
+                    :accessor call-conditions)))
+
+(defun make-cashmere-info (module default-func copy-func-header
+                           set-argument call-conditions)
+  (make-instance 'cashmere-info
+                 :module module
+                 :default-func default-func
+                 :copy-func-header copy-func-header
+                 :set-argument set-argument
+                 :call-conditions call-conditions))
+#+end_src
+
+This is the entry point for generating OpenCL code and ~cashmere-info~ given a
+module.  We create several ~cashmere-info~'s to allow kernel calls to be made
+with both array-types in Java as with the ~Buffer~ and ~Pointer~ type.  We
+therefore generate several versions of the entry function where we replace the
+array-types with Buffer or Pointer types.
+
+#+begin_src lisp
+(defmethod gen ((module module) (gen cashmere-generator))
+  (with-slots (kernels-file entry-funcs) gen
+    (generate-target-comment gen)
+    (generate-opencl module gen)
+    (change-class gen 'cashmere-generator)
+    (when (funcs-in-module-p entry-funcs module)
+      (write-output kernels-file)
+      (get-cashmere-infos module (get-kernel-func module entry-funcs) gen))))
+#+end_src
+
+The following function creates several ~alternative-entry-funcs~ from the
+~entry-func~ with the parameters having the array-types replaced with ~Buffer~
+or ~Pointer~ types (all combinations). 
+
+#+begin_src lisp
+(defun get-cashmere-infos (module entry-func gen)
+  (let ((name (name (id module)))
+	(arguments (generate-set-arguments (params entry-func)))
+	(run-config (list (generate-run-configuration entry-func gen)))
+	(alternative-entry-funcs (create-alternative-entry-funcs
+				  entry-func '("Buffer" "Pointer"))))
+    (loop for alternative-entry-func in alternative-entry-funcs collect
+	 (make-cashmere-info
+	  name 
+	  (generate-default-func alternative-entry-func gen)
+	  (generate-copy-func-header alternative-entry-func gen)
+	  arguments
+	  run-config))))
+
+(defun array-type-param-p (param)
+  (typep (get-type-decl param) 'array-type))
+
+
+(defun create-alternative-entry-funcs (entry-func alternatives)
+  (loop for type-spec in
+       (cartesian-product
+	(apply #'mapcar #'list (get-alternative-types entry-func alternatives)))
+     collect (create-alternative-entry-func entry-func type-spec)))
+
+(defun get-alternative-types (entry-func alternatives)
+  (let ((types-for-alternatives (get-types-for-alternatives entry-func)))
+    (cons types-for-alternatives
+	  (loop for alternative in alternatives
+	     collect (mapcar (constantly
+			      (make-custom-type (make-id alternative) ())) 
+			     types-for-alternatives)))))
+
+(defun get-types-for-alternatives (entry-func)
+  (let ((array-type-params
+	 (remove-if (complement #'type-for-alternative-p) (params entry-func))))
+    (mapcar #'get-type-decl array-type-params)))
+
+(defun type-for-alternative-p (param)
+  (or (array-type-param-p param)
+      (and (primitive-decl-p param) (param-written-p param))))
+
+(defun create-alternative-entry-func (entry-func type-spec)
+  (let ((copy-entry-func (copy-ast entry-func)))
+    (complete-copy copy-entry-func entry-func)
+    (loop
+       for type-for-alternative in (get-types-for-alternatives copy-entry-func)
+       for new-type in type-spec
+       do (replace-in-ast type-for-alternative :with new-type))
+    copy-entry-func))
+
+(defun complete-copy (copy original)
+  (set-parents:set-parents copy)
+  (set-decls-basic-decls (params copy))
+  (set-params-written (params copy) (params original)))
+
+
+(defun set-decls-basic-decls (params)
+  (loop for param in params do (set-decl-basic-decl param)))
+
+(defun set-decl-basic-decl (param)
+  (let ((basic-decl (get-basic-decl param)))
+    (setf (decl basic-decl) param)))
+
+(defun set-params-written (params-copy params-original)
+  (loop
+     for param-copy in params-copy
+     for param-original in params-original
+     do (setf (written param-copy) (written param-original))))
+#+end_src
+
+#+begin_src lisp
+(defun generate-run-configuration (func gen)
+  (let* ((foreach (retrieve (code-block func)
+                            #'(lambda (ast) (typep ast 'foreach-stat))))
+         (local-range-exprs (get-range-exprs foreach "get_local_id" gen))
+         (group-range-exprs (get-group-range-exprs foreach
+                                                   local-range-exprs gen))
+         (target (getf (codegen-info gen) :target)))
+    ;; (format t "~a~%" (print-pretty:pp group-range-exprs))
+    ;; (format t "~a~%" (print-pretty:pp local-range-exprs))
+    ;; (format t "~a~%" (print-pretty:pp func))
+    (list (emit "kl.getDeviceName().equals(\"~a\")" target)
+          (mapcar  #'(lambda (x) (gen x gen)) (siblings-before foreach))
+          (emit "kl.launch(~a, ~a)"
+                (gen-range-exprs group-range-exprs ", " gen)
+                (gen-range-exprs local-range-exprs ", " gen)))))
+#+end_src
+
+#+begin_src lisp
+(defmethod gen ((ad assign-decl) (gen cashmere-generator))
+  (with-slots (basic-decl expr) ad
+    (emit "~a = ~a"
+          (gen basic-decl gen)
+	  (gen expr gen))))
+
+
+(defmethod gen ((nv normal-var) (gen cashmere-generator))
+  (gen (basic-var nv) gen))
+
+(defmethod gen ((bv basic-var) (gen cashmere-generator))
+  (with-slots (array-exprs basic-decl) bv
+    (with-slots (decl) basic-decl
+      (let ((array-expr-string
+             (if array-exprs (emit "[~a]" (gen (first array-exprs) gen)) "")))
+        (emit "~a~a" (gen (get-id decl) gen) array-expr-string)))))
+
+(defmethod gen-param ((s string) (gen cashmere-generator))
+  s)
+
+(defmethod gen-param ((nd normal-decl) (gen cashmere-generator))
+  (gen-param (first (basic-decls nd)) gen))
+
+(defmethod gen-param ((bd basic-decl) (gen cashmere-generator))
+  (with-slots (mcl-type id) bd
+    (with-slots (name) id
+      (if (primitive-decl-p bd)
+          (if (param-written-p bd)
+              (emit "~a[] ~a" (gen mcl-type gen) name)
+              (emit "~a ~a" (gen mcl-type gen) name))
+          (emit "~a ~a" (gen mcl-type gen) name)))))
+              
+
+(defmethod gen ((const const) (gen cashmere-generator))
+  "")
+
+(defmethod gen ((ud user-defined) (gen cashmere-generator))
+  "")
+
+(defmethod gen ((b bool) (gen cashmere-generator))
+  "boolean")
+
+
+
+(defmethod gen ((array-type array-type) (gen cashmere-generator))
+  (with-slots (base-type) array-type
+    (if (primitive-type-p base-type)
+        (emit "~a[]" (gen base-type gen))
+        (gen base-type gen))))
+
+(defmethod gen ((ct custom-type) (gen cashmere-generator))
+  (with-slots (id typedef) ct
+    (with-slots (name) id
+      (if (or (string= name "Buffer") (string= name "Pointer"))
+	  (emit "~a" name)
+	  (with-slots (fields) typedef
+	    (destructuring-bind (f &rest r) fields
+	      (let ((type-f (get-type-decl f)))
+		(if (loop for type in (mapcar #'get-type-decl r)
+		       always (ast= type-f type))
+		    (emit "~a[]" (gen type-f gen))
+		    (error "Custom type ~a incompatible with Cashmere"
+			   name)))))))))
+
+(defmethod gen ((b mcl-byte) (gen cashmere-generator))
+  (emit "byte"))
+
+(defmethod gen ((bd basic-decl) (gen cashmere-generator))
+  (with-slots (mcl-type id) bd
+    (emit "~a ~a" (gen mcl-type gen) (gen id gen))))
+#+end_src
+
+
+#+begin_src lisp
+(defmethod gen ((c call) (gen cashmere-generator))
+  (if (builtin-func-p c)
+      (gen-builtin c gen)
+      (call-next-method)))
+
+
+(defmethod gen-builtin ((c call) (gen cashmere-generator))
+  (with-slots (params id) c
+    (string-case ((name id))
+      ("toFloat"
+       (emit "(float) ~a" (gen (first params) gen)))
+      ("min"
+       (emit "Math.min(~a)" (emit-list params :separator ", "
+                                  :function #'(lambda (x) (gen x gen)))))
+      ("divide_up" (gen-divide-up params gen)))))
+
+(defun get-kernel-func (module entry-funcs)
+  (retrieve-all module
+                #'(lambda (ast)
+                    (and (typep ast 'func)
+                         (string= (format nil "~aKernel" (first entry-funcs))
+                                  (name (id ast)))))))
+
+(defun generate-set-arguments (params)
+  (emit-list params :function #'gen-cashmere-arg))
+
+(defun gen-cashmere-arg (param)
+  (let ((is-out (not (member (make-const) (modifiers param) :test #'ast=)))
+        (is-in (loaded param))
+        (is-primitive (primitive-decl-p param))
+        (name (name (get-id param))))
+    (if (and is-primitive (not is-out)) (emit "kl.setArgument(~a, Argument.Direction.IN);" name)
+        (let ((dir (if is-out
+                       (if is-in
+                           "Argument.Direction.INOUT"
+                           "Argument.Direction.OUT")
+                       "Argument.Direction.IN")))
+          (emit "if (copy~a) {" name
+                "    kl.setArgument(~a, ~a);" name dir
+                "}"
+                "else {"
+                "    kl.setArgumentNoCopy(~a);" name
+                "}")))))
+ 
+
+
+(defun generate-default-func (func gen)
+  (let ((launch-name (gen-launch-name func))
+        (params (params func)))
+    (emit "static void ~a(~a) throws MCCashmereNotAvailable {"
+          launch-name
+          (gen-default-params params gen)
+          "    ~a(kl, ~a);" launch-name (gen-param-exprs (add-copy-params
+                                                      params))
+          "}")))
+
+(defun generate-copy-func-header (func gen)
+  (let ((launch-name (gen-launch-name func))
+        (params (params func)))
+    (emit "static void ~a(~a) throws MCCashmereNotAvailable"
+          launch-name
+          (gen-default-params (add-copy-params params) gen))))
+
+
+(defun add-copy-params (params)
+  (let (with-copy-params)
+    (loop for p in params
+       do (if (and (primitive-decl-p p)
+                   (not (param-written-p p)))
+              (progn
+                (push p with-copy-params))
+              (progn
+                (push p with-copy-params)
+                (push (make-copy-boolean p) with-copy-params))))
+    (nreverse with-copy-params)))
+
+(defun gen-param-exprs (params)
+  (emit-list params :separator ", "
+             :function #'(lambda (x) (gen-param-expr x))))
+
+(defun gen-param-expr (param)
+  (let ((name (name (get-id param))))
+    (if (and (typep (get-type-decl param) 'bool)
+             (string= name "copy" :end1 (min 4 (length name))))
+        "true"
+        name)))
+
+(defun make-copy-boolean (param)
+  (let* ((name (format nil "copy~a" (name (get-id param))))
+         (bd (make-basic-decl (make-bool) (make-id name)))
+         (d (make-normal-decl nil (list bd))))
+    (setf (decl bd) d)
+    (setf (parent d) (parent param))
+    d))
+
+(defun gen-launch-name (func)
+  (format nil "launch~a" (capitalize (name (id func)))))
+
+(defun capitalize (s)
+  (string-upcase s :start 0 :end 1))
+
+(defun gen-default-params (params gen)
+  (gen-params params gen))
+
+(defmethod gen-params (params (gen cashmere-generator))
+  (emit-list (cons "KernelLaunch kl" params)
+             :separator ", "
+             :function #'(lambda (x) (gen-param x gen))))
+
+(defun generate-target-comment (gen)
+  (with-slots (codegen-info kernels-file) gen
+    (with-slots (header) kernels-file
+      (format header "// ~a~%" (getf codegen-info :target)))))
+#+end_src
+
+** Generate OpenCL code
+   :PROPERTIES:
+   :header-args+: :package ":generate-code"
+   :header-args+: :tangle "../system/micro-passes/generate-code/gen-opencl.lisp"
+   :END:
+
+*** Creating the generator
+
+The OpenCL generator builds on the C++ generator.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-code)
+#+end_src
+
+#+begin_src lisp
+(defun generate-opencl (module gen)
+  (change-class gen 'opencl-generator)
+  (gen module gen))
+
+  
+
+(defclass opencl-generator (c-base-generator kernel-generator exports-generator
+                                             entry-funcs-generator)
+  ((typedefs :initform nil :accessor typedefs)
+   (global-constants :initform nil :accessor global-constants)))
+#+end_src
+
+
+*** The gen-* functions
+
+The module:
+
+#+begin_src lisp
+(defmethod gen ((module module) (gen opencl-generator))
+  (with-slots (kernels-file typedefs global-constants entry-funcs) gen
+    (when (funcs-in-module-p entry-funcs module)
+      (with-slots (contents header) kernels-file
+        (with-slots (code imports) module
+          (format contents (gen code gen))
+          (format header (gen typedefs gen))
+          (format header (gen (remove-duplicates global-constants) gen)))))))
+
+(defun funcs-in-module-p (funcs module)
+  (loop for f in funcs
+     always (member f (funcs (code module))
+                    :test #'string=
+                    :key (compose #'name #'id))))
+#+end_src
+
+The code:
+
+#+begin_src lisp
+(defmethod gen ((code code) (gen opencl-generator))
+  (with-slots (funcs) code
+    (let ((funcs (get-opencl-funcs gen)))
+      (emit "~a" (pp funcs #'(lambda (x) (gen-func-decl x gen)))
+	    ""
+	    "~a" (gen funcs gen)
+	    ""
+	    ""))))
+#+end_src
+
+The following code retrieves all functions that need to be included in the
+OpenCL file:
+
+#+begin_src lisp
+(defun get-opencl-funcs (gen)
+  (get-many-core-funcs-ordered (callgraph gen)))
+
+#+end_src
+
+Typedefs:
+
+#+begin_src lisp
+(defmethod gen ((td typedef) (gen opencl-generator))
+  (gen-typedef td gen))
+#+end_src
+
+When we encounter a custom type, the related typedef has to be generated as
+well.  To do this, we put the typedef of a custom-type in the typedefs list of
+the OpenCL generator.
+
+#+begin_src lisp
+(defmethod gen ((ct custom-type) (gen opencl-generator))
+  (pushnew (typedef ct) (typedefs gen))
+  (call-next-method))
+#+end_src
+
+Functions: 
+
+#+begin_src lisp
+(defmethod gen ((f func) (gen opencl-generator))
+  (unless (builtin-func-p f)
+    (with-slots (mcl-type id params code-block) f
+      (emit "~a~a ~a(~a) ~a"
+	    (if (kernel-func-p f) "__kernel " "")
+	    (gen mcl-type gen)
+	    (gen id gen)
+	    (gen-params params gen)
+	    (gen-opencl-block code-block gen)))))
+#+end_src
+
+#+begin_src lisp
+(defmethod gen-func-decl ((f func) (gen opencl-generator))
+  (unless (or (builtin-func-p f) (kernel-func-p f))
+    (gen-func-decl-2 f gen)))
+#+end_src
+
+Declarations:
+
+#+begin_src lisp
+(defmethod gen ((nd normal-decl) (gen opencl-generator))
+  (with-slots (modifiers basic-decls) nd
+    (let ((modifiers (get-modifiers modifiers gen)))
+      (if modifiers
+          (emit "~a ~a" (emit-list modifiers :separator " ")
+                (if (find "__local" modifiers :test #'string=)
+                    (gen-concrete-basic-decl (first basic-decls) gen)
+                    (gen (first basic-decls) gen)))
+          (emit "~a" (gen (first basic-decls) gen))))))
+
+(defmethod gen ((ad assign-decl) (gen opencl-generator))
+  (with-slots (modifiers basic-decl expr) ad
+    (let ((modifiers (get-modifiers modifiers gen)))
+      (if modifiers
+          (emit "~a ~a = ~a"
+                (emit-list modifiers :separator " ")
+                (gen basic-decl gen)
+                (gen expr gen))
+          (emit "~a = ~a" (gen basic-decl gen) (gen expr gen))))))
+
+(defun gen-concrete-basic-decl (bd gen)
+  (with-slots (mcl-type id) bd
+    (assert (typep mcl-type 'array-type))
+    (with-slots (base-type sizes) mcl-type
+      (emit "~a ~a[~a]"
+            (gen base-type gen) (gen id gen)
+            (gen (make-concrete-expr (size (first sizes))) gen)))))
+
+(defun make-concrete-expr (expr)
+  (cond ((member (type-of expr) '(int-constant float-constant bool-constant))
+         expr)
+        ((typep expr 'var-expr)
+         (get-expr-var expr))
+        ((binary-p expr)
+         (with-slots (l r) expr
+           (setf l (make-concrete-expr l))
+           (setf r (make-concrete-expr r))
+           expr))
+        ((unary-p expr)
+         (with-slots (e) expr
+           (setf e (make-concrete-expr e))
+           expr))))
+
+(defgeneric get-expr-var (var))
+
+(defmethod get-expr-var ((ve var-expr))
+  (aif (get-expr-var (var ve))
+       it
+       ve))
+
+(defmethod get-expr-var ((nv normal-var))
+  (get-expr-var (basic-var nv)))
+
+(defmethod get-expr-var ((bv basic-var))
+  (get-expr-var (basic-decl bv)))
+
+(defmethod get-expr-var ((bd basic-decl))
+  (get-expr-var (decl bd)))
+
+(defmethod get-expr-var ((nd normal-decl))
+  nil)
+
+(defmethod get-expr-var ((ad assign-decl))
+  (expr ad))
+#+end_src
+
+#+begin_src lisp
+(defmethod gen ((bd basic-decl) (gen opencl-generator))
+  (with-slots (mcl-type id) bd
+    (cond
+      ((or (primitive-decl-p bd) (typep mcl-type 'custom-type))
+       (emit "~a ~a" (gen mcl-type gen) (gen id gen)))
+      ((typep mcl-type 'array-type)
+       (with-slots (base-type sizes) mcl-type
+         (emit "~a ~a[~a]" (gen base-type gen) (gen id gen) (gen sizes gen))))
+      (t
+       (error "Not a primitive, array-, or custom-type")))))
+#+end_src
+
+
+For calls we have to take into account the builtin functions.
+
+#+begin_src lisp
+(defmethod gen ((c call) (gen opencl-generator))
+  (if (builtin-func-p c)
+      (gen-builtin c gen)
+      (call-next-method)))
+#+end_src
+
+
+For assignment statements, we have to prevent the C++ generator to generate its
+code:
+
+#+begin_src lisp
+(defmethod gen ((as assign-stat) (gen opencl-generator))
+  (do-pp as gen))
+#+end_src
+
+A barrier statement depends on what the code generation info tells us:
+
+#+begin_src lisp
+(defmethod gen ((bs barrier-stat) (gen opencl-generator))
+  (emit "~a;" (get-barrier-param (name (mem-space bs)) (codegen-info gen))))
+
+(defun get-barrier-param (mem-space codegen-info)
+  (third (assoc mem-space (getf codegen-info :memory-spaces) :test #'string=)))
+#+end_src
+
+Variables:
+
+#+begin_src lisp
+(defmethod gen ((nv normal-var) (gen opencl-generator))
+  (when (global-constant-p nv)
+    (push (parent (get-decl-var nv)) (global-constants gen)))
+  (call-next-method))
+#+end_src
+
+Blocks:
+
+
+#+begin_src lisp
+(defun gen-opencl-block (code-block gen)
+  ;;(nconc stats (remove-foreach code-block))
+  (emit "{"
+	"    ~a" (gen-iterators code-block gen)
+	""
+	"    ~a" (gen (remove-foreach code-block) gen)
+	"}"))
+
+(defun gen-iterators (code-block gen)
+  (let ((iterators (list nil))
+	(dimensions (create-dimensions (codegen-info gen))))
+    (visit code-block
+	   #'(lambda (x) (find-foreach-fw x iterators dimensions gen))
+	   #'(lambda (x) (find-foreach-bw x iterators dimensions gen)))
+    (first iterators)))
+
+(defgeneric find-foreach-fw (ast iterators dimension gen))
+(defgeneric find-foreach-bw (ast iterators dimension gen))
+
+(def-methods find-foreach-fw ((ast (ast list symbol string number))
+				 iterators dimension gen)
+  t)
+
+(def-methods find-foreach-bw ((ast (ast list symbol string number))
+				 iterators dimension gen)
+  nil)
+
+(defmethod find-foreach-bw ((fe foreach-stat) iterators dimensions gen)
+  (with-slots (par-group decl) fe
+    (let ((expr (create-expression (name par-group) dimensions gen))
+	  (decl (gen decl gen)))
+      (push (emit "~a = ~a;" decl expr) (first iterators)))))
+
+(defun create-expression (pargroup dimensions gen)
+  (let* ((codegen-info (codegen-info gen))
+	 (pargroups (getf codegen-info :pargroups))
+	 (name (second (assoc pargroup pargroups :test #'string=)))
+	 (dimension-info (assoc name (getf codegen-info :dimensions)
+				:test #'string=))
+	 (dim-nr (cdr (assoc name dimensions :test #'string=)))
+	 (dim (if (eq (get-type-dimension dimension-info) :func)
+		  (do-func dim-nr)
+		  (do-struct dim-nr))))
+    (incf (cdr (assoc name dimensions :test #'string=)))
+    (format nil "~a~a" name dim)))
+
+(defun do-func (dim)
+  (format nil "(~a)" dim))
+
+(defun do-struct (dim)
+  (error "struct for opencl-code? ~a" dim))
+
+(defun remove-foreach (code-block)
+  (let ((result (stats code-block)))
+    (fixed-point result #'copy-list #'equal
+      (setf result (remove-foreach2 result)))
+    result))
+
+(defun remove-foreach2 (stats)
+  (let ((result nil))
+    (loop for s in stats
+       do (if (typep s 'foreach-stat)
+	      (appendf result (stats (code-block (stat s))))
+	      (appendf result (list s))))
+    result))
+#+end_src
+
+The following function creates a mapping from dimension-string to the initial
+dimension which is 0.  To do this, we retrieve the dimensions data-structure
+from the code-generation information
+
+#+begin_src lisp
+(defun create-dimensions (codegen-info)
+  (mapcar #'(lambda (x) (cons (get-dimension-name x) 0))
+	  (getf codegen-info :dimensions)))
+#+end_src
+
+
+
+
+This is for the library dealing with codegeneration information:
+
+#+begin_src lisp
+(defun get-dimension-name (dimension-info)
+  (first dimension-info))
+
+(defun get-max-number-dimensions (dimension-info)
+  (second dimension-info))
+
+(defun get-type-dimension (dimension-info)
+  (third dimension-info))
+#+end_src
+
+
+*** The gen-params-* functions
+
+#+begin_src lisp
+(defmethod gen-param ((d decl) (gen opencl-generator))
+  (with-slots (modifiers) d
+    (let ((modifiers (get-modifiers modifiers gen))
+	  (bd (get-basic-decl d)))
+      (if modifiers
+	  (emit "~a ~a" (emit-list modifiers :separator " ") (gen-param bd gen))
+	  (gen-param bd gen)))))
+
+(defun get-modifiers (modifiers gen)
+  (remove-if (complement #'(lambda (x) (not (or (string= x "") (null x)))))
+	     (mapcar #'(lambda (x) (get-modifier x gen)) modifiers)))
+
+(defgeneric get-modifier (modifier gen))
+
+(defmethod get-modifier ((c const) gen)
+  "const")
+
+(defmethod get-modifier ((ud user-defined) gen)
+  (let* ((codegen-info (codegen-info gen))
+	 (memory-spaces (getf codegen-info :memory-spaces)))
+    (second (assoc (name (modifier ud)) memory-spaces :test #'string=))))
+
+(defmethod gen-param ((bd basic-decl) (gen opencl-generator))
+  (with-slots (mcl-type id) bd
+    (with-slots (name) id
+      (if (primitive-decl-p bd)
+          (if (param-written-p bd)
+              (emit "~a* ~a" (gen mcl-type gen) name)
+              (emit "~a ~a" (gen mcl-type gen) name))
+	  (emit "~a* ~a" (gen (get-base-type mcl-type) gen) name)))))
+
+
+(defmethod gen-param2 ((bd basic-decl) constant-p (gen opencl-generator))
+  (with-slots (mcl-type id) bd
+    (with-slots (name) id
+      (if (and (primitive-decl-p bd) constant-p)
+	  (emit "const ~a ~a" (gen mcl-type gen) name)
+	  (let ((base-type (get-base-type mcl-type)))
+	    (if constant-p
+		(emit "const ~a* ~a" (gen base-type gen) name)
+		(emit "~a* ~a" (gen base-type gen) name)))))))
+#+end_src
+

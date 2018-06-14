@@ -1,0 +1,238 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Visualization
+
+This section shows micro-passes that visualize the AST, for example visualizing
+control flow or call graphs.
+
+#+toc: headlines 1 local
+
+** Visualize graphs
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/visualize-graph/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :visualize-graph
+  (:use :cl :cl-graph)
+  (:export :visualize-graph))
+#+end_src
+
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":visualize-graph"
+    :header-args+: :tangle "../system/micro-passes/visualize-graph/visualize-graph.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :visualize-graph)
+#+end_src
+
+#+begin_src lisp
+(defun visualize-graph (graph vertex-label-func vertex-func filename-output)
+  (graph->dot graph filename-output
+	      :edge-labeler nil
+	      :vertex-formatter vertex-func
+	      :vertex-labeler vertex-label-func))
+#+end_src
+
+
+
+
+** Visualize controlflow graphs
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/visualize-cfgraph/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :visualize-cfgraph
+  (:use :cl :cl-graph :ast :ast-mcpl :visualize-graph :controlflow :print-bb)
+  (:export :visualize-cfgraph))
+#+end_src
+
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":visualize-cfgraph"
+    :header-args+: :tangle "../system/micro-passes/visualize-cfgraph/visualize-cfgraph.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :visualize-cfgraph)
+#+end_src
+
+#+begin_src lisp
+(defun format-cf-label (vertex stream)
+  (format stream "~a" (print-bb (element vertex))))
+
+(defun format-vertex (vertex stream)
+  (declare (ignore vertex))
+  (format stream ""))
+
+(defun visualize-cfgraph (cfgraph filename-output)
+  (visualize-graph cfgraph #'format-cf-label #'format-vertex filename-output)) 
+#+end_src
+
+
+
+
+** Visualize callgraph
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/visualize-callgraph/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :visualize-callgraph
+  (:use :cl :cl-graph :ast :ast-mcpl :visualize-graph :controlflow)
+  (:export :visualize-callgraph))
+#+end_src
+
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":visualize-callgraph"
+    :header-args+: :tangle "../system/micro-passes/visualize-callgraph/visualize-callgraph.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :visualize-callgraph)
+#+end_src
+
+#+begin_src lisp
+(defun format-callgraph-label (vertex stream)
+  (format stream "~a" (name (id (element vertex)))))
+
+(defun format-vertex (vertex stream)
+  (declare (ignore vertex))
+  (format stream ""))
+
+(defun visualize-callgraph (callgraph filename-output)
+  (visualize-graph
+   callgraph #'format-callgraph-label #'format-vertex filename-output)) 
+#+end_src
+
+
+
+
+** Visualize dataflow graphs
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/visualize-dataflow-graph/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :visualize-dataflow-graph
+  (:use :cl :cl-graph :ast :ast-mcpl :visualize-graph :controlflow
+	:print-bb :print-dataflow)
+  (:import-from :utility-directory :escape)
+  (:export :visualize-dataflow-graph))
+#+end_src
+
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":visualize-dataflow-graph"
+    :header-args+: :tangle "../system/micro-passes/visualize-dataflow-graph/visualize-dataflow-graph.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :visualize-dataflow-graph)
+#+end_src
+
+#+begin_src lisp
+(defun format-dataflow-label (vertex stream dataflow-info-in dataflow-info-out)
+  (let ((bb (element vertex)))
+    (if dataflow-info-in
+	(format stream "{ ~a | " (get-dataflow-set bb dataflow-info-in))
+	(format stream "{ "))
+    (format stream "~a" (do-escape (print-bb bb)))
+    (if dataflow-info-out
+	(format stream " | ~a }" (get-dataflow-set bb dataflow-info-out))
+	(format stream " }"))))
+
+(defun get-dataflow-set (bb dataflow-info)
+  (do-escape (print-dataflow-set (gethash bb dataflow-info))))
+
+(defun do-escape (s)
+  (escape s "{" "}" "<" ">"))
+
+(defun visualize-dataflow-graph (cfgraph if-forward-in if-forward-out
+				 filename-output)
+  (visualize-graph cfgraph
+		   #'(lambda (vertex stream)
+		       (format-dataflow-label
+			vertex stream if-forward-in if-forward-out))
+		   #'(lambda (vertex stream)
+		       (declare (ignore vertex))
+		      (format stream "shape=record"))
+		   filename-output))
+#+end_src
+
+
+
+

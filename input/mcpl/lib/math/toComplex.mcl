@@ -1,0 +1,15 @@
+package lib.math;
+
+module toComplex;
+
+import lib.math.complex;
+
+
+
+perfect void toComplex(int n, Complex[n] output, const float[n] input) {
+    foreach (int i in n threads) {
+	output[i].real = input[i];
+	output[i].imag = 0.0;
+    }
+}
+

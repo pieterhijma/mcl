@@ -1,0 +1,19 @@
+package prnu_extract.wiener;
+
+module computeSquaredMagnitudes;
+
+import perfect;
+
+
+
+perfect void computeSquaredMagnitudes(int h, int w, float[h][w] output,
+	Complex[h][w] input) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    float real = input[i][j].real;
+	    float imag = input[i][j].imag;
+	    output[i][j] = real * real + imag * imag;
+	}
+    }
+}
+

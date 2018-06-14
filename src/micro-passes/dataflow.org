@@ -1,0 +1,2057 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Dataflow
+
+This section contains several generic dataflow passes.
+
+#+toc: headlines 1 local
+
+
+** Dataflow for on-device variables
+
+This pass determines for each block which variables are certain to be on the
+device.  
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/dataflow-on-device-variables/packages.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :dataflow-on-device-variables
+  (:use :cl :cl-graph :ast :ast-mcpl
+	:controlflow :dataflow :on-device-variables)
+  (:import-from :alexandria :compose)
+  (:export :available-on-device-variables
+	   :anticipated-on-device-variables
+
+	   :available-on-host-variables
+	   :anticipated-on-host-variables
+
+	   :live-on-device-variables
+	   :reaching-on-device-variables
+
+	   :gen-on-device-variables-in :kill-on-device-variables-in
+	   :gen-on-device-variables-out :kill-on-device-variables-out
+
+	   :gen-on-device-variables-in-w/o-use
+	   :gen-on-device-variables-out-w/o-use))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":dataflow-on-device-variables"
+    :header-args+: :tangle "../system/micro-passes/dataflow-on-device-variables/dataflow-on-device-variables.lisp"
+    :END:
+
+**** The exported functions
+
+The function ~available-on-device-variables~ tells for each basic block which
+on-device variables are certainly available after execution of the block.
+Therefore, the wanted output is in the OUT variable of map.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :dataflow-on-device-variables)
+#+end_src
+
+#+begin_src lisp
+(defun available-on-device-variables (cfgraph)
+  (let ((gen (gen-on-device-variables-out-w/o-use cfgraph))
+	(kill (kill-on-device-variables-out cfgraph)))
+    (must-forward cfgraph gen kill)))
+#+end_src
+
+Similar to the above function, the function ~anticipated-on-device-variables~
+states for each basic block, which on-device variables are certain to be
+expected at some point on the device.  The IN variable for each basic block is
+the wanted output.
+
+#+begin_src lisp
+(defun anticipated-on-device-variables (cfgraph)
+  (let ((gen (gen-on-device-variables-in-w/o-use cfgraph))
+	(kill (kill-on-device-variables-in cfgraph)))
+    (must-backward cfgraph gen kill)))
+(add-backward-dataflow-analysis 'available-on-device-variables)
+#+end_src
+
+
+#+begin_src lisp
+(defun available-on-host-variables (cfgraph)
+  (let ((gen (gen-on-host-variables-out-w/o-use cfgraph))
+	(kill (kill-on-host-variables-out cfgraph)))
+    (must-forward cfgraph gen kill)))
+(add-forward-dataflow-analysis 'available-on-host-variables)
+
+(defun anticipated-on-host-variables (cfgraph)
+  (let ((gen (gen-on-host-variables-in-w/o-use cfgraph))
+	(kill (kill-on-host-variables-in cfgraph)))
+    (must-backward cfgraph gen kill)))
+(add-backward-dataflow-analysis 'anticipated-on-host-variables)
+#+end_src
+
+The anticipated and available analyses have their 'may' counterparts in live
+and reaching respectively.
+
+#+begin_src lisp
+(defun live-on-device-variables (cfgraph)
+  (let ((gen (gen-on-device-variables-in-w/o-use cfgraph))
+	(kill (kill-on-device-variables-in cfgraph)))
+    (may-backward cfgraph gen kill)))
+(add-backward-dataflow-analysis 'live-on-device-variables)
+
+(defun reaching-on-device-variables (cfgraph)
+  (let ((gen (gen-on-device-variables-out-w/o-use cfgraph))
+	(kill (kill-on-device-variables-out cfgraph)))
+    (may-forward cfgraph gen kill)))
+(add-forward-dataflow-analysis 'reaching-on-device-variables)
+#+end_src
+
+
+#+begin_src lisp
+(defun gen-on-device-variables-out-w/o-use (cfgraph)
+  (gen-on-host/device-variables-in/out-w/o-use
+   cfgraph #'gen-on-device-variables-out #'kill-use-variables-out
+   'use-on-device-variable 'def-on-device-variable))
+
+(defun gen-on-device-variables-in-w/o-use (cfgraph)
+  (gen-on-host/device-variables-in/out-w/o-use
+   cfgraph #'gen-on-device-variables-in #'kill-use-variables-in
+   'use-on-device-variable 'def-on-device-variable))
+
+(defun gen-on-host-variables-out-w/o-use (cfgraph)
+  (gen-on-host/device-variables-in/out-w/o-use
+   cfgraph #'gen-on-host-variables-out #'kill-use-variables-out
+   'use-on-host-variable 'def-on-host-variable))
+
+(defun gen-on-host-variables-in-w/o-use (cfgraph)
+  (gen-on-host/device-variables-in/out-w/o-use
+   cfgraph #'gen-on-host-variables-in #'kill-use-variables-in
+   'use-on-host-variable 'def-on-host-variable))
+
+
+(defun gen-on-host/device-variables-in/out-w/o-use (cfgraph gen-func kill-func
+						    use-type def-type)
+  (let ((gen (funcall gen-func cfgraph))
+	(kill (funcall kill-func cfgraph)))
+    (dataflow-union
+     (dataflow-difference gen kill)
+     (use->def kill use-type def-type))))
+
+(defun use->def (kill use-type def-type)
+  (combine kill kill #'eq
+	   #'(lambda (k k2) (and (eq k k2)
+				 (typep k use-type)))
+	   #'(lambda (k k2)
+	       (declare (ignore k2))
+	       (make-instance def-type :decl (decl k)))))
+
+#+end_src
+
+
+The following functions define the gen and kill sets for on-device variables:
+
+#+begin_src lisp
+(defun gen-on-device-variables-in (cfgraph)
+  (dataflow-union (def-on-device-variables-in cfgraph)
+		  (use-on-device-variables-in cfgraph)))
+
+(defun gen-on-device-variables-out (cfgraph)
+  (dataflow-union (def-on-device-variables-out cfgraph)
+		  (use-on-device-variables-out cfgraph)))
+
+(defun kill-on-device-variables-in (cfgraph)
+  (kill-on-device-variables-in/out cfgraph #'def-on-device-variables-in
+				   #'use-on-device-variables-in
+				   #'def-on-host-variables-in
+				   #'use-on-host-variables-in))
+
+(defun kill-on-device-variables-out (cfgraph)
+  (kill-on-device-variables-in/out cfgraph #'def-on-device-variables-out
+				   #'use-on-device-variables-out
+				   #'def-on-host-variables-out
+				   #'use-on-host-variables-out))
+#+end_src
+
+
+
+#+begin_src lisp
+(defun gen-on-host-variables-in (cfgraph)
+  (dataflow-union (def-on-host-variables-in cfgraph)
+		  (use-on-host-variables-in cfgraph)))
+
+(defun gen-on-host-variables-out (cfgraph)
+  (dataflow-union (def-on-host-variables-out cfgraph)
+		  (use-on-host-variables-out cfgraph)))
+
+(defun kill-on-host-variables-in (cfgraph)
+  (kill-on-device-variables-in/out cfgraph #'def-on-host-variables-in
+				 #'use-on-host-variables-in
+				 #'def-on-device-variables-in
+				 #'use-on-device-variables-in))
+
+(defun kill-on-host-variables-out (cfgraph)
+  (kill-on-device-variables-in/out cfgraph #'def-on-host-variables-out
+				 #'use-on-host-variables-out
+				 #'def-on-device-variables-out
+				 #'use-on-device-variables-out))
+
+(defun kill-use-variables-in (cfgraph)
+  (kill-use-variables-in/out cfgraph #'def-on-host-variables-in
+			     #'use-on-host-variables-in
+			     #'def-on-device-variables-in
+			     #'use-on-device-variables-in))
+
+(defun kill-use-variables-out (cfgraph)
+  (kill-use-variables-in/out cfgraph #'def-on-host-variables-out
+			     #'use-on-host-variables-out
+			     #'def-on-device-variables-out
+			     #'use-on-device-variables-out))
+
+#+end_src
+
+
+**** The generic functions
+
+The following function states that the solution is the union of the kills that
+host definitions do with the kills that host use do.
+A host definition kills device definitions and device uses, whereas a host use
+kills only device definitions:
+
+#+begin_src lisp
+(defun kill-on-device-variables-in/out (cfgraph def-on-device-func
+					use-on-device-func
+					def-on-host-func
+					use-on-host-func)
+  (let ((def-on-device (funcall def-on-device-func cfgraph))
+	(use-on-device (funcall use-on-device-func cfgraph))
+	(def-on-host (funcall def-on-host-func cfgraph))
+	(use-on-host (funcall use-on-host-func cfgraph)))
+    (let ((def-host-kills
+	   (combine-kills
+	    def-on-host (dataflow-union def-on-device use-on-device)))
+	  (use-host-kills
+	   (combine-kills use-on-host def-on-device)))
+      (dataflow-union def-host-kills use-host-kills))))
+
+(defun combine-kills (host/def-map device/use-map)
+  (combine host/def-map device/use-map
+	   (compose #'not #'eq)
+	   #'(lambda (hde dde) (eq (decl hde) (decl dde)))
+	   #'(lambda (hde dde) (declare (ignore hde)) dde)))
+
+
+
+(defun kill-use-variables-in/out (cfgraph def-on-device-func
+					use-on-device-func
+					def-on-host-func
+					use-on-host-func)
+  (let ((def-on-device (funcall def-on-device-func cfgraph))
+	(use-on-device (funcall use-on-device-func cfgraph))
+	(def-on-host (funcall def-on-host-func cfgraph))
+	(use-on-host (funcall use-on-host-func cfgraph)))
+    (let ((def-use-device-kills
+	   (combine-def-use-kills def-on-device use-on-device))
+	  (def-use-host-kills
+	   (combine-def-use-kills def-on-host use-on-host)))
+      (dataflow-union def-use-device-kills def-use-host-kills))))
+
+(defun combine-def-use-kills (def-map use-map)
+  (combine use-map def-map
+	   (constantly t)
+	   #'(lambda (use def) (eq (decl def) (decl use)))
+	   #'(lambda (use def) (declare (ignore def)) use)))
+
+
+#+end_src
+
+
+** Aliases
+
+This package performs alias analysis as a dataflow analysis.  For each basic
+block, we record which *may-aliases* are known.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/aliases/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :aliases
+  (:use :cl :cl-graph :simple-sets :ast :ast-mcpl :dataflow :controlflow
+        :check-types :print-pretty :print-bb :print-dataflow)
+  (:import-from :alexandria :compose)
+  (:import-from :utility-directory :filter)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :aliases :alias :tile :get-aliases-ast :get-primary-decl
+	   :get-decls-aliased-to-var :make-alias :make-tile))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":aliases"
+    :header-args+: :tangle "../system/micro-passes/aliases/aliases.lisp"
+    :END:
+
+**** The datastructures
+
+We define an alias as a dataflow-variable associated to a basic block.  Besides
+this, we associate another variable to an alias, namely the alias that refers
+to the dataflow-variable.  An alias has three slots:
+- ~decl~ :: the declaration to which the alias refers,
+- ~alias~ :: the declaration that is the alias, and
+- ~bb~ :: the basic block where the alias was created.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :aliases)
+#+end_src
+
+#+begin_src lisp
+
+(defclass alias (dataflow-variable-with-bb)
+  ((alias :initarg :alias :initform (error "must supply alias") :reader alias)))
+#+end_src
+
+A tile is an alias but it points somewhere in the original variable.
+
+#+begin_src lisp
+(defclass tile (alias) ())
+#+end_src
+
+**** The alias-analysis functions
+
+We define the ~aliases~ as being the ~reaching-aliases~:
+
+#+begin_src lisp
+(defun aliases (cfgraph)
+  (reaching-aliases cfgraph))
+#+end_src
+
+The ~reaching-aliases~ functions is a may-forward analysis with a ~gen~ and
+~kill~ set:
+
+#+begin_src lisp
+(defun reaching-aliases (cfgraph)
+  (may-forward cfgraph (gen-aliases cfgraph) (kill-aliases cfgraph)))
+#+end_src
+
+The ~gen-aliases~ functions gives for each basic block the aliases with
+*unique-decls* that are created in this basic block.  We consider an alias with
+a unique declaration an alias that does not point to another alias, but to the
+first declaration.
+
+#+begin_src lisp
+(defun gen-aliases (cfgraph)
+  (alias-vars-unique-decls cfgraph))
+#+end_src
+
+The ~kill-aliases~ function is a combination of the aliases with unique
+declarations.  Essentially, an alias kills another alias if the alias slots of
+both aliases are the same, but the declaration are not (they point to a
+different declaration).
+
+#+begin_src lisp
+(defun kill-aliases (cfgraph)
+  (let ((aliases (alias-vars-unique-decls cfgraph)))
+    (combine aliases aliases (compose #'not #'eq)
+             #'(lambda (de1 de2) (and (eq (alias de1) (alias de2))
+				      (not (eq (decl de1) (decl de2)))))
+             #'(lambda (de1 de2) (declare (ignore de1)) de2))))
+#+end_src
+
+The function ~alias-vars-unique-decls~ records per basic block the aliases that
+are becoming available in that basic block.  It ensures that we record the
+first declaration instead of another alias.  In the example below, instead of
+the second alias pointing to ~a2~ an already existing alias, it points to
+~decl1~, the first known declaration.
+
+#+begin_example
+f(decl1, decl2) {
+  a1 = decl1;     // <decl1, a1>
+  a2 = a1;        // <decl1, a2>
+#+end_example
+
+We do by first recording all alias variables (that do not have unique
+declarations), perform a forward dataflow-analysis with a transfer function
+that retrieves the original declarations from the IN set for the dataflow-value
+under investigation at block ~bb~.  Since this forward dataflow analysis
+accumulates the dataflow-values from each predecessor block, we filter each set
+keeping only the dataflow-elements that are defined in the basic block in the
+map.  
+
+#+begin_src lisp
+(defun alias-vars-unique-decls (cfgraph)
+  (let* ((alias-vars (alias-vars cfgraph))
+	 (forward (dataflow-forward
+		   cfgraph
+		   (make-dataflow-set)
+		   (make-dataflow-set)
+		   #'(lambda (bb v)
+		       (find-original-decls (gethash bb alias-vars) v))
+		   #'union))
+	 (result (empty-dataflow-map cfgraph)))
+    (loop for bb being the hash-key in forward using (hash-value set)
+       do (setf (gethash bb result) (filter-set bb set)))
+    result))
+#+end_src
+
+The following function modifies the declaration in the aliases in the
+~to-modify-set~ when there is an alias in the ~to-compare-set~ that has an
+alias that is a ~decl~ in the ~to-modify-set~.  The ~decl~ of the element in
+the ~to-modify-set~ will point to the same ~decl~ of the element in the
+~to-compare-set~.  
+
+The function includes all elements of the ~to-compare-set~ in the result and
+iterates over all elements in the ~to-modify-set~ and adds these to the result
+set as well.  For each element in the ~to-compare-set~ we verify whether there
+is an element that satisfies the condition of above and modify the element.
+This means that this function is basically a union, but with a small twist.
+
+#+begin_src lisp
+(defun find-original-decls (to-modify-set to-compare-set)
+  (let ((result (make-dataflow-set (elements to-compare-set))))
+    (loop for to-modify in (elements to-modify-set)
+       do
+	 (loop for to-compare in (elements to-compare-set)
+	    do (with-slots (decl) to-modify
+		      (when (eq (alias to-compare) decl)
+			(setf decl (decl to-compare)))))
+	 (add-to-set to-modify  result))
+    result))
+#+end_src
+
+The following function filters only the elements in set that have a basic block
+that is similar to the basic block ~bb~.
+
+#+begin_src lisp
+(defun filter-set (bb set)
+  (make-dataflow-set (filter #'(lambda (alias)
+				 (eq (bb alias) bb))
+			     (elements set))))
+#+end_src
+
+The function ~alias-vars~ records all aliases but not with unique
+declarations.  For example, in the example below we would like to record that
+~a2~ aliases to ~decl1~, instead of to ~a1~:
+
+#+begin_example
+f(decl1, decl2) {
+  a1 = decl1;     // <decl1, a1>
+  a2 = a1;        // <a1, a2>
+#+end_example
+
+The function creates a map and adds all aliases retrieved from the AST form
+belonging to the basic block.
+
+#+begin_src lisp
+(defun alias-vars (cfgraph)
+  (let ((bbs (mapcar #'element (vertexes cfgraph)))
+        (map (make-hash-table)))
+    (dolist (bb bbs)
+      (let ((set (make-dataflow-set)))
+         (get-alias-vars-from-bb bb set)
+         (setf (gethash bb map) set)))
+    map))
+#+end_src
+
+**** Other exported functions
+
+Retrieving the aliases that are known to be available at some point in the AST:
+
+#+begin_src lisp
+(defun get-aliases-ast (ast)
+  "Retrieve a list of aliases that are available at the point of AST-form ast."
+  (let* ((func (get-func ast))
+	 (cfgraph (cfgraph func))
+	 (bb (get-basic-block-ast ast cfgraph)))
+    (elements (gethash bb (aliases cfgraph)))))
+#+end_src
+
+Retrieving the primary declaration from a variable or declaration:
+
+#+begin_src lisp
+(defun get-primary-decl (var/var-expr/decl)
+  "Retrieve the primary declaration of the variable.
+
+The var can be a var, var-expr, decl.   A primary declaration is a declaration
+that did not have any aliases when it was first declared."
+  (get-primary-decl-with-aliases
+   var/var-expr/decl (get-aliases-ast var/var-expr/decl)))
+
+(defgeneric get-primary-decl-with-aliases (var/var-expr/decl aliases))
+
+(defmethod get-primary-decl-with-aliases ((ve var-expr) aliases)
+  (get-primary-decl-with-aliases (var ve) aliases))
+
+(defmethod get-primary-decl-with-aliases ((v var) aliases)
+  (get-primary-decl-with-aliases (get-decl-var v) aliases))
+
+(defmethod get-primary-decl-with-aliases ((d decl) aliases)
+  (let ((primary-decls (remove-duplicates
+			(mapcar #'decl
+				(filter #'(lambda (alias)
+					    (eq (alias alias) d)) aliases)))))
+    (cond ((null primary-decls)
+	   d)
+	  ((eql (length primary-decls) 1)
+	   (first primary-decls))
+	  (t
+	   (error "More than one primary decl.")))))
+#+end_src
+
+Retrieve the declarations that are aliased to 
+
+#+begin_src lisp
+(defun get-decls-aliased-to-var (var/var-expr/decl)
+  "Retrieve a list of decls that are aliased to var.
+
+The var can be a var, var-expr, decl."
+  (get-decls-aliased-to-var-with-aliases
+   var/var-expr/decl (get-aliases-ast var/var-expr/decl)))
+
+(defgeneric get-decls-aliased-to-var-with-aliases (var/var-expr/decl aliases))
+
+(defmethod get-decls-aliased-to-var-with-aliases ((ve var-expr) aliases)
+  (get-decls-aliased-to-var-with-aliases (var ve) aliases))
+
+(defmethod get-decls-aliased-to-var-with-aliases ((v var) aliases)
+  (get-decls-aliased-to-var-with-aliases (get-decl-var v) aliases))
+
+(defmethod get-decls-aliased-to-var-with-aliases ((d decl) aliases)
+  (let ((primary-decl (get-primary-decl-with-aliases d aliases)))
+    (remove d (cons primary-decl
+		    (remove-duplicates
+		     (mapcar #'alias (filter #'(lambda (alias)
+						 (eq (decl alias) primary-decl))
+					     aliases)))))))
+#+end_src
+
+
+
+**** Retrieving the alias variables from the AST
+
+The function ~get-alias-from-bb~ retrieves the aliases from the basic block and
+store them into ~set~.  Basically, we only have to investigate statements:
+
+#+begin_src lisp
+(defgeneric get-alias-vars-from-bb (bb set))
+
+(defmethod get-alias-vars-from-bb ((bb bb) set) set)
+
+(defmethod get-alias-vars-from-bb ((bb bb-stat) set)
+  (get-alias-vars-from-stat (stat bb) set bb))
+#+end_src
+
+We only have to analyze ~assign-statements~ and declaration statements:
+
+#+begin_src lisp
+(defgeneric get-alias-vars-from-stat (stat set bb))
+
+(defmethod get-alias-vars-from-stat ((s stat) set bb) set)
+
+(defmethod get-alias-vars-from-stat ((ds decl-stat) set bb)
+  (get-alias-vars-from-decl (decl ds) set bb))
+#+end_src
+
+For an assignment if the types of the variable and expression are not
+primitive, we either add a tile or an alias to the set:
+
+#+begin_src lisp
+(defmethod get-alias-vars-from-stat ((as assign-stat) set bb)
+  (with-slots (var expr) as
+    (when (typep expr 'var-expr)
+      (let ((type-var (get-type var))
+	    (type-expr (eval-type expr)))
+	(cond ((and (primitive-type-p type-var)
+		    (primitive-type-p type-expr))
+	       nil)
+ 	      ((tile-expr-p expr)
+	       (add-to-set (make-tile expr var bb) set))
+	      (t
+	       (add-to-set (make-alias expr var bb) set)))))))
+#+end_src
+
+For declarations, we only have to analyze assignment declarations:
+
+#+begin_src lisp
+(defgeneric get-alias-vars-from-decl (decl set bb))
+
+(defmethod get-alias-vars-from-decl ((ad assign-decl) set bb)
+  (with-slots (expr) ad
+    (when (typep expr 'var-expr)
+	(let ((type-decl (get-type-decl ad))
+	      (type-expr (eval-type expr)))
+	  (cond ((and (primitive-type-p type-decl)
+		      (primitive-type-p type-expr))
+		 nil)
+		((tile-expr-p expr)
+		 (add-to-set (make-tile expr ad bb) set))
+		(t
+		 (add-to-set (make-alias expr ad bb) set)))))))
+
+(defmethod get-alias-vars-from-decl ((nd normal-decl) set bb))
+#+end_src
+
+**** Helper functions
+
+The following helper functions make things a bit easier:
+
+#+begin_src lisp
+(defun tile-expr-p (expr)
+  (not (ast= (get-type (get-decl-var (var expr)))
+	     (eval-type expr))))
+
+(defun make-tile (decl alias bb)
+  (make-tile/alias decl alias bb 'tile))
+
+(defun make-alias (decl alias bb)
+  (make-tile/alias decl alias bb 'alias))
+
+(defgeneric make-tile/alias (decl alias bb type))
+
+(defmethod make-tile/alias ((ve var-expr) (v var) bb type)
+  (make-tile/alias (get-decl-var ve) (get-decl-var v) bb type))
+
+(defmethod make-tile/alias ((ve var-expr) (alias decl) bb type)
+  (make-tile/alias (get-decl-var ve) alias bb type))
+
+(defmethod make-tile/alias ((decl decl) (alias decl) bb type)
+  (make-instance type :decl decl :alias alias :bb bb))
+#+end_src
+
+We also have to take into account printing aliases and equality of aliases:
+
+#+begin_src lisp
+(defmethod print-object ((d alias) stream)
+  (print-unreadable-object (d stream :type t)
+    (format stream "~a: ~a, ~a" (bb d) (decl d) (alias d))))
+
+(defmethod print-dataflow-element ((d alias))
+  (format nil "<d: ~a, a: ~a, at: ~a>" (pp (decl d)) (pp (alias d)) (print-bb (bb d))))
+
+(defgeneric eq-dataflow-element (e1 e2)
+  (:method-combination and))
+
+(defmethod eq-dataflow-element and ((a1 alias) (a2 alias))
+  (ast= (alias a1) (alias a2)))
+
+(defmethod eq-dataflow-element and ((a1 tile) (a2 tile))
+  (ast= (alias a1) (alias a2)))
+
+(defmethod eq-dataflow-element and ((a1 alias) (a2 tile))
+  nil)
+
+(defmethod eq-dataflow-element and ((a1 tile) (a2 alias))
+  nil)
+#+end_src
+
+
+
+
+
+*** Testing
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-aliases/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-aliases
+  (:use :cl :test-mcl :fiveam :simple-sets :ast :ast-mcpl :dataflow :controlflow :aliases
+	:test-dataflow-library :build-ast)
+  (:shadow :get-cfgraph)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :test-aliases))
+#+end_src
+
+**** The tests
+     :PROPERTIES:
+     :header-args+: :package ":test-aliases"
+     :header-args+: :tangle "../system/tests/test-aliases/test-aliases.lisp"
+     :END:
+
+#+begin_src lisp :exports none :tangle no
+;; these are temporary functions
+
+(defun pp (ast) (print-pretty:pp ast))
+
+(defun vis (func forward &optional cfgraph)
+  (let ((cfgraph (if cfgraph cfgraph *cfgraph*)))
+    (multiple-value-bind (out in) (funcall func cfgraph)
+      (visualize-dataflow-graph:visualize-dataflow-graph
+       cfgraph
+       (if forward in out)
+       (if forward out in)
+       "/home/pieter/dataflow.dot"))))
+
+(defun get-cfgraph-func (name module)
+  (cfgraph (first (filter #'(lambda (func) (string= (name (id func)) name))
+			  (funcs (code module))))))
+#+end_src
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-aliases)
+#+end_src
+
+#+begin_src lisp
+(def-suite aliases :in mcl-test-suite)
+(in-suite aliases)
+
+
+(test vars
+  (let* ((input "package m;
+                   module a;
+                   perfect void f(int h, int w, float[h][w] input) {
+                     float[w] input1D = input[2];
+                   }")
+	 (cfgraph (get-cfgraph input))
+	 (result (map->compare-set (aliases::alias-vars cfgraph) cfgraph))
+	 (assign-decl (build-decl "input1D" '(("w"))
+				  nil (build-expr "input" '((2)))))
+	 (decl (build-decl "input" '(("h") ("w"))))
+	 (stat (make-decl-stat assign-decl))
+	 (bb (make-bb-stat stat))
+	 (tile (make-tile decl assign-decl bb))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element (build-decl "h") (build-dataflow-set))
+		  (build-element (build-decl "w") (build-dataflow-set))
+		  (build-element decl (build-dataflow-set))
+		  (build-element stat (build-dataflow-set tile))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (is (set= wanted result)))
+  (let* ((input "package m;
+                   module a;
+                   perfect void f(int n, float[n] decl) {
+                     float[n] alias1 = decl;
+                     float[n] alias2 = alias1;
+                   }")
+	 (cfgraph (get-cfgraph input))
+	 (result (map->compare-set (aliases::alias-vars cfgraph) cfgraph))
+	 (assign-decl1 (build-decl "alias1" '(("n"))
+				   nil (build-expr "decl")))
+	 (assign-decl2 (build-decl "alias2" '(("n"))
+				   nil (build-expr "alias1")))
+	 (decl (build-decl "decl" '(("n"))))
+	 (stat1 (make-decl-stat assign-decl1))
+	 (stat2 (make-decl-stat assign-decl2))
+	 (bb1 (make-bb-stat stat1))
+	 (bb2 (make-bb-stat stat2))
+	 (alias1 (make-alias decl assign-decl1 bb1))
+	 (alias2 (make-alias assign-decl1 assign-decl2 bb2))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element (build-decl "n") (build-dataflow-set))
+		  (build-element decl (build-dataflow-set))
+		  (build-element stat1 (build-dataflow-set alias1))
+		  (build-element stat2 (build-dataflow-set alias2))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (is (set= wanted result))))
+
+(test unique-decls
+  (let* ((input "package m;
+                   module a;
+                   perfect void f(int n, float[n] decl) {
+                     float[n] alias1 = decl;
+                     float[n] alias2 = alias1;
+                   }")
+	 (cfgraph (get-cfgraph input))
+	 (result (map->compare-set
+		  (aliases::alias-vars-unique-decls cfgraph) cfgraph))
+	 (assign-decl1 (build-decl "alias1" '(("n"))
+				   nil (build-expr "decl")))
+	 (assign-decl2 (build-decl "alias2" '(("n"))
+				   nil (build-expr "alias1")))
+	 (decl (build-decl "decl" '(("n"))))
+	 (stat1 (make-decl-stat assign-decl1))
+	 (stat2 (make-decl-stat assign-decl2))
+	 (bb1 (make-bb-stat stat1))
+	 (bb2 (make-bb-stat stat2))
+	 (alias1 (make-alias decl assign-decl1 bb1))
+	 (alias2 (make-alias decl assign-decl2 bb2))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element (build-decl "n") (build-dataflow-set))
+		  (build-element decl (build-dataflow-set))
+		  (build-element stat1 (build-dataflow-set alias1))
+		  (build-element stat2 (build-dataflow-set alias2))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (is (set= wanted result))))
+
+(test simple
+  (let* ((input "package m;
+                   module a;
+                   perfect void f(int h, int w, float[h][w] input) {
+                     float[w] input1D = input[2];
+                   }")
+	 (cfgraph (get-cfgraph input))
+	 (result (map->compare-set (aliases cfgraph) cfgraph))
+	 (assign-decl (build-decl "input1D" '(("w"))
+				  nil (build-expr "input" '((2)))))
+	 (decl (build-decl "input" '(("h") ("w"))))
+	 (stat (make-decl-stat assign-decl))
+	 (bb (make-bb-stat stat))
+	 (tile (make-alias decl assign-decl bb))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element (build-decl "h") (build-dataflow-set))
+		  (build-element (build-decl "w") (build-dataflow-set))
+		  (build-element decl (build-dataflow-set))
+		  (build-element stat (build-dataflow-set tile))
+		  (build-element (make-bb-exit) (build-dataflow-set tile)))))
+    (is (set= wanted result))))
+#+end_src
+
+
+#+begin_src lisp
+(defun get-cfgraph (input)
+  (multiple-value-bind (cfgraph ast) (test-dataflow-library:get-cfgraph input)
+    (check-types:check-types ast)
+    cfgraph))
+#+end_src
+
+
+#+begin_src lisp
+;; should go to dataflow-test-library
+(defgeneric add-to-map (map stat dataflow-variable))
+
+(defmethod add-to-map (map (stat stat) dataflow-variable)
+  (loop for bb being the hash-keys in map
+     do (when (and (typep bb 'bb-stat)
+                   (ast= stat (stat bb)))
+          (add-to-set dataflow-variable (gethash bb map)))))
+
+(defparameter *cfgraph* nil)
+
+(defun bla ()
+  (let ((input "package m;
+                   module a;
+                   perfect void f(int h, int w, float[h][w] input) {
+                     float[w] input1D = input[2];
+                   }"))
+    (multiple-value-bind (cfgraph ast) (get-cfgraph input)
+      (check-types:check-types ast)
+      (setf *cfgraph* cfgraph)
+      (aliases::alias-vars cfgraph))))
+#+end_src
+
+** Dependencies
+
+This pass gives all kinds of access to dependencies.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/dependencies/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :dependencies
+  (:use :cl :simple-sets :ast :ast-mcpl :controlflow :dataflow
+        :reaching-definitions :uses :definitions)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:import-from :anaphora :awhen :it)
+  (:import-from :utility-directory :filter :fixed-point)
+  (:export :defs-before-uses
+	   :direct-defs-before-uses
+	   :get-defs-before-uses-ast
+	   :get-direct-defs-before-uses-ast
+
+	   :defs-after-uses
+	   :get-defs-after-uses-ast
+	   
+	   :defs-after-defs
+	   :get-defs-after-defs-ast
+
+	   :uses-after-uses
+	   :get-uses-after-uses-ast
+
+	   :uses-before-uses
+	   :get-uses-before-uses-ast
+	   
+	   :uses-after-defs
+	   :get-uses-after-defs-ast
+
+	   :defs-before-defs
+	   :get-defs-before-defs-ast))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":dependencies"
+    :header-args+: :tangle "../system/micro-passes/dependencies/dependencies.lisp"
+    :END:
+
+**** Definitions before uses
+
+The ~defs-before-uses~ function of a control flow graph gives all the
+dependencies of a control-flow block.  They are formed with the
+~defs-before-uses-*~ functions from the ~:dataflow~ package which only gives
+the direct definitions of a use.  This function corrects for control-flow using
+reaching definitions and discovers the indirect dependencies.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :dependencies)
+#+end_src
+
+#+begin_src lisp
+(defun defs-before-uses (cfgraph)
+  (let ((in/out 0))
+    (take-closure
+     cfgraph
+     (correct-with-reaching-definitions
+      cfgraph (defs-with-uses cfgraph) in/out)
+     in/out)))
+#+end_src
+
+#+begin_src lisp
+(defun direct-defs-before-uses (cfgraph)
+  (correct-with-reaching-definitions cfgraph (defs-with-uses cfgraph) 0))
+#+end_src
+
+The following function gives the dependencies of a particular statement:
+
+#+begin_src lisp
+(defun get-defs-before-uses-ast (stat)
+  (get-dataflow-elements-ast
+   stat #'defs-before-uses))
+#+end_src
+
+#+begin_src lisp
+(defun get-direct-defs-before-uses-ast (stat)
+  (get-dataflow-elements-ast
+   stat #'direct-defs-before-uses))
+#+end_src
+
+
+**** Definitions after uses
+
+The ~defs-after-uses~ function of a control flow graph gives all the
+uses of a control-flow block with a definition.  They are formed with the
+~defs-with-uses-*~ functions from the ~:dataflow~ package which only gives
+the direct definitions of a use.  This function corrects for control-flow using
+reaching definitions and discovers the indirect dependencies.
+
+#+begin_src lisp
+(in-package :dependencies)
+
+(defun defs-after-uses (cfgraph)
+  (correct-with-following-definitions
+      cfgraph (defs-with-uses cfgraph) 0))
+#+end_src
+
+The following function gives the definitions after the uses of a stat.
+
+#+begin_src lisp
+(defun get-defs-after-uses-ast (stat)
+  (get-dataflow-elements-ast
+   stat #'defs-after-uses))
+#+end_src
+
+**** Definitions after definitions
+     :PROPERTIES:
+     :ORDERED:  t
+     :END:
+
+The ~defs-after-defs~ function of a control flow graph gives all the
+definitions of a control-flow block right after this control-flow-block.  
+
+#+begin_src lisp
+(defun defs-after-defs (cfgraph)
+  (correct-with-following-definitions
+   cfgraph (kill-definitions cfgraph) 1))
+#+end_src
+
+The following function gives the dependencies of a particular statement:
+
+#+begin_src lisp
+(defun get-defs-after-defs-ast (stat)
+  (get-dataflow-elements-ast
+   stat #'defs-after-defs))
+#+end_src
+
+**** Uses after uses
+
+The following function gives given a basic block, the uses of the uses within
+that basic block after this basic block.
+
+#+begin_src lisp
+(defun uses-after-uses (cfgraph)
+  (correct-with-following-uses cfgraph (uses-with-uses cfgraph) 1))
+
+(defun get-uses-after-uses-ast (stat)
+  (get-dataflow-elements-ast stat #'uses-after-uses))
+#+end_src
+
+**** Uses before uses
+
+The following functions give, given a basic block, the uses of the uses within
+that basic block before this basic block.
+
+#+begin_src lisp
+(defun uses-before-uses (cfgraph)
+  (correct-with-reaching-uses cfgraph (uses-with-uses cfgraph) 1))
+
+(defun get-uses-before-uses-ast (stat)
+  (get-dataflow-elements-ast stat #'uses-before-uses))
+#+end_src
+
+**** Uses after defs
+
+The following functions give, given a basic block, the uses of the uses within
+that basic block before this basic block.
+
+#+begin_src lisp
+(defun uses-after-defs (cfgraph)
+  (correct-with-following-uses cfgraph (uses-with-defs cfgraph) 0))
+
+(defun get-uses-after-defs-ast (ast)
+  (get-dataflow-elements-ast ast #'uses-after-defs))
+#+end_src
+
+**** Definitions before definitions
+     :PROPERTIES:
+     :ORDERED:  t
+     :END:
+
+The ~defs-before-defs~ function of a control flow graph gives all the
+definitions of a control-flow block right after this control-flow-block.  
+
+#+begin_src lisp
+(defun defs-before-defs (cfgraph)
+  (correct-with-reaching-definitions
+   cfgraph (kill-definitions cfgraph) 1))
+#+end_src
+
+The following function gives the dependencies of a particular statement:
+
+#+begin_src lisp
+(defun get-defs-before-defs-ast (stat)
+  (get-dataflow-elements-ast
+   stat #'defs-before-defs))
+#+end_src
+
+
+**** Definitions with uses
+
+The ~defs-with-uses~ functions returns a mapping from basic-blocks to a set
+of definitions that are used in the basic block.  This basicly states that a
+basic block depends directly on another basic block that defines a declaration.
+
+An example of an element of the map is: ~bb1 -> bb2 . decl1~, or basic block
+~bb1~ uses a variable that is defined in ~bb2~ and the declaration of that
+variable is ~decl1~.  
+
+#+begin_src lisp
+(defun defs-with-uses (cfgraph)
+  (let ((uses (uses cfgraph))
+	(defs (definitions cfgraph)))
+    (combine uses defs
+	     (constantly t)
+	     #'(lambda (use def) (eq (decl use) (decl def)))
+	     #'(lambda (use def) (declare (ignore use)) def))))
+#+end_src
+
+
+
+**** Uses with definitions
+
+The ~use-with-defs~ function returns a mapping from basic-block to a set of
+ of uses that use the definition in that block.   
+
+An example of an instance of the map is: ~bb1 -> bb2 . decl1~, or basic block
+~bb1~ defines a variable that is used in ~bb2~ and the declaration of that
+variable is ~decl1~.
+
+#+begin_src lisp
+(defun uses-with-defs (cfgraph)
+  (let ((uses (uses cfgraph))
+	(defs (definitions cfgraph)))
+    (combine defs uses
+	     (constantly t)
+	     #'(lambda (def use) (eq (decl def) (decl use)))
+	     #'(lambda (def use) (declare (ignore def)) use))))
+#+end_src
+
+**** Uses with uses
+
+The following functions create a mapping from a use to any other use with the
+same declaration.  It is an over-approximation of uses after uses and also
+uses before uses.
+
+#+begin_src lisp
+(defun uses-with-uses (cfgraph)
+  (let ((uses (uses cfgraph)))
+    (combine uses uses
+	     (constantly t)
+	     #'(lambda (use1 use2) (eq (decl use1) (decl use2)))
+	     #'(lambda (use1 use2) (declare (ignore use1)) use2))))
+#+end_src
+
+
+**** Utility functions
+
+#+begin_src lisp
+(defun get-dataflow-elements-ast (ast func)
+  (get-dataflow-elements-ast2 ast (funcall func (cfgraph (get-func ast)))))
+
+(defun get-dataflow-elements-ast2 (ast map)
+  (let ((basic-blocks-ast (ast->basic-blocks ast))
+	(set (make-set)))
+    (dolist (bb basic-blocks-ast)
+      (awhen (gethash bb map)
+	(add-all-to-set (elements it) set)))
+    (filter #'(lambda (v)
+		(not (member (bb v) basic-blocks-ast)))
+	    (elements set))))
+#+end_src
+
+
+#+begin_src lisp
+(defun take-closure (cfgraph map out/in)
+  (let ((reaching-definitions
+	 (nth-value out/in (reaching-definitions cfgraph))))
+    (fixed-point map #'dataflow::copy #'dataflow::compare
+      (maphash #'(lambda (k v)
+    		   (dolist (definition (elements v))
+    		     (add-all-to-set
+		      (elements (intersection
+				 (gethash k reaching-definitions)
+				 (gethash (bb definition) map)))
+    		      v)))
+    	       map))
+    map))
+
+(defun correct-with-reaching-definitions (cfgraph func out/in)
+  (correct-with-reaching/following cfgraph func #'reaching-definitions out/in))
+
+(defun correct-with-following-definitions (cfgraph func out/in)
+  (correct-with-reaching/following cfgraph func #'following-definitions out/in))
+
+(defun correct-with-reaching-uses (cfgraph func out/in)
+  (correct-with-reaching/following cfgraph func #'reaching-uses out/in))
+
+(defun correct-with-following-uses (cfgraph func out/in)
+  (correct-with-reaching/following cfgraph func #'following-uses out/in))
+
+(defun correct-with-reaching/following (cfgraph func reaching-func out/in)
+  (let ((reaching-following (nth-value out/in (funcall reaching-func cfgraph)))
+	(map (make-hash-table)))
+    (dolist (bb (basic-blocks cfgraph))
+      (setf (gethash bb map) (intersection
+					 (gethash bb reaching-following)
+					 (gethash bb func))))
+    map))
+#+end_src
+
+
+
+
+*** Testing dependencies
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-dependencies/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-dependencies
+  (:use :cl :fiveam :test-mcl :simple-sets
+	:ast-mcpl :controlflow
+	:test-dataflow-library :build-ast :dependencies)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :test-dependencies))
+#+end_src
+
+**** Top-level
+     :PROPERTIES:
+     :header-args+: :package ":test-dependencies"
+     :header-args+: :tangle "../system/tests/test-dependencies/test-dependencies.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-dependencies)
+#+end_src
+
+#+begin_src lisp
+(def-suite dependencies :in mcl-test-suite)
+(in-suite dependencies)
+#+end_src
+
+
+**** Testing defs-with-uses
+     :PROPERTIES:
+     :header-args+: :package ":test-dependencies"
+     :header-args+: :tangle "../system/tests/test-dependencies/test-defs-with-uses.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-dependencies)
+#+end_src
+
+#+begin_src lisp
+(test defs-with-uses
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 2;
+                      int b = a;
+                      int c = b;
+                      b = 2;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 2))
+	 (decl-stat-b (build-decl-stat "b" nil nil "a"))
+	 (decl-stat-c (build-decl-stat "c" nil nil "b"))
+	 (assign-stat-b (build-assign-stat "b" 2))
+	 (cfgraph (get-cfgraph input))
+	 (result (map->compare-set
+		  (dependencies::defs-with-uses cfgraph) cfgraph))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element decl-stat-a (build-dataflow-set))
+		  (build-element decl-stat-b
+				 (build-dataflow-set
+				  (build-definition
+				   (decl decl-stat-a) decl-stat-a)))
+		  (build-element decl-stat-c
+				 (build-dataflow-set
+				  (build-definition
+				   (decl decl-stat-b) decl-stat-b)
+				  (build-definition
+				   (decl decl-stat-b) assign-stat-b)))
+		  (build-element assign-stat-b (build-dataflow-set))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (is (set= result wanted))))
+#+end_src
+
+
+
+
+**** Testing dependencies
+     :PROPERTIES:
+     :header-args+: :package ":test-dependencies"
+     :header-args+: :tangle "../system/tests/test-dependencies/test-dependencies.lisp"
+     :END:
+
+#+begin_src lisp
+(test dependencies-simple
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 2;
+                      int b = a;
+                      int c = b;
+                      b = 2;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 2))
+	 (decl-stat-b (build-decl-stat "b" nil nil "a"))
+	 (decl-stat-c (build-decl-stat "c" nil nil "b"))
+	 (assign-stat-b (build-assign-stat "b" 2))
+	 (cfgraph (get-cfgraph input))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element decl-stat-a (build-dataflow-set))
+		  (build-element decl-stat-b
+				 (build-dataflow-set
+				  (build-definition (decl decl-stat-a) decl-stat-a)))
+		  (build-element decl-stat-c
+				 (build-dataflow-set
+				  (build-definition (decl decl-stat-b) decl-stat-b)
+				  (build-definition (decl decl-stat-a) decl-stat-a)))
+		  (build-element assign-stat-b (build-dataflow-set))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (is (set= (map->compare-set (defs-before-uses cfgraph) cfgraph) wanted))))
+
+(test dependencies-backwards
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 1;
+
+
+                      int c = 3;
+                      int d = c;
+                      c = a;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 1))
+	 (decl-stat-c (build-decl-stat "c" nil nil 3))
+	 (decl-stat-d (build-decl-stat "d" nil nil "c"))
+	 (assign-stat-c-a (build-assign-stat "c" "a"))
+	 (cfgraph (get-cfgraph input))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element decl-stat-a (build-dataflow-set))
+		  (build-element decl-stat-c (build-dataflow-set))
+		  (build-element decl-stat-d
+				 (build-dataflow-set
+				  (build-definition
+				   (decl decl-stat-c)
+				   decl-stat-c)))
+		  (build-element assign-stat-c-a
+				 (build-dataflow-set
+				  (build-definition
+				   (decl decl-stat-a)
+				   decl-stat-a)))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (is (set= (map->compare-set (defs-before-uses cfgraph) cfgraph) wanted))))
+
+#+end_src
+
+
+
+**** Testing uses after uses
+     :PROPERTIES:
+     :header-args+: :package ":test-dependencies"
+     :header-args+: :tangle "../system/tests/test-dependencies/test-dependencies.lisp"
+     :END:
+
+#+begin_src lisp
+(test uses-after-uses
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 2;
+                      int b = a;
+                      int c = b;
+                      int d = a;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 2))
+	 (decl-stat-b (build-decl-stat "b" nil nil "a"))
+	 (decl-stat-c (build-decl-stat "c" nil nil "b"))
+	 (decl-stat-d (build-decl-stat "d" nil nil "a"))
+	 (cfgraph (get-cfgraph input))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element decl-stat-a (build-dataflow-set))
+		  (build-element decl-stat-b (build-dataflow-set
+					      (build-use (decl decl-stat-a) decl-stat-d)))
+		  (build-element decl-stat-c (build-dataflow-set))
+		  (build-element decl-stat-d (build-dataflow-set))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (let ((result (dependencies::uses-after-uses cfgraph)))
+      (is (set= (map->compare-set result cfgraph) wanted)))))
+#+end_src
+
+**** Testing defs after uses
+     :PROPERTIES:
+     :header-args+: :package ":test-dependencies"
+     :header-args+: :tangle "../system/tests/test-dependencies/test-dependencies.lisp"
+     :END:
+
+#+begin_src lisp
+(test defs-after-uses
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 2;
+                      int b = a;
+                      int c = b;
+                      a = 3;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 2))
+	 (decl-stat-b (build-decl-stat "b" nil nil "a"))
+	 (decl-stat-c (build-decl-stat "c" nil nil "b"))
+	 (assign-stat-a (build-assign-stat "a" 3))
+	 (cfgraph (get-cfgraph input))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element decl-stat-a (build-dataflow-set))
+		  (build-element decl-stat-b (build-dataflow-set
+					      (build-definition (decl decl-stat-a) assign-stat-a)))
+		  (build-element decl-stat-c (build-dataflow-set))
+		  (build-element assign-stat-a (build-dataflow-set))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (let ((result (defs-after-uses cfgraph)))
+      (is (set= (map->compare-set result cfgraph) wanted)))))
+#+end_src
+
+
+**** Testing uses after defs
+     :PROPERTIES:
+     :header-args+: :package ":test-dependencies"
+     :header-args+: :tangle "../system/tests/test-dependencies/test-dependencies.lisp"
+     :END:
+
+#+begin_src lisp
+(defparameter *cfgraph* nil)
+
+(test uses-after-defs
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 2;
+                      int b = a;
+                      int c = b;
+                      int d = a;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 2))
+	 (decl-stat-b (build-decl-stat "b" nil nil "a"))
+	 (decl-stat-c (build-decl-stat "c" nil nil "b"))
+	 (decl-stat-d (build-decl-stat "d" nil nil "a"))
+	 (cfgraph (get-cfgraph input))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element
+		   decl-stat-a
+		   (build-dataflow-set
+		    (build-use (decl decl-stat-a) decl-stat-b)
+		    (build-use (decl decl-stat-a) decl-stat-d)))
+		  (build-element
+		   decl-stat-b
+		   (build-dataflow-set
+		    (build-use (decl decl-stat-b) decl-stat-c)))
+		  (build-element decl-stat-c (build-dataflow-set))
+		  (build-element decl-stat-d (build-dataflow-set))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (let ((result (uses-after-defs cfgraph)))
+      (setf *cfgraph* cfgraph)
+      (is (set= (map->compare-set result cfgraph) wanted)))))
+#+end_src
+
+
+
+**** Testing defs before defs
+     :PROPERTIES:
+     :header-args+: :package ":test-dependencies"
+     :header-args+: :tangle "../system/tests/test-dependencies/test-dependencies.lisp"
+     :END:
+
+#+begin_src lisp
+(test defs-before-defs
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 2;
+                      int b = a;
+                      int c = b;
+                      a = 3;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 2))
+	 (decl-stat-b (build-decl-stat "b" nil nil "a"))
+	 (decl-stat-c (build-decl-stat "c" nil nil "b"))
+	 (assign-stat-a (build-assign-stat "a" 3))
+	 (cfgraph (get-cfgraph input))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element decl-stat-a (build-dataflow-set))
+		  (build-element decl-stat-b (build-dataflow-set))
+		  (build-element decl-stat-c (build-dataflow-set))
+		  (build-element assign-stat-a (build-dataflow-set
+						(build-definition (decl decl-stat-a) decl-stat-a)))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (let ((result (defs-before-defs cfgraph)))
+      (is (set= (map->compare-set result cfgraph) wanted)))))
+#+end_src
+
+
+**** Testing defs after defs
+     :PROPERTIES:
+     :header-args+: :package ":test-dependencies"
+     :header-args+: :tangle "../system/tests/test-dependencies/test-dependencies.lisp"
+     :END:
+
+#+begin_src lisp
+(test defs-after-defs
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 2;
+                      int b = a;
+                      int c = b;
+                      a = 3;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 2))
+	 (decl-stat-b (build-decl-stat "b" nil nil "a"))
+	 (decl-stat-c (build-decl-stat "c" nil nil "b"))
+	 (assign-stat-a (build-assign-stat "a" 3))
+	 (cfgraph (get-cfgraph input))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element decl-stat-a (build-dataflow-set
+					      (build-definition (decl decl-stat-a) assign-stat-a)))
+		  (build-element decl-stat-b (build-dataflow-set))
+		  (build-element decl-stat-c (build-dataflow-set))
+		  (build-element assign-stat-a (build-dataflow-set))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (let ((result (defs-after-defs cfgraph)))
+      (is (set= (map->compare-set result cfgraph) wanted)))))
+#+end_src
+
+
+
+** Reaching definitions
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/reaching-definitions/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :reaching-definitions
+  (:use :cl :simple-sets :ast :ast-mcpl :dataflow :definitions :uses)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:import-from :alexandria :compose)
+  (:export :reaching-definitions :following-definitions 
+	   :reaching-uses :following-uses
+	   
+	   :gen-definitions
+	   :kill-definitions))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":reaching-definitions"
+    :header-args+: :tangle "../system/micro-passes/reaching-definitions/reaching-definitions.lisp"
+    :END:
+
+The following dataflow-analyses have been defined.  The forward/backward
+parameter determines whether dataflow values go forward in the control-flow or
+backward.  The entry function defines the dataflow-value at the entry.  The top
+function initializes IN or OUT (depending on the direction) to an initial value
+that should be the neutral element.  The transfer function determines in which
+way dataflow-values are transfered from IN to OUT and is dependent on the
+semantics of the statement.  The meet function determines what happens between
+predecessors and successors in the graph.
+
+Reaching definitions:
+
+| parameter         | value                               |
+|-------------------+-------------------------------------|
+| forward/backward  | forward                             |
+| entry             | empty set                           |
+| top               | function that returns the empty set |
+| transfer-function | union with difference               |
+| meet-function     | union                               |
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :reaching-definitions)
+#+end_src
+
+#+begin_src lisp
+(defun reaching-definitions (cfgraph)
+  (let ((gen (gen-definitions cfgraph))
+	(kill (kill-definitions cfgraph)))
+    (dataflow-forward
+     cfgraph
+     (make-dataflow-set)
+     (make-dataflow-set)
+     #'(lambda (bb v)
+	 (union (gethash bb gen) (set-difference v (gethash bb kill))))
+     #'union)))
+#+end_src
+
+Following definitions:
+
+
+| parameter         | value                               |
+|-------------------+-------------------------------------|
+| forward/backward  | forward                             |
+| entry             | empty set                           |
+| top               | function that returns the empty set |
+| transfer-function | union with difference               |
+| meet-function     | union                               |
+
+
+#+begin_src lisp
+(defun following-definitions (cfgraph)
+  (let ((gen (gen-definitions cfgraph))
+	(kill (kill-definitions cfgraph)))
+    (dataflow-backward
+     cfgraph
+     (make-dataflow-set)
+     (make-dataflow-set)
+     #'(lambda (bb v)
+	 (union (gethash bb gen) (set-difference v (gethash bb kill))))
+     #'union)))
+#+end_src
+
+
+
+For reaching-uses, the following parameters are used:
+
+| parameter         | value                               |
+|-------------------+-------------------------------------|
+| forward/backward  | forward                             |
+| entry             | empty set                           |
+| top               | function that returns the empty set |
+| transfer-function | union                               |
+| meet-function     | union                               |
+
+#+begin_src lisp
+(defun reaching-uses (cfgraph)
+  (let ((uses (uses cfgraph)))
+    (dataflow-forward
+     cfgraph
+     (make-dataflow-set)
+     (make-dataflow-set)
+     #'(lambda (bb v)
+	 (union v (gethash bb uses)))
+     #'union)))
+(add-forward-dataflow-analysis 'reaching-uses)
+#+end_src
+
+For following-uses, the following parameters are used:
+
+| parameter         | value                               |
+|-------------------+-------------------------------------|
+| forward/backward  | backward                            |
+| entry             | empty set                           |
+| top               | function that returns the empty set |
+| transfer-function | union                               |
+| meet-function     | union                               |
+
+#+begin_src lisp
+(defun following-uses (cfgraph)
+  (let ((uses (uses cfgraph)))
+    (dataflow-backward
+     cfgraph
+     (make-dataflow-set)
+     (make-dataflow-set)
+     #'(lambda (bb v)
+	 (union v (gethash bb uses)))
+     #'union)))
+(add-backward-dataflow-analysis 'following-uses)
+#+end_src
+
+The reaching definitions family of functions make use of gen-definitions and
+kill-definitions that are defined below:
+
+#+begin_src lisp
+(defun gen-definitions (cfgraph)
+  (definitions cfgraph))
+
+(defun kill-definitions (cfgraph)
+  (let ((defs (definitions cfgraph)))
+    (combine defs defs (compose #'not #'eq)
+	     #'(lambda (de1 de2) (eq (decl de1) (decl de2)))
+	     #'(lambda (de1 de2) (declare (ignore de1)) de2))))
+#+end_src
+
+
+*** Testing reaching definitions
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-reaching-definitions/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-reaching-definitions
+  (:use :cl :fiveam :simple-sets :test-mcl
+	:ast-mcpl :controlflow :dataflow
+	:test-dataflow-library :build-ast :reaching-definitions)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :test-reaching-definitions))
+#+end_src
+
+**** The top-level-tests
+     :PROPERTIES:
+     :header-args+: :package ":test-reaching-definitions"
+     :header-args+: :tangle "../system/tests/test-reaching-definitions/test-reaching-definitions.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-reaching-definitions)
+#+end_src
+
+#+begin_src lisp
+(def-suite reaching-definitions :in mcl-test-suite)
+(in-suite reaching-definitions)
+#+end_src
+
+
+
+**** Testing gen-kill-definitions
+     :PROPERTIES:
+     :header-args+: :package ":test-reaching-definitions"
+     :header-args+: :tangle "../system/tests/test-reaching-definitions/test-reaching-definitions.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite gen-kill :in reaching-definitions)
+(in-suite gen-kill)
+
+(defparameter *input-1* "package m;
+                   module a;
+                   perfect void f(int a) {
+                       int b = 1;
+                       a = 3;
+                       b = 2;
+                   }")
+
+(test gen-definitions
+  (let* ((a-decl (build-decl "a"))
+	 (decl-stat (build-decl-stat "b" nil nil 1))
+	 (assign-a (build-assign-stat "a" 3))
+	 (assign-b (build-assign-stat "b" 2))
+	 (cfgraph (get-cfgraph *input-1*))
+	 (result (map->compare-set (gen-definitions cfgraph) cfgraph))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element (make-bb-exit) (build-dataflow-set))
+		  (build-element a-decl
+				 (build-dataflow-set
+				  (build-definition a-decl a-decl)))
+		  (build-element assign-b
+				 (build-dataflow-set
+				  (build-definition (decl decl-stat) assign-b)))
+		  (build-element assign-a
+				 (build-dataflow-set
+				  (build-definition a-decl assign-a)))
+		  (build-element decl-stat
+				 (build-dataflow-set
+				  (build-definition (decl decl-stat) decl-stat))))))
+    (is (set= result wanted))))
+
+(defparameter *result* nil)
+(defparameter *wanted* nil)
+
+(test kill-definitions
+  (let* ((a-decl (build-decl "a"))
+	 (decl-stat (build-decl-stat "b" nil nil 1))
+	 (assign-a (build-assign-stat "a" 3))
+	 (assign-b (build-assign-stat "b" 2))
+	 (cfgraph (get-cfgraph *input-1*))
+	 (result (map->compare-set (kill-definitions cfgraph) cfgraph))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element (make-bb-exit) (build-dataflow-set))
+		  (build-element a-decl
+				 (build-dataflow-set
+				  (build-definition a-decl assign-a)))
+		  (build-element assign-b
+				 (build-dataflow-set
+				  (build-definition (decl decl-stat) decl-stat)))
+		  (build-element assign-a
+				 (build-dataflow-set
+				  (build-definition a-decl a-decl)))
+		  (build-element decl-stat
+				 (build-dataflow-set
+				  (build-definition (decl decl-stat) assign-b))))))
+    (setf *result* result)
+    (setf *wanted* wanted)
+    (is (set= result wanted))))
+
+
+#+end_src
+
+
+
+
+**** Testing reaching-definitions
+     :PROPERTIES:
+     :header-args+: :package ":test-reaching-definitions"
+     :header-args+: :tangle "../system/tests/test-reaching-definitions/test-reaching-definitions.lisp"
+     :END:
+
+#+begin_src lisp
+
+(def-suite simple :in reaching-definitions)
+(in-suite simple)
+
+(test simple
+  (let* ((cfgraph (get-cfgraph "package m;
+                                module a;
+                                perfect void f(int a) {
+                                    int b = 1;
+                                    a = 2;
+                                    b = 3;
+                                }"))
+	 (a-decl (build-decl "a"))
+	 (b-decl-stat (build-decl-stat "b" nil nil 1))
+	 (a-assign-stat (build-assign-stat "a" 2))
+	 (b-assign-stat (build-assign-stat "b" 3))
+	 (wanted-in (build-compare-set
+		     (build-element (make-bb-entry) (build-dataflow-set))
+		     (build-element a-decl (build-dataflow-set))
+		     (build-element
+		      b-decl-stat
+		      (build-dataflow-set
+		       (build-definition a-decl a-decl)))
+		     (build-element
+		      a-assign-stat
+		      (build-dataflow-set
+		       (build-definition a-decl a-decl)
+		       (build-definition (decl b-decl-stat) b-decl-stat)))
+		     (build-element
+		      b-assign-stat
+		      (build-dataflow-set
+		       (build-definition a-decl a-assign-stat)
+		       (build-definition (decl b-decl-stat) b-decl-stat)))
+		     (build-element
+		      (make-bb-exit)
+		      (build-dataflow-set
+		       (build-definition a-decl a-assign-stat)
+		       (build-definition (decl b-decl-stat) b-assign-stat)))))
+	 (wanted-out (build-compare-set
+		      (build-element (make-bb-entry) (build-dataflow-set))
+		      (build-element
+		       a-decl
+		       (build-dataflow-set
+			(build-definition a-decl a-decl)))
+		      (build-element
+		       b-decl-stat
+		       (build-dataflow-set
+			(build-definition a-decl a-decl)
+			(build-definition (decl b-decl-stat) b-decl-stat)))
+		      (build-element
+		       a-assign-stat
+		       (build-dataflow-set
+			(build-definition a-decl a-assign-stat)
+			(build-definition (decl b-decl-stat) b-decl-stat)))
+		      (build-element
+		       b-assign-stat
+		       (build-dataflow-set
+			(build-definition a-decl a-assign-stat)
+			(build-definition (decl b-decl-stat) b-assign-stat)))
+		      (build-element
+		       (make-bb-exit)
+		       (build-dataflow-set
+			(build-definition a-decl a-assign-stat)
+			(build-definition (decl b-decl-stat) b-assign-stat))))))
+    (multiple-value-bind (out in) (reaching-definitions cfgraph)
+					;	(format t "in:~%")
+					;	(print-dataflow-result in t)
+					;	(format t "out:~%")
+					;	(print-dataflow-result out t)
+      (is (and
+	   (set= wanted-in (map->compare-set in cfgraph))
+	   (set= wanted-out (map->compare-set out cfgraph)))))))
+
+
+
+;; (defun test ()
+;;   (multiple-value-bind (in out)
+;;       (reaching-definitions (get-cfgraph
+;; 			         (print-test in)
+;;     (format t "out:~%")
+;;     (print-test out)))
+
+
+;; (defun print-test (dataflow-result)
+;;   (maphash #'(lambda (k v)
+;; 	       (format t "~a: ~a~%" k v)) dataflow-result))
+#+end_src
+
+**** Testing following-definitions
+     :PROPERTIES:
+     :header-args+: :package ":test-reaching-definitions"
+     :header-args+: :tangle "../system/tests/test-reaching-definitions/test-reaching-definitions.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite following-definitions :in reaching-definitions)
+(in-suite following-definitions)
+
+(test following-definitions
+  (let* ((cfgraph (get-cfgraph "package m;
+                                module a;
+                                perfect void f(int a) {
+                                    int b = 1;
+                                    a = 2;
+                                    b = 3;
+                                }"))
+	 (a-decl (build-decl "a"))
+	 (b-decl-stat (build-decl-stat "b" nil nil 1))
+	 (a-assign-stat (build-assign-stat "a" 2))
+	 (b-assign-stat (build-assign-stat "b" 3))
+	 (dataflow-set (build-dataflow-set
+			(build-definition a-decl a-decl)
+			(build-definition (decl b-decl-stat) b-decl-stat)))
+	 (dataflow-set2 (build-dataflow-set
+			 (build-definition a-decl a-assign-stat)
+			 (build-definition (decl b-decl-stat) b-decl-stat)))
+	 (dataflow-set3 (build-dataflow-set
+			 (build-definition a-decl a-assign-stat)
+			 (build-definition (decl b-decl-stat) b-assign-stat)))
+	 (wanted-in (build-compare-set
+		     (build-element (make-bb-entry) dataflow-set)
+		     (build-element a-decl dataflow-set)
+		     (build-element b-decl-stat dataflow-set2)
+		     (build-element a-assign-stat dataflow-set3)
+		     (build-element
+		      b-assign-stat
+		      (build-dataflow-set
+		       (build-definition (decl b-decl-stat) b-assign-stat)))
+		     (build-element (make-bb-exit) (build-dataflow-set))))
+	 (wanted-out (build-compare-set
+		      (build-element (make-bb-entry) dataflow-set)
+		      (build-element a-decl dataflow-set2)
+		      (build-element b-decl-stat dataflow-set3)
+		      (build-element
+		       a-assign-stat
+		       (build-dataflow-set
+			(build-definition (decl b-decl-stat) b-assign-stat)))
+		      (build-element b-assign-stat (build-dataflow-set))
+		      (build-element (make-bb-exit) (build-dataflow-set)))))
+    (multiple-value-bind (in out) (following-definitions cfgraph)
+      (is (and
+	   (set= wanted-in (map->compare-set in cfgraph))
+	   (set= wanted-out (map->compare-set out cfgraph)))))))
+
+#+end_src
+
+
+**** Testing reaching uses
+     :PROPERTIES:
+     :header-args+: :package ":test-reaching-definitions"
+     :header-args+: :tangle "../system/tests/test-reaching-definitions/test-reaching-definitions.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite reaching-uses :in reaching-definitions)
+(in-suite reaching-uses)
+
+(test reaching-uses
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 2;
+                      int b = a;
+                      int c = b;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 2))
+	 (decl-stat-b (build-decl-stat "b" nil nil "a"))
+	 (decl-stat-c (build-decl-stat "c" nil nil "b"))
+	 (cfgraph (get-cfgraph input))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) (build-dataflow-set))
+		  (build-element decl-stat-a (build-dataflow-set))
+		  (build-element decl-stat-b (build-dataflow-set))
+		  (build-element decl-stat-c
+				 (build-dataflow-set
+				  (build-use (decl decl-stat-a) decl-stat-b)))
+		  (build-element (make-bb-exit) (build-dataflow-set
+						 (build-use (decl decl-stat-a) decl-stat-b)
+						 (build-use (decl decl-stat-b) decl-stat-c))))))
+    (let ((result (in-set (reaching-uses cfgraph))))
+      (is (set= (map->compare-set result cfgraph) wanted)))))
+#+end_src
+
+**** Testing following uses
+     :PROPERTIES:
+     :header-args+: :package ":test-reaching-definitions"
+     :header-args+: :tangle "../system/tests/test-reaching-definitions/test-reaching-definitions.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite following-uses :in reaching-definitions)
+(in-suite following-uses)
+
+(test following-uses
+  (let* ((input "package m;
+                  module a;
+                  perfect void f() {
+                      int a = 2;
+                      int b = a;
+                      int c = b;
+                  }")
+	 (decl-stat-a (build-decl-stat "a" nil nil 2))
+	 (decl-stat-b (build-decl-stat "b" nil nil "a"))
+	 (decl-stat-c (build-decl-stat "c" nil nil "b"))
+	 (cfgraph (get-cfgraph input))
+	 (dataflow-set (build-dataflow-set
+			(build-use (decl decl-stat-a) decl-stat-b)
+			(build-use (decl decl-stat-b) decl-stat-c)))
+	 (wanted (build-compare-set
+		  (build-element (make-bb-entry) dataflow-set)
+		  (build-element decl-stat-a dataflow-set)
+		  (build-element decl-stat-b (build-dataflow-set
+					      (build-use (decl decl-stat-b) decl-stat-c)))
+		  (build-element decl-stat-c (build-dataflow-set))
+		  (build-element (make-bb-exit) (build-dataflow-set)))))
+    (let ((result (out-set (following-uses cfgraph))))
+      (is (set= (map->compare-set result cfgraph) wanted)))))
+#+end_src
+
+
+
+

@@ -1,0 +1,612 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* The hardware description language HDL
+
+#+toc: headlines 4 local
+
+** The AST of HDL
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/ast-hdl/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+
+(utility-directory:unexport-symbols :ast-hdl)
+#+end_src
+
+#+begin_src lisp
+(defpackage :ast-hdl
+  (:use :cl :ast))
+#+end_src
+
+
+*** The AST
+    :PROPERTIES:
+    :header-args+: :package ":ast-hdl"
+    :header-args+: :tangle "system/library/ast-hdl/ast.lisp"
+    :END:
+
+**** Toplevel
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :ast-hdl)
+#+end_src
+
+#+begin_src lisp
+(defast hardware-description
+    ((hardware-description (id specializes hdl-blocks) ()))
+  ())
+#+end_src
+
+**** Blocks
+
+#+begin_src lisp
+(defast hdl-block
+    ((hdl-block (hdl-block-type id hdl-stats) ()))
+  ())
+#+end_src
+
+**** properties
+#+begin_src lisp
+(defast property
+    ((property (property-type exprs) ()))
+  ())
+#+end_src
+
+**** expressions
+
+#+begin_src lisp
+(defast hdl-expr
+    ((unlimited-literal () ())
+     (true-literal () ())
+     (false-literal () ())
+     (id-expr (qual-id kleene-star) ())
+     (int-literal (value) ())
+     (mul (left right) ())
+     (add (left right) ())
+     (div (left right) ())
+     (sub (left right) ())
+     (mul-op () ())
+     (add-op () ())
+     (div-op () ())
+     (sub-op () ())
+     (string-literal (value) ()))
+  ())
+#+end_src
+
+
+**** Units
+
+#+begin_src lisp
+
+(defast unit-expr
+    ((unit-expr (expr unit) ()))
+  ())
+     
+     
+(defast unit
+    ((unit (prefix suffix) ()))
+  ())
+#+end_src
+
+
+**** identifiers
+
+#+begin_src lisp
+(defast id 
+    ((id (name) ())
+     (compound-id (name compound) ()))
+  ())
+
+(defast id-stat
+    ((id-stat (id) ()))
+  ())
+#+end_src
+
+*** Print functions
+    :PROPERTIES:
+    :header-args+: :package ":ast-hdl"
+    :header-args+: :tangle "system/library/ast-hdl/printing.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :ast-hdl)
+#+end_src
+
+#+begin_src lisp
+(defmethod print-object ((ast id) stream)
+   (print-unreadable-object (ast stream :type t)
+     (format stream "~s" (name ast))))
+
+(create-print-functions ((hardware-description id) (hdl-block id)))
+#+end_src
+
+** The ESRAP parser
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/micro-passes/parse-hdl/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :parse-hdl
+  (:use :cl :ast :ast-hdl :esrap :parser.common-rules :parsing)
+  (:import-from :alexandria :read-file-into-string)
+  (:export :parse-hdl :parse-hdl-file))
+#+end_src
+
+*** Utility functions
+    :PROPERTIES:
+    :header-args+: :package ":parse-hdl"
+    :header-args+: :tangle "system/micro-passes/parse-hdl/library.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :parse-hdl)
+#+end_src
+
+#+begin_src lisp
+(defun parse-hdl (string)
+  (parse 'hardware-description string))
+
+(defun parse-hdl-file (filename)
+ (parse-hdl (read-file-into-string filename)))
+#+end_src
+
+*** The parser
+    :PROPERTIES:
+    :header-args+: :package ":parse-hdl"
+    :header-args+: :tangle "system/micro-passes/parse-hdl/parser.lisp"
+    :ORDERED:  t
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :parse-hdl)
+
+(declaim (optimize (speed 0) (space 1) (compilation-speed 0) (debug 3)))
+(sb-ext:restrict-compiler-policy 'debug 3)
+#+end_src
+
+#+begin_src lisp
+(defrule hardware-description (and skippable?
+				   hardware_description-kw/?s id/?s semi-colon/?s
+				   specializes
+				   hdl-blocks/?s)
+  (:destructure (sk kw id sc specializes hdl-blocks &bounds start end)
+		(declare (ignore sk kw sc))
+		(make-hardware-description id specializes hdl-blocks (make-loc start end))))
+
+(defrule/s specializes (? (and specializes-kw/?s id/?s semi-colon/?s))
+  (:function second))
+
+(defrule/s hdl-blocks (* hdl-block/?s))
+
+(defrule/s hdl-block (and block-kw/?s id/?s block-open/?s hdl-stats/?s block-close/?s)
+  (:destructure (block-kw id bo hdl-stats bc &bounds start end)
+		(declare (ignore bo bc))
+		(make-hdl-block block-kw id hdl-stats (make-loc start end))))
+
+(defrule/s hdl-stats (* hdl-stat/?s))
+
+(defrule/s hdl-stat (or hdl-block/?s
+			id-stat/?s
+			property-stat/?s))
+
+(defrule/s id-stat (and qual-id/?s semi-colon/?s)
+  (:destructure (id sc &bounds start end)
+		(declare (ignore sc))
+		(make-id-stat id (make-loc start end))))
+
+(defrule/s property-stat (or keyword-stat/?s assign-stat/?s arg-property-stat/?s))
+
+(defrule/s keyword-stat (and statement-kw/?s semi-colon/?s)
+  (:lambda (result &bounds start end)
+    (make-property (first result) nil (make-loc start end))))
+
+(defrule/s arg-property-stat (and arg-property-kw/?s
+				  parenthesis-open/?s unit-exprs-1/?s parenthesis-close/?s semi-colon/?s)
+  (:destructure (kw po exprs pc sc &bounds start end)
+		(declare (ignore po pc sc))
+		(make-property kw exprs (make-loc start end))))
+
+(defrule/s unit-exprs-1 (and unit-expr/?s (* comma-unit-exprs))
+  (:destructure (unit-expr other-unit-exprs)
+		(if other-unit-exprs
+		    (cons unit-expr other-unit-exprs)
+		    (list unit-expr))))
+
+(defrule/s comma-unit-exprs (and comma/?s unit-expr/?s)
+  (:function second))
+
+(defrule/s assign-stat (and property-kw/?s equals/?s unit-expr/?s semi-colon/?s)
+  (:destructure (property-kw eq expr sc &bounds start end)
+		(declare (ignore eq sc))
+		(make-property property-kw (list expr) (make-loc start end))))
+
+(defrule/s unit-expr (and hdl-expr/?s (? prefix-unit/?s))
+  (:destructure (expr &optional unit &bounds start end)
+		(make-unit-expr expr unit (make-loc start end))))
+
+(defrule/s hdl-expr (and factor/?s (* (and term-op/?s factor/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-left-assoc exp op-exp-list)))
+
+(defrule/s term-op (or add-op/?s minus-op/?s))
+
+(defrule/s factor (and hdl-atom/?s (* (and factor-op/?s hdl-atom/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-left-assoc exp op-exp-list)))
+
+(defrule/s factor-op (or mul-op/?s div-op/?s))
+
+(defrule/s hdl-atom (or unlimited-kw/?s
+		    true-kw/?s
+		    false-kw/?s
+		    id-expr/?s
+		    int-literal/?s
+		    string-literal/?s
+		    add-instruction/?s
+		    sub-instruction/?s
+		    mul-instruction/?s
+		    div-instruction/?s))
+
+(defrule/s id-expr (and qual-id (? kleene-op))
+  (:destructure (id &optional kleene-op &bounds start end)
+		(make-id-expr id kleene-op (make-loc start end))))
+
+(defrule/s prefix-unit (and (? prefix) unit)
+  (:destructure (prefix unit &bounds start end)
+		(make-unit prefix unit (make-loc start end))))
+
+(defrule prefix (or "G" "M" "k"))
+
+(defrule unit (or div-unit basic-unit-kw))
+
+(defrule div-unit (and basic-unit-kw "/" basic-unit-kw)
+  (:text t))
+
+(defrule/s int-literal integer-literal
+  (:lambda (int &bounds start end)
+    (make-int-literal int (make-loc start end))))
+
+(defrule/s string-literal string-literal/double-quotes
+  (:lambda (string &bounds start end)
+    (make-string-literal string (make-loc start end))))
+
+(defrule/s qual-id (and id (? (and #\. qual-id)))
+  (:destructure (before-dot dot-part &bounds start end)
+                (if dot-part
+                    (make-compound-id before-dot (second dot-part) (make-loc start end))
+                    before-dot)))
+
+(defmacro defkw-group (name keyword-list)
+  `(progn
+     ,@(mapcar #'gen-keyword (symbol-value keyword-list))
+     (defrule/s ,name (or ,@(mapcar #'gen-keyword-id (symbol-value keyword-list))))))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun gen-keyword (keyword-string)
+  `(defkw ,keyword-string (:function first)))
+
+  (defun gen-keyword-id (keyword-string)
+    (intern (format nil "~a-KW/?S" (string-upcase keyword-string))))
+
+  (defparameter *block-keywords* '("parallelism" "memory_space" "par_unit" "par_group"
+				   "device" "memory" "interconnect" "device_group"
+				   "device_unit" "execution_group" "execution_unit"
+				   "instructions" "cache" "simd_group" "simd_unit"
+				   "load_store_group" "load_store_unit"))
+
+  (defparameter *statement-keywords* '("default" "read_only"))
+
+  (defparameter *property-keywords* '("nr_units" "max_nr_units" "capacity" "latency"
+				      "bandwidth" "nr_banks" "clock_frequency" "addressable"
+				      "cache_line_size" "width"))
+
+  (defparameter *arg-property-keywords* '("slots" "connects" "space" "op"
+					  "performance_feedback"))
+
+  (defparameter *other-keywords* '("hardware_description" "specializes" "unlimited" "true" "false"))
+
+  (defparameter *unit-keywords* '("k" "B" "bits" "bit" "cycles" "cycle" "s" "Hz"))
+
+  (defparameter *keywords* (concatenate 'list *block-keywords* *statement-keywords*
+					,*property-keywords* *arg-property-keywords*
+					,*other-keywords* *unit-keywords*)))
+
+(defkw-group arg-property-kw *arg-property-keywords*)
+(defkw-group basic-unit-kw *unit-keywords*)
+(defkw-group block-kw *block-keywords*)
+(defkw-group statement-kw *statement-keywords*)
+(defkw-group property-kw *property-keywords*)
+
+(defkw "hardware_description")
+(defkw "specializes")
+(defkw "unlimited"
+  (:lambda (result &bounds start end)
+    (declare (ignore result))
+    (make-unlimited-literal (make-loc start end))))
+(defkw "true"
+  (:lambda (result &bounds start end)
+    (declare (ignore result))
+    (make-true-literal (make-loc start end))))
+(defkw "false"
+  (:lambda (result &bounds start end)
+    (declare (ignore result))
+    (make-false-literal (make-loc start end))))
+
+(defun not-keyword-p (id)
+  (not (member id *keywords* :test #'string=)))
+
+(defrule/s id (not-keyword-p identifier)
+  (:lambda (name &bounds start end)
+    (make-id name (make-loc start end))))
+
+
+(defrule/s add-op #\+
+  (:constant #'make-add))
+(defrule/s minus-op #\-
+  (:constant #'make-sub))
+(defrule/s mul-op #\*
+  (:constant #'make-mul))
+(defrule/s div-op #\/
+  (:constant #'make-div))
+
+(defrule/s add-instruction "(+)"
+  (:lambda (v &bounds start end)
+    (declare (ignore v))
+    (make-add-op (make-loc start end))))
+(defrule/s sub-instruction "(-)"
+  (:lambda (v &bounds start end)
+    (declare (ignore v))
+    (make-sub-op (make-loc start end))))
+(defrule/s mul-instruction "(*)"
+  (:lambda (v &bounds start end)
+    (declare (ignore v))
+    (make-mul-op (make-loc start end))))
+(defrule/s div-instruction "(/)"
+  (:lambda (v &bounds start end)
+    (declare (ignore v))
+    (make-div-op (make-loc start end))))
+
+(defrule/s kleene-op "[*]"
+  (:constant t))
+#+end_src
+
+
+
+** Testing the parser
+*** Package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/tests/test-parse-hdl/packages.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-parse-hdl
+  (:use :cl :fiveam :test-mcl :parse-hdl :ast :ast-hdl)
+  (:export :test-parse-hdl))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":test-parse-hdl"
+    :header-args+: :tangle "system/tests/test-parse-hdl/test-parser.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-parse-hdl)
+
+(declaim (optimize (speed 0) (space 1) (compilation-speed 0) (debug 3)))
+(sb-ext:restrict-compiler-policy 'debug 3)
+#+end_src
+
+#+begin_src lisp
+(def-suite parse-hdl :in mcl-test-suite)
+
+(in-suite parse-hdl)
+
+(test minimal-hardware-description
+  (let ((ast (hardware-description nil)))
+    (is
+      (ast= ast
+            (parse-hdl "hardware_description a ;")))))
+
+(defun hardware-description (blocks)
+  (make-hardware-description (make-id "a" nil) nil blocks nil))
+
+(test minimal-block
+  (let ((ast (hardware-description (list (hdl-block
+                                          "parallelism"
+                                          "hierarchy"
+                                          nil)))))
+    (is
+      (ast= ast
+            (parse-hdl "hardware_description a;
+parallelism hierarchy { }")))))
+
+(defun hdl-block (type id stats)
+  (make-hdl-block type (make-id id nil) stats nil))
+
+(test nested-block
+  (let ((ast (hardware-description
+              (list (hdl-block
+                     "parallelism"
+                     "hierarchy"
+                     (list (hdl-block
+                            "memory_space"
+                            "main"
+                            nil)))))))
+    (is
+      (ast= ast
+            (parse-hdl "hardware_description a;
+parallelism hierarchy {
+  memory_space main {}
+}")))))
+
+(def-suite stats :in parse-hdl)
+(in-suite stats)
+
+(test various-stats
+  (is (ast= (hdl-stat (make-property "default" nil nil))
+          (parse-hdl (hdl-string-with-stat "default;"))))
+  (is (ast= (hdl-stat (make-property
+		       "max_nr_units" (list (make-unit-expr
+					     (make-unlimited-literal nil)
+					     nil
+					     nil))
+		       nil))
+	    (parse-hdl (hdl-string-with-stat "max_nr_units = unlimited;"))))
+  (is (ast= (hdl-stat (make-id-stat (make-id "main" nil) nil))
+	    (parse-hdl (hdl-string-with-stat "main;"))))
+  (is (ast= (hdl-stat (make-property "space"
+				     (list (id-expr "main"))
+				     nil))
+	    (parse-hdl (hdl-string-with-stat "space(main);"))))
+  (is (ast= (hdl-stat
+	     (make-property "connects"
+			    (list (id-expr "main")
+				  (id-expr "a"))
+			    nil))
+	    (parse-hdl (hdl-string-with-stat "connects(main, a);"))))
+  (is (ast= (hdl-stat
+	     (make-property "connects"
+			    (list (id-expr "main")
+				  (compound-expr "a" "b"))
+			    nil))
+	    (parse-hdl (hdl-string-with-stat "connects(main, a.b);"))))
+  (is (ast= (hdl-stat (make-property "op" (list (make-unit-expr
+						 (make-add-op nil) nil nil)) nil))
+	    (parse-hdl (hdl-string-with-stat "op((+));")))))
+
+(defun hdl-stat (stat)
+  (hardware-description
+              (list (hdl-block
+                     "parallelism"
+                     "hierarchy"
+                     (list (hdl-block
+                            "memory_space"
+                            "main"
+                            (list stat)))))))
+
+(defun hdl-string-with-stat (stat-as-string)
+  (format nil "hardware_description a;
+parallelism hierarchy {
+  memory_space main {
+    ~a
+  }
+}" stat-as-string))
+
+(def-suite expressions :in parse-hdl)
+(in-suite expressions)
+
+
+(test various-expressions
+  (is (ast= (hdl-expr (make-unit-expr (make-unlimited-literal nil)
+				      (make-unit nil "B" nil)
+				      nil))
+          (parse-hdl (hdl-string-with-expr "unlimited B"))))
+  (is (ast= (hdl-expr (make-unit-expr (make-unlimited-literal nil)
+				      (make-unit "G" "B" nil)
+				      nil))
+	    (parse-hdl (hdl-string-with-expr "unlimited GB"))))
+  (is (ast= (hdl-expr (make-unit-expr (make-unlimited-literal nil)
+				      (make-unit "k" "B" nil)
+				      nil))
+	    (parse-hdl (hdl-string-with-expr "unlimited kB"))))
+  (is (ast= (hdl-expr (make-unit-expr (make-unlimited-literal nil)
+				      (make-unit "G" "B/s" nil)
+				      nil))
+	    (parse-hdl (hdl-string-with-expr "unlimited GB/s"))))
+  (is (ast= (hdl-expr (make-unit-expr (make-id-expr
+				       (make-compound-id
+					(make-id "cores" nil) (make-id "core" nil)
+					nil)
+				       t nil)
+				      nil nil))
+	    (parse-hdl (hdl-string-with-expr "cores.core[*]"))))
+  (is (ast= (hdl-expr (make-unit-expr (make-int-literal 1 nil) nil nil))
+	    (parse-hdl (hdl-string-with-expr "1"))))
+  (is (ast= (hdl-expr (make-unit-expr (make-mul
+				       (make-int-literal 10 nil)
+				       (make-int-literal 32 nil)
+				       nil)
+				      (make-unit nil "bit" nil)
+				      nil))
+	    (parse-hdl (hdl-string-with-expr "10 * 32 bit")))))
+
+(defun hdl-expr (expr)
+  (hdl-stat (make-property "max_nr_units" (list expr) nil)))
+
+(defun hdl-string-with-expr (string-expr)
+  (hdl-string-with-stat (format nil "max_nr_units = ~a;" string-expr)))
+
+(defun id-expr (name)
+  (make-unit-expr
+   (make-id-expr
+    (make-id name nil)
+    nil ; kleene star
+    nil)
+   nil ; unit
+   nil))
+
+(defun compound-expr (l r)
+  (make-unit-expr
+   (make-id-expr
+    (make-compound-id
+     (make-id l nil)
+     (make-id r nil)
+     nil)
+    nil ; kleene star
+    nil)
+   nil ; unit
+   nil))
+#+end_src

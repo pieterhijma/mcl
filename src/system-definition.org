@@ -1,0 +1,1052 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* System definition
+  :PROPERTIES:
+  :header-args+: :package ":cl-user"
+  :header-args+: :tangle "system/mcl.asd"
+  :END:
+
+#+toc: headlines 4 local
+
+MCL and its libraries depend on many files.  Below, the system definition is
+explained.
+
+** Defining a package for the system definition:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :mcl-asd
+  (:use :cl :asdf :uiop))
+#+end_src
+
+** Setting up the environment
+
+MCL depends on many libraries that will be submoduled in the original
+repository.  Therefore, we do not rely on the main systems file, but on a
+custom one.  We set up the main environment variables (for MCL and quicklisp)
+and setup the central repository for systems such that we are looking in or own
+submodule directory.  We also have to setup quicklisp again.  
+
+#+begin_src lisp
+(in-package :mcl-asd)
+
+(defparameter *mcl-root-dir* "MCL_ROOT_DIR")
+(defparameter *quicklisp-dir* "QUICKLISP_DIR")
+
+(defun get-env-var (var)
+  (if (not (getenvp var))
+      (error "Environment variable ~a is not set." var)
+      (getenv var)))
+
+(defun get-env-dir (var)
+  (format nil "~a/" (get-env-var var)))
+
+(defun get-system-dir ()
+  (merge-pathnames "lib/systems/" (get-env-dir *mcl-root-dir*)))
+
+(defun get-quicklisp-dir ()
+  (get-env-dir *quicklisp-dir*))
+
+;;(setf *central-registry* (list *default-pathname-defaults* (get-system-dir)))
+(pushnew (get-system-dir) *central-registry*)
+
+;; (let ((quicklisp-init (merge-pathnames "setup.lisp" (get-quicklisp-dir))))
+;;   (when (probe-file quicklisp-init)
+;;     (load quicklisp-init)))
+#+end_src
+
+Because ASDF alone is not capable of loading moptilities and cl-graph in a
+good way, we use quicklisp to do that using ~asdf-system-connections~.
+   
+#+begin_src lisp
+(ql:quickload :asdf-system-connections)
+(unless (or (member :asdf-system-connections *features*)
+	    (find-system 'asdf-system-connections nil))
+  (error "MCL needs asdf-system-connections"))
+(when (and (not (member :asdf-system-connections *features*))
+	   (find-system 'asdf-system-connections nil))
+  (operate 'load-op 'asdf-system-connections))
+(ql:quickload :cl-graph)
+;;(ql:quickload :cl-graph-and-moptilities)
+#+end_src
+
+** Top-level definition
+
+#+begin_src lisp
+(defsystem :mcl
+    :depends-on (:cl-ppcre :cl-graph :anaphora :cl-fad
+			   :cl-utilities :esrap :parser.common-rules
+			   :parser.common-rules.operators
+			   :string-case :iterate :cl-log 
+			   :net.didierverna.clon :clon-completion
+			   :simple-sets :cl-graph-extension
+			   :code-emitter)
+    :components
+#+end_src
+
+** The main files
+
+#+begin_src lisp
+    ((:file "mcl-quickutil")
+     (:file "packages" :depends-on (library micro-passes passes))
+     (:file "main" :depends-on ("packages"))
+#+end_src
+
+** The library
+
+#+begin_src lisp
+     (:module library
+	      :depends-on ("mcl-quickutil")
+	      :components
+	      ((:module parsing :depends-on (ast)
+			:components
+			((:file "packages")
+			 (:file "parsing"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	      (:module ast
+			:components
+			((:file "packages")
+			 (:file "ast-macros"
+				:depends-on ("packages"))
+			 (:file "library"
+				:depends-on ("packages" "visitor-macros"))
+			 (:file "visitor-macros"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module ast-mcpl :depends-on (ast)
+			:components
+			((:file "packages")
+			 (:file "ast"
+				:depends-on ("packages"))
+			 (:file "printing"
+				:depends-on ("packages"))
+			 (:file "accessors"
+				:depends-on ("packages" "ast"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module build-ast :depends-on (ast-mcpl)
+			:components
+			((:file "packages")
+			 (:file "build-ast"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module ast-hdl :depends-on (ast)
+			:components
+			((:file "packages")
+			 (:file "ast"
+				:depends-on ("packages"))
+			 (:file "printing"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module pass-library
+			:depends-on (errors check-consistency-ast logging)
+			:components
+			((:file "packages")
+			 (:file "pass-library"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module logging
+			:components
+			((:file "packages")
+			 (:file "logging"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module controlflow :depends-on (ast ast-mcpl)
+			:components
+			((:file "packages")
+			 (:file "macros-controlflow" :depends-on
+				("packages"))
+			 (:file "controlflow" :depends-on
+				("packages" "macros-controlflow"))
+			 (:file "cfgraph" :depends-on ("packages"))
+			 (:file "library" :depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module callgraph
+			:components
+			((:file "packages")
+			 (:file "callgraph"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module dataflow :depends-on (ast ast-mcpl controlflow)
+			:components
+			((:file "packages")
+			 (:file "dataflow" :depends-on ("packages"))
+			 (:file "dataflow-elements" :depends-on ("packages"))
+			 (:file "library" :depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module errors
+			:components
+			((:file "packages")
+			 (:file "errors"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module hardware-descriptions
+			:depends-on (mcl-util)
+			:components
+			((:file "packages")
+			 (:file "macros"
+				:depends-on ("packages"))
+			 (:file "hardware-descriptions"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module check-consistency-ast
+			:depends-on (query-hdl-mcpl)
+			:components
+			((:file "packages")
+			 (:file "check-consistency-ast"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module query-hdl-mcpl
+			:depends-on (ast ast-hdl ast-mcpl hardware-descriptions)
+			:components
+			((:file "packages")
+			 (:file "query-hdl-mcpl"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module mcl-util
+			:components
+			((:file "packages")
+			 (:file "mcl-util"
+				:depends-on ("packages"))))))
+#+end_src
+
+
+** The micro passes
+
+#+begin_src lisp
+     (:module micro-passes :depends-on (library)
+	      :components
+	      ((:module parse-mcpl 
+			:components
+			((:file "packages")
+			 (:file "parser" :depends-on ("packages"))
+			 (:file "library"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module parse-hdl
+			:components
+			((:file "packages")
+			 (:file "parser" :depends-on ("packages"))
+			 (:file "library"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module set-parents
+			:components
+			((:file "packages")
+			 (:file "set-parents" :depends-on
+				("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module resolve-vars
+			:depends-on (resolve-exports)
+			:components
+			((:file "packages")
+			 (:file "resolve-vars" :depends-on
+				("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module resolve-exports
+			:components
+			((:file "packages")
+			 (:file "resolve-exports" :depends-on
+				("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module set-callgraph
+			:components
+			((:file "packages")
+			 (:file "set-callgraph"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module resolve-calls
+			:depends-on (resolve-exports)
+			:components
+			((:file "packages")
+			 (:file "resolve-calls" :depends-on
+				("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module resolve-types
+			:depends-on (resolve-exports)
+			:components
+			((:file "packages")
+			 (:file "resolve-types" :depends-on
+				("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module set-vars-written :depends-on (print-pretty aliases)
+			:components
+			((:file "packages")
+			 (:file "set-vars-written"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module print-pretty
+			:components
+			((:file "packages")
+			 (:file "print-pretty" :depends-on
+				("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module print
+			:components
+			((:file "packages")
+			 (:file "print" :depends-on
+				("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module set-cfgraphs
+			:components
+			((:file "packages")
+			 (:file "set-cfgraphs" :depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module print-bb
+			:components
+			((:file "packages")
+			 (:file "print-bb" :depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module definitions :depends-on (def-variables)
+			:components
+			((:file "packages")
+			 (:file "definitions"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module uses :depends-on (use-variables)
+			:components
+			((:file "packages")
+			 (:file "uses"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module aliases :depends-on (check-types print-dataflow)
+			:components
+			((:file "packages")
+			 (:file "aliases"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module reaching-definitions
+			:components
+			((:file "packages")
+			 (:file "reaching-definitions"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module print-dataflow :depends-on (print-bb)
+			:components
+			((:file "packages")
+			 (:file "print-dataflow"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module use-variables :depends-on ()
+			:components
+			((:file "packages")
+			 (:file "use-variables"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module def-variables :depends-on ()
+			:components
+			((:file "packages")
+			 (:file "def-variables"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module on-device-variables
+			:depends-on (def-variables use-variables)
+			:components
+			((:file "packages")
+			 (:file "on-device-variables"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module dataflow-on-device-variables
+			:depends-on (on-device-variables)
+			:components
+			((:file "packages")
+			 (:file "dataflow-on-device-variables"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module set-entry-exit-on-device-variables
+			:depends-on (dataflow-on-device-variables
+				     on-device-variables)
+			:components
+			((:file "packages")
+			 (:file "set-entry-exit-on-device-variables"
+				:depends-on ("packages"))))
+#+end_src
+
+
+#+begin_src lisp
+	       (:module flatten-types :depends-on (simplify-expressions)
+			:components
+			((:file "packages")
+			 (:file "flatten-type"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module flatten-var :depends-on ()
+			:components
+			((:file "packages")
+			 (:file "flatten-var"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module dependencies :depends-on (reaching-definitions)
+			:components
+			((:file "packages")
+			 (:file "dependencies"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp :tangle no
+	       (:module on-device-decls :depends-on (dependencies)
+			:components
+			((:file "packages")
+			 (:file "on-device-decls"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module visualize-graph :depends-on ()
+			:components
+			((:file "packages")
+			 (:file "visualize-graph"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module visualize-cfgraph
+			:depends-on (print-bb visualize-graph)
+			:components
+			((:file "packages")
+			 (:file "visualize-cfgraph"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module visualize-callgraph
+			:depends-on (print-pretty visualize-graph)
+			:components
+			((:file "packages")
+			 (:file "visualize-callgraph"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module visualize-dataflow-graph
+			:depends-on (print-pretty print-bb visualize-graph)
+			:components
+			((:file "packages")
+			 (:file "visualize-dataflow-graph"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module translate :depends-on (load-hardware-descriptions)
+			:components
+			((:file "packages")
+			 (:file "equivalence"
+				:depends-on ("packages"))
+			 (:file "translate-memory-spaces"
+				:depends-on ("packages"))
+			 (:file "translate-foreach"
+				:depends-on ("packages"))
+			 (:file "translate"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module simplify-expressions :depends-on ()
+			:components
+			((:file "packages")
+			 (:file "simplify-expressions"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module replace-id-stats :depends-on (set-parents)
+			:components
+			((:file "packages")
+			 (:file "replace-id-stats"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module load-hardware-descriptions
+			:depends-on (set-parents replace-id-stats parse-hdl)
+			:components
+			((:file "packages")
+			 (:file "load-hardware-descriptions"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module check-package
+			:components
+			((:file "packages")
+			 (:file "check-package"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module check-memory-spaces
+			:components
+			((:file "packages")
+			 (:file "check-memory-spaces"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module check-exports
+			:components
+			((:file "packages")
+			 (:file "check-exports"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module fold-constants
+			:components
+			((:file "packages")
+			 (:file "fold-constants"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module remove-hardware-vars
+			:components
+			((:file "packages")
+			 (:file "remove-hardware-vars"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module move-dimension-constants
+			:depends-on ()
+			:components
+			((:file "packages")
+			 (:file "move-dimension-constants"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module move-foreach-to-func
+			:depends-on (move-stats-to-func)
+			:components
+			((:file "packages")
+			 (:file "move-foreach-to-func"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module move-foreach-to-func-cashmere
+			:depends-on (move-stats-to-func)
+			:components
+			((:file "packages")
+			 (:file "move-foreach-to-func-cashmere"
+				:depends-on ("packages"))))
+#+end_src
+
+
+#+begin_src lisp
+	       (:module move-stats-to-func
+			:components
+			((:file "packages")
+			 (:file "move-stats-to-func"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module move-stats-out-func
+			:depends-on ()
+			:components
+			((:file "packages")
+			 (:file "move-stats-out-func"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module specialize-funcs-on-ms
+			:depends-on ()
+			:components
+			((:file "packages")
+			 (:file "specialize-funcs-on-ms"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp 
+	       (:module generate-transfers
+			:depends-on ()
+			:components
+			((:file "packages")
+			 (:file "macros" :depends-on ("packages"))
+			 (:file "helper-functions"
+				:depends-on ("packages" "macros"))
+			 (:file "generate-transfers"
+				:depends-on ("packages" "macros"))))
+#+end_src
+
+#+begin_src lisp 
+	       (:module generate-allocations
+			:depends-on ()
+			:components
+			((:file "packages")
+			 (:file "generate-allocations"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp 
+	       (:module remove-unnecessary-transfers
+			:depends-on ()
+			:components
+			((:file "packages")
+			 (:file "remove-unnecessary-transfers"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module generate-code
+			:depends-on (check-types)
+			:components
+			((:file "packages")
+			 (:file "gen-generic"
+				:depends-on ("packages"))
+			 (:file "output-files"
+				:depends-on ("packages"))
+			 (:file "library"
+				:depends-on ("packages"))
+			 (:file "gen-cpp-header"
+				:depends-on ("packages"))
+			 (:file "gen-opencl"
+				:depends-on ("packages"))
+			 (:file "generators" :depends-on ("packages"))
+			 (:file "gen-cpp" :depends-on ("packages"))
+                         (:file "gen-cashmere" :depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp 
+	       (:module transform-tile-expressions
+			:depends-on ()
+			:components
+			((:file "packages")
+			 (:file "transform-tile-expressions"
+				:depends-on ("packages"))))
+#+end_src
+
+
+#+begin_src lisp
+	       (:module check-types :depends-on (flatten-types fold-constants)
+			:components
+			((:file "packages")
+			 (:file "check-types"
+				:depends-on ("packages"))
+			 (:file "numeric-types"
+				:depends-on ("packages"))
+			 (:file "assignment-rules"
+				:depends-on ("packages"))
+			 (:file "type-equivalence"
+				:depends-on ("packages"))
+			 (:file "compute-types"
+				:depends-on ("packages"))
+			 (:file "type-errors"
+				:depends-on ("packages"))))))
+#+end_src
+
+** The passes
+
+#+begin_src lisp
+     (:module passes :depends-on (library micro-passes)
+	      :components
+	      ((:file "packages")
+	       (:file "semantic-analysis" :depends-on ("packages"))
+	       (:file "print-pretty" :depends-on ("packages"))
+	       (:file "flatten-types" :depends-on ("packages"))
+	       (:file "translate" :depends-on ("packages"))
+	       (:file "remove-hardware-vars" :depends-on ("packages"))
+	       (:file "move-foreach-to-func" :depends-on ("packages"))
+	       (:file "move-foreach-to-func-cashmere" :depends-on ("packages"))
+	       (:file "generate-transfers" :depends-on ("packages"))
+	       (:file "specialize-funcs-on-ms" :depends-on ("packages"))
+	       (:file "generate-code" :depends-on ("packages"))
+	       (:file "generate-cashmere-code" :depends-on ("packages"))
+	       (:file "transform-tile-expressions" :depends-on ("packages"))))
+#+end_src
+
+
+** The commandline
+
+#+begin_src lisp
+     (:module commandline
+              :components
+              ((:file "packages")
+               (:file "commandline"
+                      :depends-on ("packages"))))))
+#+end_src
+
+
+
+** The tests
+
+#+begin_src lisp
+(defsystem :mcl/tests
+    :depends-on (:fiveam :cl-ppcre :cl-graph :anaphora
+			   :cl-utilities :esrap :parser.common-rules
+			   :parser.common-rules.operators
+			   :string-case :iterate :cl-log 
+			   :code-emitter :mcl)
+    :components
+#+end_src
+
+
+#+begin_src lisp
+     ((:module tests
+	      :components
+	      ((:file "packages")
+	       (:file "test-mcl" :depends-on ("packages"))
+	       (:module test-parse-mcpl :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-parser"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-parse-hdl  :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-parser"
+				:depends-on ("packages"))))
+#+end_src
+
+
+#+begin_src lisp
+	       (:module test-print-pretty :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-print-pretty"
+				:depends-on ("packages"))))
+#+end_src
+
+
+#+begin_src lisp
+	       (:module test-resolve-calls :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-resolve-calls"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-dataflow-library :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "library"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-reaching-definitions :depends-on ("packages")
+			:depends-on (test-dataflow-library)
+			:components
+			((:file "packages")
+			 (:file "test-reaching-definitions"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-dependencies :depends-on ("packages")
+			:depends-on (test-dataflow-library)
+			:components
+			((:file "packages")
+			 (:file "test-defs-with-uses")
+			 (:file "test-dependencies"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-on-device-variables :depends-on ("packages")
+			:depends-on (test-dataflow-library)
+			:components
+			((:file "packages")
+			 (:file "test-on-device-variables"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-aliases :depends-on ("packages")
+			:depends-on (test-dataflow-library)
+			:components
+			((:file "packages")
+			 (:file "test-aliases"
+				:depends-on ("packages"))))
+#+end_src
+
+
+
+#+begin_src lisp
+	       (:module test-set-vars-written :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-set-vars-written"
+				:depends-on ("packages"))))
+#+end_src
+
+
+#+begin_src lisp
+	       (:module test-set-cfgraphs :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-set-cfgraphs"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-flatten-types :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-flatten-type"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-flatten-var :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-flatten-var"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-translate :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-translate"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-simplify-expressions :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-simplify-expressions"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-replace-id-stats :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-replace-id-stats"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-ast-mcpl :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-ast-mcpl"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-check-memory-spaces :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-check-memory-spaces"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-specialize-funcs-on-ms :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-specialize-funcs-on-ms"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-generate-transfers :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-generate-transfers"
+			 	:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-generate-allocations :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-generate-allocations"
+			 	:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-definitions :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-definitions"
+				:depends-on ("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module test-transform-tile-expressions :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "test-transform-tile-expressions"
+				:depends-on ("packages"))))
+#+end_src
+
+
+#+begin_src lisp
+	       (:module test-check-types :depends-on ("packages")
+			:components
+			((:file "packages")
+			 (:file "macros"
+				:depends-on ("packages"))
+			 (:file "test-check-types"
+				:depends-on ("packages" "macros"))))))))
+#+end_src
+
+
+
+
+** Maxima
+
+Maxima does have a ~.asd~ file, but SBCL fails to load it properly as it seems
+to convert a warning into an error.  We use Maxima's native build system to
+compile and load it.
+
+#+begin_src lisp
+(defun get-maxima-dir ()
+  (let ((dir (getenv "MCL_ROOT_DIR")))
+    (unless dir
+      (error "Environment variable MCL_ROOT_DIR has not been set"))
+    (merge-pathnames "lib/maxima-5.41.0/" (uiop/pathname:parse-unix-namestring dir :ensure-directory t))))
+
+(defparameter *maxima-dir* (get-maxima-dir))
+
+(defun load-file (pathname)
+  (format t "~a/~a" *maxima-dir* pathname)
+  (load (format nil "~a/~a" *maxima-dir* pathname)))
+
+(defun load-maxima ()
+  (with-current-directory ((merge-pathnames "src/" *maxima-dir*))
+    (load-file "src/maxima-build.lisp")
+    (mcl-asd::maxima-load)))
+
+(unless (find-package :maxima)
+  (load-maxima))
+
+(defun make-dir-string (file-spec)
+  (format nil "~a~a" (unix-namestring *maxima-dir*) file-spec))
+
+(defun make-maxima-file-list (&rest file-specs)
+  (cons '(cl-user::mlist cl-user::simp) (mapcar #'make-dir-string file-specs)))
+
+(defun set-maxima-vars ()
+  (setf maxima::$file_search_maxima (make-maxima-file-list
+				     "share/$$$.{mac,mc}"
+				     "share/stringproc/$$$.{mac,mc}")
+	maxima::$file_search_lisp (make-maxima-file-list
+				   "share/$$$.{fasl,lisp,lsp}"
+				   "share/stringproc/$$$.{fasl,lisp,lsp}"
+				   "src/$$$.{fasl,lisp,lsp}")))
+
+(set-maxima-vars)
+(maxima::$load "stringproc")
+#+end_src
+** Quickutil
+
+Loading things from Quickutil does not seem to work properly.  Therefore, we
+create our custom file that we load with the system.  We can create the utility
+file with the following command:
+
+#+begin_src lisp :tangle no
+(qtlc:save-utils-as "system/mcl-quickutil.lisp"
+		    :utilities '(:map-tree :iota :transpose) :package :mcl-quickutil)
+#+end_src

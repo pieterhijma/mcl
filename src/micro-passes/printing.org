@@ -1,0 +1,773 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Printing
+
+This section discusses several micro-passes that perform some form of printing output.
+
+#+toc: headlines 1 local
+
+** print-pretty
+
+Pretty printing of the MCPL AST.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/print-pretty/packages.lisp"
+    :END:
+
+
+#+header: 
+#+begin_src lisp :mkdirp yes :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :print-pretty
+  (:use :cl :ast :ast-mcpl :code-emitter)
+  (:export :pp :pp-base-type :pp-array-part))
+#+end_src
+
+*** Pretty printing functions
+    :PROPERTIES:
+    :header-args+: :package ":print-pretty"
+    :header-args+: :tangle "../system/micro-passes/print-pretty/print-pretty.lisp"
+    :END:
+
+There is only one method that is exported: ~pp~, a generic method that matches
+all the different AST forms.  If an AST form is not supported, an error is
+thrown. 
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :print-pretty)
+#+end_src
+
+#+begin_src lisp
+(defgeneric pp (ast &optional pp))
+
+(defmethod pp ((ast ast) &optional (pp #'pp))
+  (declare (ignore pp))
+  (error "not yet implemented: ~s" ast))
+#+end_src
+
+**** top-level
+
+#+begin_src lisp
+(in-package :print-pretty)
+
+(defmethod pp ((m module) &optional (pp #'pp))
+  (with-slots (pkg id exports imports code) m
+    (emit "package ~a;" (funcall pp pkg pp)
+	  ""
+	  "module ~a;" (funcall pp id pp)
+	  ""
+	  "~a" (pp-exports exports pp)
+	  ""
+	  "~a" (funcall pp imports pp)
+	  ""
+	  "~a" (funcall pp code pp))))
+
+(defun pp-exports (exports pp)
+  (if exports
+      (emit "export ~a;" (funcall pp exports))
+      ""))
+
+(defmethod pp ((i lib-import) &optional (pp #'pp))
+  (emit "import ~a;" (funcall pp (id i) pp)))
+
+(defmethod pp ((code code) &optional (pp #'pp))
+  (emit "~a" (funcall pp (top-decls code) pp)
+	""
+	"~a" (funcall pp (funcs code) pp)))
+
+(defmethod pp ((f func) &optional (pp #'pp))
+  (with-slots (hw-desc mcl-type id params code-block) f
+    (emit "~a ~a ~a(~a) ~a"
+	  (funcall pp hw-desc pp) (funcall pp mcl-type pp) (funcall pp id pp)
+	  (funcall pp params pp) (funcall pp code-block pp))))
+#+end_src
+
+**** declarations
+
+#+begin_src lisp
+(in-package :print-pretty)
+
+(defmethod pp ((d normal-decl) &optional (pp #'pp))
+  (emit "~a~a" (funcall pp (modifiers d) pp) (funcall pp (basic-decls d) pp)))
+
+(defmethod pp ((ad assign-decl) &optional (pp #'pp))
+  (with-slots (modifiers basic-decl expr) ad
+    (emit "~a~a = ~a" (funcall pp modifiers pp)
+	  (funcall pp basic-decl pp) (funcall pp expr pp))))
+
+(defmethod pp ((m const) &optional (pp #'pp))
+  (declare (ignore pp))
+  "const")
+
+(defmethod pp ((m user-defined) &optional (pp #'pp))
+  (funcall pp (modifier m) pp))
+
+(defmethod pp ((bd basic-decl) &optional (pp #'pp))
+  (emit "~a ~a" (funcall pp (mcl-type bd) pp) (funcall pp (id bd) pp)))
+
+(defmethod pp ((cd const-decl) &optional (pp #'pp))
+  (emit "~a;" (funcall pp (decl cd) pp)))
+#+end_src
+
+**** types
+
+#+begin_src lisp
+(defmethod pp ((td typedef) &optional (pp #'pp))
+  (with-slots (id params fields) td
+    (if params
+	(emit "type ~a(~a) {" (funcall pp id pp) (funcall pp params pp)
+	      "    ~a" (pp-fields fields pp)
+	      "}")
+	(emit "type ~a {" (funcall pp id pp)
+	      "    ~a" (pp-fields fields pp)
+	      "}"))))
+
+(defmethod pp ((v void) &optional (pp #'pp))
+  (declare (ignore pp))
+  "void")
+
+(defmethod pp ((i int) &optional (pp #'pp))
+  (declare (ignore pp))
+  "int")
+
+(defmethod pp ((f flt) &optional (pp #'pp))
+  (declare (ignore pp))
+  "float")
+
+(defmethod pp ((d double) &optional (pp #'pp))
+  (declare (ignore pp))
+  "double")
+
+(defmethod pp ((b mcl-byte) &optional (pp #'pp))
+  (declare (ignore pp))
+  "byte")
+
+(defmethod pp ((b bool) &optional (pp #'pp))
+  (declare (ignore pp))
+  "bool")
+
+(defmethod pp ((ct custom-type) &optional (pp #'pp))
+  (with-slots (id params) ct
+    (if params
+	(emit "~a(~a)" (funcall pp id pp) (funcall pp params pp))
+	(funcall pp id pp))))
+#+end_src
+
+The following methods deal with array types.
+
+#+begin_src lisp
+(defgeneric pp-base-type (ast &optional pp))
+
+(defmethod pp-base-type ((ast ast) &optional (pp #'pp))
+  (declare (ignore pp))
+  (error "not a type ~a" ast))
+
+(defmethod pp-base-type ((type mcl-type) &optional (pp #'pp))
+  (funcall pp type pp))
+
+(defmethod pp-base-type ((at array-type) &optional (pp #'pp))
+  (pp-base-type (base-type at) pp))
+
+(defgeneric pp-array-part (ast &optional pp))
+
+(defmethod pp-array-part ((ast ast) &optional (pp #'pp))
+  (declare (ignore pp))
+  (error "not a type ~a" ast))
+
+(defmethod pp-array-part ((type mcl-type) &optional (pp #'pp))
+  (declare (ignore pp))
+  "")
+
+(defmethod pp-array-part ((at array-type) &optional (pp #'pp))
+  (with-slots (base-type sizes) at
+    (emit "[~a]~a" (funcall pp sizes pp) (pp-array-part base-type pp))))
+
+(defmethod pp ((at array-type) &optional (pp #'pp))
+  (emit "~a~a" (pp-base-type (base-type at) pp) (pp-array-part at pp)))
+
+(defmethod pp ((as array-size) &optional (pp #'pp))
+  (funcall pp (size as) pp))
+#+end_src
+
+**** statements
+
+#+begin_src lisp
+(defmethod pp ((ds decl-stat) &optional (pp #'pp))
+  (emit "~a;" (funcall pp (decl ds) pp)))
+
+(defmethod pp ((cs call-stat) &optional (pp #'pp))
+  (emit "~a;" (funcall pp (call cs) pp)))
+
+(defmethod pp ((as assign-stat) &optional (pp #'pp))
+  (emit "~a = ~a;" (funcall pp (var as) pp) (funcall pp (expr as) pp)))
+
+(defmethod pp ((c call) &optional (pp #'pp))
+  (emit "~a(~a)" (funcall pp (id c) pp) (pp-params (params c) pp)))
+
+(defmethod pp ((is if-stat) &optional (pp #'pp))
+  (with-slots (cond-expr stat elsestat) is
+    (if elsestat
+	(emit "if (~a) ~a" (funcall pp cond-expr pp) (funcall pp stat pp)
+	      "else ~a" (funcall pp elsestat pp))
+	(emit "if (~a) ~a" (funcall pp cond-expr pp) (funcall pp stat pp)))))
+
+(defmethod pp ((bs block-stat) &optional (pp #'pp))
+  (funcall pp (code-block bs) pp))
+
+(defmethod pp ((cb code-block) &optional (pp #'pp))
+  (emit "{"
+	"    ~a" (funcall pp (stats cb) pp)
+	"}"))
+
+(defmethod pp ((fe foreach-stat) &optional (pp #'pp))
+  (with-slots (decl nr-iters par-group stat) fe
+    (emit "foreach (~a in ~a ~a) ~a"
+	  (funcall pp decl pp) (funcall pp nr-iters pp)
+	  (funcall pp par-group pp) (funcall pp stat pp))))
+
+(defmethod pp ((f for-stat) &optional (pp #'pp))
+  (with-slots (decl cond-expr inc stat) f
+    (emit "for (~a; ~a; ~a) ~a"
+	  (funcall pp decl pp) (funcall pp cond-expr pp)
+	  (funcall pp inc pp) (funcall pp stat pp))))
+
+(defmethod pp ((is inc-stat) &optional (pp #'pp))
+  (emit "~a;" (funcall pp (inc is) pp)))
+
+(defmethod pp ((i inc) &optional (pp #'pp))
+  (with-slots (var option) i
+    (emit "~a~a" (funcall pp var pp) (if option "++" "--"))))
+
+(defmethod pp ((i inc-step) &optional (pp #'pp))
+  (with-slots (var option expr) i
+    (emit "~a ~a ~a" (funcall pp var pp) option (funcall pp expr pp))))
+
+(defmethod pp ((as as-stat) &optional (pp #'pp))
+  (with-slots (var basic-decls) as
+    (emit "~a as ~a;" (funcall pp var pp) (funcall pp basic-decls pp))))
+
+(defmethod pp ((ss swap-stat) &optional (pp #'pp))
+  (with-slots (var-left var-right) ss
+    (emit "~a <=> ~a;" (funcall pp var-left pp) (funcall pp var-right pp))))
+
+(defmethod pp ((bs barrier-stat) &optional (pp #'pp))
+  (emit "barrier(~a);" (funcall pp (mem-space bs))))
+#+end_src
+
+**** vars
+
+#+begin_src lisp
+(in-package :print-pretty)
+
+(defmethod pp ((nv normal-var) &optional (pp #'pp))
+  (funcall pp (basic-var nv) pp))
+
+(defmethod pp ((dv dot-var) &optional (pp #'pp))
+  (emit "~a.~a" (funcall pp (basic-var dv) pp) (funcall pp (var dv) pp)))
+
+(defmethod pp ((bv basic-var) &optional (pp #'pp))
+  (with-slots (id array-exprs) bv
+    (emit "~a~a" (funcall pp id pp)
+	  (if array-exprs
+	      (emit "[~a]" (funcall pp array-exprs pp))
+	      ""))))
+
+(defmethod pp ((id id) &optional (pp #'pp))
+  (declare (ignore pp))
+  (name id))
+
+(defmethod pp ((ci compound-id) &optional (pp #'pp))
+  (with-slots (name compound) ci
+    (emit "~a.~a" name (funcall pp compound pp))))
+#+end_src
+
+**** expressions
+
+#+begin_src lisp
+(in-package :print-pretty)
+
+(defmethod pp ((ic int-constant) &optional (pp #'pp))
+  (declare (ignore pp))
+  (format nil "~a" (int-value ic)))
+
+(defmethod pp ((fc float-constant) &optional (pp #'pp))
+  (declare (ignore pp))
+  (format nil "~a" (float-value fc)))
+
+(defmethod pp ((bc bool-constant) &optional (pp #'pp))
+  (declare (ignore pp))
+  (if (bool-value bc) "true" "false"))
+
+(defmethod pp ((m minus) &optional (pp #'pp))
+  (unary-pp "-" m pp))
+
+(defmethod pp ((n neg) &optional (pp #'pp))
+  (unary-pp "!" n pp))
+	       
+(defmethod pp ((lt lt) &optional (pp #'pp))
+  (binary-pp "<" lt pp))
+
+(defmethod pp ((gt gt) &optional (pp #'pp))
+  (binary-pp ">" gt pp))
+
+(defmethod pp ((le le) &optional (pp #'pp))
+  (binary-pp "<=" le pp))
+
+(defmethod pp ((ge ge) &optional (pp #'pp))
+  (binary-pp ">=" ge pp))
+
+(defmethod pp ((ve var-expr) &optional (pp #'pp))
+  (funcall pp (var ve) pp))
+
+(defmethod pp ((add add) &optional (pp #'pp))
+  (binary-pp "+" add pp))
+
+(defmethod pp ((sub sub) &optional (pp #'pp))
+  (binary-pp "-" sub pp))
+
+(defmethod pp ((mul mul) &optional (pp #'pp))
+  (binary-pp "*" mul pp))
+
+(defmethod pp ((div div) &optional (pp #'pp))
+  (binary-pp "/" div pp))
+
+(defmethod pp ((m modulo) &optional (pp #'pp))
+  (binary-pp "%" m pp))
+
+(defmethod pp ((equ equ) &optional (pp #'pp))
+  (binary-pp "==" equ pp))
+
+(defmethod pp ((la log-and) &optional (pp #'pp))
+  (binary-pp "&&" la pp))
+
+(defmethod pp ((ba bitand) &optional (pp #'pp))
+  (binary-pp "&" ba pp))
+
+(defmethod pp ((bsl bitshl) &optional (pp #'pp))
+  (binary-pp "<<" bsl pp))
+
+(defmethod pp ((ce call-expr) &optional (pp #'pp))
+  (funcall pp (call ce) pp))
+
+(defmethod pp ((p pow) &optional (pp #'pp))
+  (binary-pp "^" p pp))
+#+end_src
+
+
+
+**** generic methods
+
+The following code deals with lists of various AST forms:
+
+#+begin_src lisp :package ":print-pretty"
+(in-package :print-pretty)
+
+(defmethod pp ((l list) &optional (pp #'pp))
+  (if (null l)
+      ""
+      (typecase (car l)
+        ((or func typedef)
+	 (emit-list l :nr-lines 2 :function pp))
+	(const-decl
+	 (emit-list l :nr-lines 1 :function pp))
+        (decl
+	 (emit-list l :separator ", " :function pp))
+        (basic-decl
+	 (emit-list l :separator " as " :function pp))
+	((or array-size var-expr)
+	 (emit-list l :separator ", " :function pp))
+	((or lib-import stat)
+	 (emit-list l :function pp))
+	(decl-modifier
+	 (emit "~a " (emit-list l :separator " " :function pp)))
+	(expr
+	 (emit-list l :separator "][" :function pp))
+	(cons
+	 (pp2 l pp))
+	(id
+	 (emit-list l :separator ", " :function pp))
+        (t (error "not yet implemented for list: ~s" (car l))))))
+
+(defun pp-params (l pp)
+  (if (null l)
+      ""
+      (typecase (car l)
+	(expr
+	 (emit-list l :separator ", "
+		    :function #'(lambda (x) (funcall pp x pp))))
+	(t (error "not for params: ~s" (car l))))))
+
+(defun pp-fields (l pp)
+  (if (null l)
+      ""
+      (typecase (car l)
+	(normal-decl
+	 (emit-list l :nr-lines 1 :function #'(lambda (x) (pp-field x pp))))
+	(t (error "not for params: ~s" (car l))))))
+
+(defun pp-field (decl pp)
+  (emit "~a;" (pp decl pp)))
+
+(defun pp2 (l pp)
+  (typecase (caar l)
+    (expr
+     (emit-list l :separator "][" :function pp))
+    (t (error "not yet implemented for pp2: ~s" (caar l)))))
+#+end_src
+
+A generic method for binary operators:
+
+#+begin_src lisp
+(defun binary-pp (operator ast pp)
+  (let ((l (l ast))
+	(r (r ast)))
+    (emit "~a ~a ~a" (brack ast l t pp) operator (brack ast r nil pp))))
+#+end_src
+
+A generic method for unary operators:
+
+#+begin_src lisp
+(defun unary-pp (operator ast pp)
+  (let ((e (e ast)))
+    (emit "~a~a" operator (brack ast e nil pp))))
+#+end_src
+
+The ~brack~ function emits parentheses if neccessary:
+
+#+begin_src lisp
+(defun brack (parent child child-at-left-p pp)
+  (if (needs-bracketing-p parent child child-at-left-p)
+      (emit "(~a)" (funcall pp child pp))
+      (emit "~a" (funcall pp child pp))))
+#+end_src
+
+#+begin_src lisp
+(defun needs-bracketing-p (parent child child-at-left-p)
+  (if (not (binary-p child))
+      nil
+      (let ((priority-parent (priority parent))
+	    (priority-child (priority child)))
+	(cond ((< priority-parent priority-child) 
+	       nil)
+	      ((> priority-parent priority-child)
+	       t)
+	      (t
+	       (cond ((left-associative-p parent)
+		      (not child-at-left-p))
+		     ((right-associative-p parent)
+		      child-at-left-p)
+		     (t
+		      nil)))))))
+#+end_src
+
+
+*** Testing pretty printing
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-print-pretty/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-print-pretty
+  (:use :cl :test-mcl :fiveam :parse-mcpl :ast :ast-mcpl :print-pretty)
+  (:shadowing-import-from :ast-mcpl :id)
+  (:export :test-print-pretty))
+#+end_src
+
+**** Testing a module
+     :PROPERTIES:
+     :header-args+: :package ":test-print-pretty"
+     :header-args+: :tangle "../system/tests/test-print-pretty/test-print-pretty.lisp"
+     :END:
+
+
+The following function tests several lines of an MCPL module:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-print-pretty)
+#+end_src
+
+#+begin_src lisp
+(def-suite print-pretty :in mcl-test-suite)
+(in-suite print-pretty)
+
+(defun pp-equal (&rest lines)
+  (let ((s (format nil "~{~a~^~%~}" lines)))
+    (equal s (pp (parse-mcpl s)))))
+#+end_src
+
+Testing a simple module:
+
+#+begin_src lisp
+(test module
+  (is
+    (pp-equal "package m;"
+	     ""
+	     "module a;"
+	     ""
+	     ""
+	     ""
+	     "import perfect;"
+	     ""
+	     ""
+	     ""
+	     "perfect void f(int a, int b) {"
+	     "    foreach (int i in 2 threads) {"
+	     "        int[2, 3] a;"
+	     "    }"
+	     "}"
+	     "")))
+#+end_src
+
+#+begin_src lisp
+(defun expression-equal (s &optional result)
+  (equal (if result result s) (pp (parse-mcpl-expr s))))
+
+(test priorities
+  (is (expression-equal "2 + 3 * 4"))
+  (is (expression-equal "(2 + 3) * 4"))
+  (is (expression-equal "((1 - 2) << 3) + 4" "(1 - 2 << 3) + 4")))
+#+end_src
+
+
+** print-dataflow
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/print-dataflow/packages.lisp"
+    :END:
+
+#+header: 
+   #+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :print-dataflow
+  (:use :cl :simple-sets :ast :ast-mcpl :controlflow :dataflow :print-pretty
+	:print-bb)
+  (:shadowing-import-from :simple-sets :union :set-difference :intersection)
+  (:export :print-dataflow-result :print-dataflow-element :print-dataflow-set))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":print-dataflow"
+    :header-args+: :tangle "../system/micro-passes/print-dataflow/print-dataflow.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :print-dataflow)
+#+end_src
+
+#+begin_src lisp
+(defgeneric print-dataflow-element (dataflow-element))
+
+(defgeneric print-dataflow-set (dataflow-set)
+  (:documentation "print a set of dataflow elements"))
+
+(defgeneric print-dataflow-result (hash-table stream)
+  (:documentation "print a hash-table with as keys basic blocks and values
+  dataflow-sets onto stream"))
+
+
+(defmethod print-dataflow-element ((d dataflow-variable-with-bb))
+  (format nil "<~a, ~a>" (pp (decl d)) (print-bb (bb d))))
+
+(defmethod print-dataflow-set ((set simple-set))
+  (format nil "{~{~a~^, ~}}" (mapcar #'print-dataflow-element (elements set))))
+
+(defmethod print-dataflow-element ((d dataflow-variable))
+  (format nil "<~a>" (pp (decl d))))
+
+(defmethod print-dataflow-result (hash-table stream)
+  (maphash #'(lambda (k v)
+	       (format stream "~a: ~a~%" (print-bb k) (print-dataflow-set v)))
+	   hash-table))
+#+end_src
+
+
+
+
+
+** print basic blocks
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/print-bb/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :print-bb
+  (:use :cl :ast :ast-mcpl :controlflow :print-pretty)
+  (:export :print-bb))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":print-bb"
+    :header-args+: :tangle "../system/micro-passes/print-bb/print-bb.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :print-bb)
+#+end_src
+
+#+begin_src lisp
+(defgeneric print-bb (bb))
+
+(defmethod print-bb ((bb bb-entry))
+  (declare (ignore bb))
+  "entry")
+
+(defmethod print-bb ((bb bb-exit))
+  (declare (ignore bb))
+  "exit")
+
+(defmethod print-bb ((bb bb-decl-generic))
+  (pp (decl bb)))
+
+(defmethod print-bb ((bb bb-stat-generic))
+  (pp (stat bb)))
+
+(defmethod print-bb ((bb bb-expr-generic))
+  (pp (expr bb)))
+
+(defmethod print-bb ((bb bb-inc-generic))
+  (pp (inc bb)))
+
+(defmethod print-bb ((bb bb-foreach))
+  (format nil "foreach ~a" (pp (decl (stat bb)))))
+#+end_src
+
+
+
+
+** print
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/print/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :print
+  (:use :cl :ast :ast-mcpl)
+  (:export :print-ast))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":print"
+    :header-args+: :tangle "../system/micro-passes/print/print.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :print)
+#+end_src
+
+#+begin_src lisp
+(let ((indentation 0)
+      (s (make-string-output-stream)))
+
+  (defun dec ()
+    (decf indentation))
+
+  (defun do-print (f v)
+    (incf indentation)
+    (format s (concatenate 'string "~vt" f "~%") indentation v))
+
+  (defgeneric print-forward (ast))
+  (defgeneric print-backward (ast))
+
+  (defvisitor print-backward ast (ast string list number)
+     (dec))
+
+
+  (defmethod print-forward ((ast ast))
+    (do-print "~a" (class-name (class-of ast)))
+    t)
+
+  (defmethod print-forward ((str string))
+    (do-print "~s" str)
+    t)
+
+  (defmethod print-forward ((l list))
+    (incf indentation)
+    t)
+
+  (defmethod print-forward ((n number))
+    (do-print "~a" n)
+    t)
+  
+  (defun print-ast (ast)
+    (setf indentation 0)
+    (visit ast #'print-forward #'print-backward)
+    (get-output-stream-string s))) 
+#+end_src
+
+

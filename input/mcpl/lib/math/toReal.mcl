@@ -1,0 +1,14 @@
+package lib.math;
+
+module toReal;
+
+import lib.math.complex;
+
+
+
+perfect void toReal(int n, float[n] output, const Complex[n] input) {
+    foreach (int i in n threads) {
+	output[i] = input[i].real;
+    }
+}
+

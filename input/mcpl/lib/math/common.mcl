@@ -1,0 +1,33 @@
+package lib.math;
+
+module common;
+
+export MAX_FLOAT, PI, sqrt, max, min, sincos, fabs;
+
+import perfect;
+
+const float PI = 3.14159265358979323846;
+
+const float MAX_FLOAT = 3.4028234e38;
+    
+
+perfect float sqrt(float f) {
+    mcl_builtin_read(f);
+}
+
+perfect float sincos(float f, reg main float imag) {
+    mcl_builtin_read(f);
+    mcl_builtin_write(imag);
+}
+
+perfect float max(float f1, float f2) {
+    mcl_builtin_read(f1, f2);
+}
+
+perfect float min(float f1, float f2) {
+    mcl_builtin_read(f1, f2);
+}
+
+perfect float fabs(float f) {
+    mcl_builtin_read(f);
+}

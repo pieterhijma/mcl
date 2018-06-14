@@ -1,0 +1,3976 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Transfers
+
+This section discusses several micro-passes that help generate transfers to and
+from the device.
+
+#+toc: headlines 1 local
+
+
+** Generate transfers
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/generate-transfers/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :generate-transfers
+  (:use :cl :cl-graph :simple-sets :logging :ast :controlflow :dataflow
+        :ast-mcpl :callgraph :on-device-variables :dataflow-on-device-variables
+	:dependencies
+	:set-parents :set-cfgraphs :resolve-vars
+        :set-entry-exit-on-device-variables :set-vars-written)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:import-from :alexandria :with-gensyms :copy-hash-table)
+  (:import-from :utility-directory :filter)
+  (:export :generate-transfers))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":generate-transfers"
+    :header-args+: :tangle "../system/micro-passes/generate-transfers/generate-transfers.lisp"
+    :END:
+
+Generating transfers relies heavily on dataflow-analysis based on
+~on-device-variables~ and ~on-host-variables~ that separate between
+whether variables are used or defined on the host or device.  Using all kinds
+of forward and backward, must or may analyses where for example host variables
+kill device variables, we try to determine the optimal placement of transfers,
+that are in the end represented by ~on-device-variables~.  
+
+Optimal placement is considered as a placement as close as possible to a
+foreach statement - otherwise we would use more memory than necessary - unless
+we can save transfers.
+
+This analysis uses two main passes, one forward and one backward.  The forward
+pass places the transfers from device, whereas the backward pass places the
+transfers to the device.  Because the analysis is almost symmetric for the
+forward and backward dataflow problems, we only write the code for the forward
+dataflow problem and parameterize it where possible.  The analysis maintains a
+global variable ~*state*~, a struct that determines all parameters for forward
+and backward dataflow.
+
+**** The global state
+
+The ~global-state~ struct maintains the current function on which the analysis
+is being performed and the functions that have already been analyzed.  It
+defines several functions that steer the analysis for forward or backward
+dataflow.  It maintains slot values for functions that determine whether a
+parameter of the function is written or read on the device.  Finally, it
+maintains state per function in maps (hash-tables).  This allows us to use the
+macro ~with-func-state~ that will automatically give us the ~cfgraph~, ~out~,
+etc. for the current function.
+
+The fields ~current-func~ and ~funcs-done-set~ keep track of which function is
+or has to be analyzed.  The struct then defines several functions.  Since many
+functions are symmetric, we only discuss one of them.  Furthermore, some
+functions, for example ~exit-~ functions are exit functions on the forward pass
+and ~entry-~ functions on the backward pass:
+- ~transfers-before/after-func~ :: returns the transfers to be placed before a
+     basic block
+- ~exit-transfers-func~ :: gives the exit transfers, the transfers that exit a
+     function.
+- ~transfers-from-device-without-to-caller-before-func~ :: gives the transfers
+     from device without the transfers that can be done inside the caller, the
+     function that calls a function.  The ~transfers-before-func~ above gives
+     for each block the transfers that have to be placed.  However, in some
+     cases, the transfers can be handled by the calling function.  The function
+     ~transfers-from-device-without-to-caller-before~ removes those transfers
+     and leaves them to the higher function.
+- ~exit-func~ :: gives the exit (or entry) node of the control flow graph.
+- ~insert-transfer-func~ :: a function that decides whether the transfers
+     should be transfers *to* the device or transfers *from* the device.
+- ~insert-before-func~ :: decides whether a transfer should be placed before a
+     basic block or after a basic block.  The other function does the opposite
+     of this one.
+
+The struct holds a variable for the ~on-device-variables~ for a function.  The
+slot can be the ~exit-on-device-variables~ or ~entry-on-device-variables~
+depending on the direction of the analysis.  This slot in a function indicates
+which /on-device-/, but also which /on-host-/ variables are available
+before/after a call to the function.
+
+The struct then defines several maps.  The key for the map is the current
+function, so state is maintained for each function about:
+- ~cfgraph~ :: the control-flow-graph
+- ~exit-transfers~ :: the device variables on exit (or entry in the other
+     direction).
+- ~transfers~ :: the transfers that could be inserted at some point.
+- ~transfers-outside-func-set~ :: contains the entry/exit-on-device variables
+     of a called function translated to the ones in the calling function minus
+     the transfers of the block.  In general it contains the transfers that
+     should be done outside of the called function.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-transfers)
+#+end_src
+
+#+begin_src lisp
+(defstruct global-state
+  current-func
+  funcs-done-set
+
+  ;; functions
+  transfers-before-func
+  transfers-after-func
+  exit-transfers-func
+  transfers-from-device-without-to-caller-before-func
+  transfers-from-device-without-to-caller-after-func
+  exit-func
+  insert-transfer-func
+  insert-before-func
+  insert-after-func
+
+  ;; slots
+  on-device-variables
+
+  ;; per func state
+  cfgraph-map
+  exit-transfers-map
+  transfers-map
+  transfers-outside-func-set-map)
+#+end_src
+
+We can initialize the state with the following function, setting several
+variables to the versions for both forward and backward analysis:
+
+#+begin_src lisp
+(defun make-initial-global-state (transfers-before-func transfers-after-func
+				  exit-transfers-func
+				  transfers-from-device-without-to-caller-before-func
+				  transfers-from-device-without-to-caller-after-func
+				  exit-func insert-transfer-func
+				  insert-before-func
+				  insert-after-func
+
+				  on-device-variables)
+  (make-global-state
+   :current-func nil
+   :funcs-done-set (make-set)
+
+   :transfers-before-func transfers-before-func
+   :transfers-after-func transfers-after-func
+   :exit-transfers-func exit-transfers-func
+   :transfers-from-device-without-to-caller-before-func
+   transfers-from-device-without-to-caller-before-func
+   :transfers-from-device-without-to-caller-after-func
+   transfers-from-device-without-to-caller-after-func
+   :exit-func exit-func
+   :insert-transfer-func insert-transfer-func
+   :insert-before-func insert-before-func
+   :insert-after-func insert-after-func
+   
+   :on-device-variables on-device-variables
+
+   :cfgraph-map (make-hash-table)
+   :transfers-map (make-hash-table)
+   :exit-transfers-map (make-hash-table)
+   :transfers-outside-func-set-map (make-hash-table)))
+#+end_src
+
+The following functions initialize the state for forward and backward dataflow:
+
+#+begin_src lisp 
+(defun make-global-state-forward ()
+  (make-initial-global-state #'transfers-from-device-before
+			     #'transfers-from-device-after
+			     #'exit-transfers
+			     #'xfers-from-device-w/o-to-caller-xfers-before
+			     #'xfers-from-device-w/o-to-caller-xfers-after
+			     #'exit
+			     #'insert-transfer-from
+			     #'insert-before-ast
+			     #'insert-after-ast
+			     'exit-on-device-variables))
+
+(defun make-global-state-backward ()
+  (make-initial-global-state #'transfers-to-device-before
+			     #'transfers-to-device-after
+			     #'entry-transfers
+			     #'xfers-to-device-w/o-to-caller-xfers-before
+			     #'xfers-to-device-w/o-to-caller-xfers-after
+			     #'entry
+			     #'insert-transfer-to
+			     #'insert-before-ast
+			     #'insert-after-ast
+			     'entry-on-device-variables))
+#+end_src
+
+**** The entry point
+
+
+The analysis has several phases.  First, we initialize the global state
+variables.  The second phase analyzes each call and records which
+on-device-variables should be transfered before or after the call, or within
+the called function.  This phase has to occur before generating the actual
+transfers, because multiple calls of the same function may have different
+requirements.  The final phase inserts all the transfers.
+
+The function below is the entry point.  We use optimistic control-flow graphs,
+which means that foreach loops are regarded as one basic block and for-loops
+are assumed to iterate at least one time.  The global state is set up two
+times, one for the forward analysis and one for the backward analysis.
+
+#+begin_src lisp
+(defparameter *state* nil)
+
+(defun generate-transfers (callgraph)
+  (log-micro-pass "generate-transfers" callgraph)
+  (set-optimistic-cfgraphs callgraph)
+
+  (let* ((funcs-ordered (funcs-ordered callgraph))
+	 (root-funcs (tops-callgraph callgraph))
+	 (state-forward (make-global-state-forward))
+	 (state-backward (make-global-state-backward)))
+    (setf *state* state-forward)
+    (populate-global-state (reverse funcs-ordered))
+    (setf *state* state-backward)
+    (populate-global-state (reverse funcs-ordered))
+
+      
+    (setf *state* state-forward)
+    (with-slots (transfers-after-func) *state*
+      (analyze-calls-funcs funcs-ordered transfers-after-func)
+      (dolist (root-func root-funcs) (generate-transfers-func root-func)))
+
+    (setf *state* state-backward)
+    (with-slots (transfers-before-func) *state*
+      (analyze-calls-funcs funcs-ordered transfers-before-func)
+      (dolist (root-func root-funcs) (generate-transfers-func root-func)))))
+
+(defun set-optimistic-cfgraphs (callgraph)
+  (loop for f in (funcs-ordered callgraph)
+     do (set-cfgraphs:set-cfgraphs f t t)))
+#+end_src
+
+
+**** Phase 1: Populating the global state
+
+To generate transfers, we first have to analyze the callgraph from leaf nodes
+to the root.  For each function, we register whether device-variables are
+available at entry or exit.
+
+#+begin_src lisp
+(defun populate-global-state (ordered-funcs)
+  (dolist (func ordered-funcs) (populate-global-state-func func)))
+
+(defun populate-global-state-func (func)
+  (with-slots (current-func exit-transfers-func) *state*
+    (setf current-func func)
+    
+    (with-func-state (exit-transfers cfgraph transfers-outside-func-set)
+      (setf cfgraph (cfgraph func))
+      (setf transfers-outside-func-set (make-dataflow-set))
+      
+      (setf exit-transfers (funcall exit-transfers-func cfgraph)))))
+#+end_src
+
+
+**** TODO Phase 2: Analyzing the calls
+
+The following phase analyzes the function from the root function and all the
+called functions.  For each function we record whether transfers should be done
+outside of the function.  *Update this:* If it is clear that a variable is
+indeed handled in the called function, then we record this for other calls in
+~transfers-done-outside-func-set~.  The process is explained below.  The
+functions below analyze each basic block for being a call:
+
+#+begin_src lisp 
+(defun analyze-calls-funcs (funcs transfers-func)
+  (dolist (func funcs) (analyze-calls-func func transfers-func)))
+
+(defun analyze-calls-func (func transfers-func)
+  (with-slots (current-func funcs-done-set) *state*
+    (setf current-func func)
+    (with-func-state (cfgraph transfers)
+      (setf transfers (funcall transfers-func cfgraph))
+      (loop for bb in (basic-blocks cfgraph)
+	 do (analyze-basic-block bb)))))
+
+#+end_src
+
+#+begin_src lisp
+(defun analyze-basic-block (bb)
+  (when (call-p bb)
+    (analyze-call bb)))
+#+end_src
+
+When analyzing a call, we have to make a distinction between the calling-func
+and the called-func.  The main goal of the code below is to record what
+transfers can be performed outside of the called function.  As soon it is
+beneficial for the calling function to place the transfers in the calling
+function, this will be recorded for the called function in
+~transfers-outside-func-set~.
+
+A situation where it is beneficial to move transfers from the called to the
+calling function is illustrated below:
+
+#+begin_src c :tangle no
+f(out) {
+  foreach(out)
+}
+
+g(out) {
+  f(out);
+  f(out);
+}
+#+end_src
+
+Placing the transfers in ~f()~ would lead to unnecessary transfers, it is
+better to place the transfers in ~g()~ before and after the two calls.
+
+To determine the transfers that can be performed outside of the function, we
+retrieve the ~on-device-variables~ that are available on entry or exit of the
+called function.  This set represents the ~on-device-variables~ that can be
+moved outside of the called function, into the calling function.  We store this
+in ~device-variables-called-func~.  
+
+We have to compare this set with the ~on-device-variables~ that can be
+performed at the block of the call.  Therefore, we have to transform the
+~device-variables-called-func~ with each ~on-device-variable~ containing a
+declaration of the called func, to ~on-device-variables~ with declarations of
+the calling funcs.  We then subtract the ~transfers-block-calling-func~ that
+represents the transfers that in principal could be done at the block of the
+call from the ~device-variables-called-func~.  If there is a block with a call
+to the function that does not have transfers of ~-on-device-variables~ that are
+available on entry or exit, then it means that it is better to perform the
+transfers in the calling function.  Therefore, we store the difference of
+~device-variables-called-func~ and ~transfers-block-calling-func~ in the result
+set ~transfers-outside-func-set-called-func~.  Before we do that we have to
+transform the declarations back to the declarations of the called function.
+
+*This has to be propagated back to where the transfers originate from, so back
+up the call chain...*
+
+In the example above, there would be transfers to the device at the first call
+to ~f()~ in ~g()~.  Therefore we subtract those transfers from what is
+available at entry in ~f()~, which is ~out~.  This means that nothing is added
+to ~transfers-outside-func-set-called-func~.  However, at the second call to
+~f()~ in ~g()~, there will be no transfers to the device.  This means that
+~out~ will be added to ~transfers-outside-func-set-called-func~.  
+
+#+begin_src lisp      
+(defun analyze-call (bb)
+  (with-slots (on-device-variables transfers-outside-func-set-map) *state*
+    (with-func-state (transfers)
+      (let* ((call (call (stat bb)))
+	     (called-func (func call))
+	     (calling-func (get-func call))
+	     (transfers-block-calling-func (gethash bb transfers))
+	     (transfers-outside-func-set-called-func
+	      (gethash called-func transfers-outside-func-set-map))
+	     (transfers-outside-func-set-calling-func
+	      (gethash calling-func transfers-outside-func-set-map)))
+	(unless (builtin-func-p call)
+	  (let ((device-variables-called-func
+		 (filter #'(lambda (x) (typep x 'on-device-variable))
+			 (slot-value called-func on-device-variables))))
+	    (add-all-to-set
+	     (dataflow-variables-calling-func->called-func 
+	      (elements
+	       (union
+		(set-difference
+		 (make-dataflow-set (dataflow-variables-called-func->calling-func
+				     device-variables-called-func
+				     call))
+		 transfers-block-calling-func)
+		(intersection
+		 transfers-outside-func-set-calling-func
+		 transfers-block-calling-func)))
+	      call)
+	     transfers-outside-func-set-called-func)))))))
+#+end_src
+
+
+
+**** Phase 3: Generating the transfers
+
+#+begin_src lisp :exports none :tangle no
+(defun vis (map)
+  (with-func-state (cfgraph)
+    (visualize-dataflow-graph:visualize-dataflow-graph cfgraph map nil "/home/pieter/dataflow.dot")
+    (break)))
+#+end_src
+
+In ~generate-transfers-func~ we determine the transfers that should be inserted
+in the given function.  This means that we have to exclude transfers that can
+be done by the caller.  This is determined in ~compute-transfers-before/after~.
+We then just generate the transfers based on all the generation functions that
+have been set in the global state.  
+
+This function sets the current function for using ~with-func-state~ and we make
+sure that each function is only done once.
+
+#+begin_src lisp
+(defun generate-transfers-func (func)
+  (with-slots (current-func funcs-done-set) *state*
+    (unless (contains-p funcs-done-set func)
+      (setf current-func func)
+      (with-func-state (cfgraph transfers-outside-func)
+	;;(break)
+	(let ((transfers-before (compute-transfers-before))
+	      (transfers-after (compute-transfers-after)))
+	  (loop for bb in (basic-blocks cfgraph)
+	     do (gen-transfer-bb-before bb transfers-before)
+	       (gen-transfer-bb-after bb transfers-after))
+	  (add-to-set func funcs-done-set))))))
+#+end_src
+
+The following two functions compute the transfers that have to be inserted
+before and after a statement respectively.  It calls the function 
+~transfers-from-device-without-to-caller-before~ or ~-after~.  These two
+functions return a map of the transfers that have to be inserted within this
+function excluding the function that will be done by the calling function.
+
+#+begin_src lisp
+(defun compute-transfers-before ()
+  (with-slots (transfers-from-device-without-to-caller-before-func) *state*
+    (compute-transfers transfers-from-device-without-to-caller-before-func)))
+
+(defun compute-transfers-after ()
+  (with-slots (transfers-from-device-without-to-caller-after-func) *state*
+    (compute-transfers transfers-from-device-without-to-caller-after-func)))
+#+end_src
+
+The ~compute-transfers~ function creates a ~gen~ set for the
+~transfers-from-device-without-to-caller-before~ or ~-after~ functions.  The
+~gen~ function is formed by the ~exit-tranfers~ intersected with the
+~transfers-outside-func-set~, or the transfers that can be done outside of this
+function.  This results in a ~gen~ function that will filter out the transfers
+that can be performed in the caller.  With this ~gen~ set we call the
+~transfers-from-device-without-to-caller~ functions.  The analysis is explained
+later in this document.
+
+#+begin_src lisp
+(defun compute-transfers (transfers-from-device-w/o-to-caller-func)
+  (with-func-state (cfgraph exit-transfers transfers-outside-func-set)
+    (let ((gen (remove-transfers
+		cfgraph exit-transfers transfers-outside-func-set)))
+      (funcall transfers-from-device-w/o-to-caller-func cfgraph gen))))
+
+(defun remove-transfers (cfgraph exit-transfers to-remove)
+  (with-slots (exit-func) *state*
+    (let ((exit-transfers (gethash (funcall exit-func cfgraph) exit-transfers))
+	  (map (empty-dataflow-map cfgraph)))
+      (setf (gethash (funcall exit-func cfgraph) map)
+	    (intersection exit-transfers to-remove))
+      map)))
+#+end_src
+
+The following function generate transfers before or after a basic block.  For
+transfers before a basic block, it is not possible to place a transfer before
+an ~entry~ block.  Placing a transfer before an ~exit~ block is problematic
+because there is no AST form associated with an ~exit~ block.  Therefore we
+retrieve the (only) predecessor of the ~exit~ block and place a transfer after
+the predecessor.
+
+#+begin_src lisp
+(defgeneric gen-transfer-bb-before (bb transfers))
+
+(defmethod gen-transfer-bb-before ((bb bb) transfers)
+  (with-slots (insert-before-func) *state*
+    (gen-transfer-bb bb transfers insert-before-func)))
+
+(defmethod gen-transfer-bb-before ((bb bb-exit) transfers)
+  (gen-transfer-bb-before/after bb transfers
+				#'gen-transfer-bb-after #'predecessors))
+  
+(defmethod gen-transfer-bb-before ((bb bb-entry) transfers)
+  nil)
+
+(defgeneric gen-transfer-bb-after (bb transfers))
+
+(defmethod gen-transfer-bb-after ((bb bb) transfers)
+  (with-slots (insert-after-func) *state*
+    (gen-transfer-bb bb transfers insert-after-func)))
+
+(defmethod gen-transfer-bb-after ((bb bb-entry) transfers)
+  (gen-transfer-bb-before/after bb transfers
+				#'gen-transfer-bb-before #'successors))
+
+(defmethod gen-transfer-bb-after ((bb bb-exit) transfers)
+  nil)
+
+(defun gen-transfer-bb-before/after (bb transfers func pred/succ-func)
+  (with-func-state (cfgraph)
+    (let ((transfers (copy-hash-table transfers))
+	  (pred/succ (first (funcall pred/succ-func bb cfgraph))))
+      (setf (gethash pred/succ transfers) (gethash bb transfers))
+      (funcall func pred/succ transfers))))
+#+end_src
+
+The following generic function uses an insertion function to place transfers
+before or after a basic block.  The generic case retrieves the AST of the basic
+block, transforms the transfers to declarations and generates the transfers.
+
+#+begin_src lisp
+(defgeneric gen-transfer-bb (bb transfers insert-func))
+
+(defmethod gen-transfer-bb ((bb bb) transfers insert-func)
+  (gen-transfer-with-decls (get-ast-basic-block bb)
+			   (transfers->decls (gethash bb transfers))
+			   insert-func))
+#+end_src
+
+If the basic block is a statement we do something special when the statement is
+a call function, otherwise we fall back to the generic case.
+
+#+begin_src lisp
+(defmethod gen-transfer-bb ((bb bb-stat) transfers insert-func)
+  (let* ((stat (stat bb)))
+    (if (typep stat 'call-stat)
+	(gen-transfer-call (call stat) bb transfers insert-func)
+	(call-next-method))))
+#+end_src
+
+When we find a call, we recursively generate the transfers for the called
+function.  After that, in the current function, we retrieve the transfers that
+can be done outside the called function and inside the calling function, we
+intersect that with the transfers that should be done in the call anyway and
+insert them. 
+
+#+begin_src lisp
+(defun gen-transfer-call (call bb transfers insert-func)
+  (unless (builtin-func-p call)
+    (let ((called-func (func call)))
+      (with-new-func-state called-func
+	(generate-transfers-func called-func))
+      (with-slots (transfers-outside-func-set-map) *state*
+	(let ((transfers-outside-called-func
+	       (gethash called-func transfers-outside-func-set-map)))
+	  (gen-transfer-with-decls
+	   (get-ast-basic-block bb)
+	   (cl:intersection
+	    (dataflow-variables->decls-calling-func
+	     (elements transfers-outside-called-func) call)
+	    (transfers->decls (gethash bb transfers)))
+	   insert-func))))))
+#+end_src
+
+We do a special trick with for-loops if the insert function is the insert after
+function.  We switch to the insert-before function.  This has to do with how a
+for-loop is built up in the AST.  
+
+#+begin_src lisp
+(defmethod gen-transfer-bb ((bb bb-for-decl) transfers insert-func)
+  (with-slots (insert-before-func insert-after-func) *state*
+    (if (eq insert-func insert-after-func)
+	(gen-transfer-bb bb transfers insert-before-func)
+	(call-next-method))))
+#+end_src
+
+The following functions perform the real insertion into the AST.  It sorts the
+declarations and removes duplicates before inserting.
+
+#+begin_src lisp
+(defun gen-transfer-with-decls (ast decls insert-func)
+  (with-slots (insert-transfer-func) *state*
+    (let ((decls (sort (remove-duplicates decls) #'ast<)))
+      (dolist (d decls)
+	(funcall insert-transfer-func d ast insert-func)))))
+
+(defun insert-transfer-to (decl ast insert-func)
+  (let ((transfer (create-host->device-transfer decl)))
+    (funcall insert-func ast transfer)))
+
+(defun insert-transfer-from (decl ast insert-func)
+  (let ((transfer (create-device->host-transfer decl)))
+    (funcall insert-func ast transfer)))
+#+end_src
+
+
+**** Dataflow solutions
+
+The following function constitute various dataflow solutions.  This is where
+the real analysis happens.
+
+The code below determines the blocks which need a transfer from or to the
+device.  There are two possibilities, putting a transfers after a block and
+putting a transfers in front of a block (before).  The analysis is symmetric,
+so this text will discusses everything in terms of transfers to the device.  In
+the end, we want a mapping from basic blocks to a set of ~on-device-variables~.
+For each on-device-variable, we will generate a transfer.
+
+The easiest way of thinking about generating a transfer-to-device is as
+follows:  As soon a block generates an on-device-variable, we have to put a
+transfer in front of it.  However, this should not be done if the variable is
+/reaching/, which means that the variable may already be on the device:
+
+#+begin_src lisp
+(defun transfers-to-device-before (cfgraph)
+  (dataflow-difference (gen-on-device-variables-in-w/o-use cfgraph)
+		       (in-set (reaching-on-device-variables cfgraph))))
+#+end_src
+
+The following example illustrates why we do not generate a transfer when the
+on-device-variable is reaching, or may be available:
+
+#+begin_src c :tangle no
+foreach(out,in)
+foreach(out,in)
+#+end_src
+
+Both foreach statements generate ~out~ and ~in~ in the IN direction, but there
+should only be a transfer-to before the first.  So, an exception to the rule
+above is when an on-device-variable is already available (the
+on-device-variable is certain to be on the device).  Actually, this is not
+precise enough.  The exception should be when the on-device-variables is
+reaching (the on-device-variable may be on the device).  This is clear in the
+following situation:
+
+#+begin_src c :tangle no
+if (...) {
+  statement1;
+  statement2;
+}
+else {
+  foreach(out)
+}
+foreach(out)
+#+end_src
+
+In this case we prefer to have transfers to before the foreach in the else
+branch, but not before the last foreach.  To make it correct, we should add
+transfers-to at the end of the /then/ clause of the if-statement, after
+~statement2~ (we assume here that these statements do not need transfers).  At
+the last foreach statement, out is not available (guaranteed to be on the
+device), but it is reaching (may be on the device).  Therefore we need to
+subtract the reaching set from the gen set.  So, in summary, the function
+~transfers-to-device-before~ creates on-device-variables if a block generates
+an on-device-variable, unless this variable is reaching.
+
+The previous example also shows why we need a ~transfers-to-device-after~.  We
+want to place transfers to the device as late as possible in the /then/ clause,
+after ~statement2~.  The following function defines
+~transfers-to-device-after~: 
+
+#+begin_src lisp  
+(defun transfers-to-device-after (cfgraph)
+  (dataflow-intersection
+   (dataflow-difference
+    (latest-on-device-kills cfgraph)
+    (reaching-on-device-variables cfgraph))
+   (out-set (live-on-device-variables cfgraph))))
+#+end_src
+
+It finds the latest on-device kills, the points in the graph where a kill has
+to take place as late as possible.  The kill of a device variable represents a
+point where transfers to the device can happen (at a very late point).
+However, there should only be transfers to the device if the on-device
+variables are not reaching, following a similar argument as with
+~transfers-to-device-before~.   Furthermore, if the on-device-variables are not
+live, (may be available at a later point), then the transfers should also not
+take place.  
+
+The following example shows why we need to intersect it with the live
+on-device-variables, or the variables that may be expected to be on the device
+at a later stage.  If we don't intersect with the live variables, the
+~transfers-to-device-after~ will generate a transfer to the device after ~out =
+0;~.  However, this is not necessary since the variable is not live.
+
+#+begin_src c :tangle no
+if (...) {
+  foreach(out)
+  out = 0;
+}
+else {
+  foreach(out)
+}
+#+end_src
+
+The latest on-device kills are formed by comparing the late kills with the
+successor values of the late kills.  The successor-values are formed by the
+union of the on-device variables of each successor.  If we take the difference,
+we get the blocks after which we can place a transfer-to provided the
+conditions stated before.
+
+#+begin_src lisp
+(defun latest-on-device-kills (cfgraph)
+  (let ((late-kills (late-on-device-kills cfgraph)))
+    (dataflow-difference late-kills
+			 (get-successor-values late-kills cfgraph))))
+#+end_src
+
+The late on-device kills use as generator set the kills in the OUT direction
+and the IN values of the reaching on-device variables.  Since this is a forward
+dataflow equation, we need the OUT of the kills.  We need the IN set of the
+reaching on-device variables because we need to kill the kills as soon as
+possible.  Otherwise, we would end up with kills that are too late.  We use the
+universal set (all dataflow values) of kill for the values for the ~entry~
+basic block, in other words, we assume that the entry already kills everything
+with dummy kills that can move forward through the flow graph.  By assuming
+everything is already killed, we can also place the latest transfer without the
+need of actually killing a variable.  The following two examples show the
+difference.  In the first example, there will be a late kill after ~out = 0~
+because the statement kills.  However, in the second example there would be no
+such late kill because nothing is killed.  This is mitigated by using dummy
+kill values for the ~entry~ block.
+
+#+begin_src c :tangle no
+if (...) {
+  foreach(out)
+  out = 0;
+}
+else {
+  foreach(out)
+}
+foreach(out)
+#+end_src
+
+#+begin_src c :tangle no
+if (...) {
+  foreach(out)
+}
+else {
+  foreach(out)
+}
+foreach(out)
+#+end_src
+
+We use a union to let the dataflow values go as far as possible without
+interference from other paths that do not have kills.  The function is listed
+below:
+
+#+begin_src lisp
+(defun late-on-device-kills (cfgraph)
+  (let ((gen (kill-on-device-variables-out cfgraph))
+	(kill (in-set (reaching-on-device-variables cfgraph))))
+    (dataflow-forward
+     cfgraph (universal-set kill) (make-dataflow-set)
+     #'(lambda (bb v)
+	 (union (gethash bb gen) (set-difference v (gethash bb kill))))
+     #'union)))
+#+end_src
+
+The following functions are completely symmetric but just for transfers from
+the device:
+
+#+begin_src lisp
+(defun transfers-from-device-after (cfgraph)
+  (dataflow-difference (gen-on-device-variables-out-w/o-use cfgraph)
+		       (out-set (live-on-device-variables cfgraph))))
+
+(defun transfers-from-device-before (cfgraph)
+  (dataflow-intersection
+   (dataflow-difference
+    (earliest-on-device-kills cfgraph)
+    (live-on-device-variables cfgraph))
+   (in-set (reaching-on-device-variables cfgraph))))
+
+(defun earliest-on-device-kills (cfgraph)
+  (let ((early-kills (early-on-device-kills cfgraph)))
+    (dataflow-difference early-kills
+			 (get-predecessor-values early-kills cfgraph))))
+
+
+(defun early-on-device-kills (cfgraph)
+  (let ((gen (kill-on-device-variables-in cfgraph))
+	(kill (out-set (live-on-device-variables cfgraph))))
+    (dataflow-backward
+     cfgraph (universal-set kill) (make-dataflow-set)
+     #'(lambda (bb v)
+	 (union (gethash bb gen) (set-difference v (gethash bb kill))))
+     #'union)))
+#+end_src
+
+
+The following two functions retrieve, based on a ~gen~ set, the transfers to
+the device excluding the transfers that can be performed by the calling
+function.  This is based on the ~gen~ set that contains the on-device variables
+that can be moved to the caller, the transfers-to the device that represents
+the transfers if no transfers could be moved to the caller, and the function
+~to-caller-transfers-to-device~. 
+
+#+begin_src lisp
+(defun xfers-to-device-w/o-to-caller-xfers-before (cfgraph gen)
+  (xfers-to/from-device-w/o-to-caller-xfers
+   cfgraph gen #'transfers-to-device-before
+   #'to-caller-transfers-to-device))
+
+(defun xfers-to-device-w/o-to-caller-xfers-after (cfgraph gen)
+  (xfers-to/from-device-w/o-to-caller-xfers
+   cfgraph gen #'transfers-to-device-after
+   #'to-caller-transfers-to-device))
+#+end_src
+
+The following function removes the transfers that can be moved to the caller
+from all the transfers:
+
+#+begin_src lisp
+(defun xfers-to/from-device-w/o-to-caller-xfers (cfgraph gen
+						 transfers-to/from-device
+						 to-caller-transfers)
+  (let ((transfers (funcall transfers-to/from-device cfgraph))
+	(to-caller (funcall to-caller-transfers cfgraph gen)))
+    ;;(break)
+    (dataflow-difference transfers to-caller)))
+#+end_src
+
+The ~to-caller-transfers-to-device~ is based on the ~gen~ set, the ~entry~
+block, the transfers to the device before and after and it is a forward
+dataflow problem:
+
+#+begin_src lisp
+(defun to-caller-transfers-to-device (cfgraph gen)
+  (to-caller-transfers-from/to-device
+   cfgraph gen #'entry #'transfers-to-device-before
+   #'transfers-to-device-after #'dataflow-forward))
+#+end_src
+
+The following function returns the transfers that are moved to the caller.  The
+result should be a map of the transfers that can be moved.  Note that this
+should only be the transfers in the beginning of the function, not transfers
+that have to be performed again because of a kill.
+
+The ~gen~ set is formed by the entry transfers of the function intersected with
+the transfers that can be moved to the caller, so in other words, we do not
+generate transfers that are not exported from the function.  As ~kill~ set we
+use all possible transfers.  From then on, we do a forward dataflow with as
+start values the dataflow-variables in the entry block.  We try to flow these
+variables as far as possible in the most restrictive way, namely they can only
+flow further if all paths contain it (using intersection).  We find the
+end-result by taking the difference between the IN and OUT set, which means
+that if an entry dataflow-variable is killed in a block, then this is a
+transfer that can be moved to the caller.
+
+It may be possible that the entry set is already the kill set.  In that case,
+the dataflow analysis will not give the proper result because of the boundary
+conditions at the entry.  Therefore, if the ~gen~ set is not empty and the
+result of the dataflow is empty, then the transfers that can move to the caller
+are in the entry function.  We then just return the ~gen~ set which represents
+the transfers that can move to the caller but cannot travel further.
+
+#+begin_src lisp
+(defun to-caller-transfers-from/to-device (cfgraph gen entry
+					   transfers-from-device-before
+					   transfers-from-device-after
+					   dataflow-forward)
+  (let ((entry-bb (funcall entry cfgraph))
+	(kill (dataflow-union (funcall transfers-from-device-before cfgraph)
+			      (funcall transfers-from-device-after cfgraph))))
+    (multiple-value-bind (out in)
+	(funcall dataflow-forward cfgraph (gethash entry-bb gen)
+		 (universal-set gen)
+		 #'(lambda (bb v)
+		     (union (gethash bb gen)
+ 				(set-difference v (gethash bb kill))))
+		 #'intersection)
+      (let ((difference-in-out (dataflow-difference in out)))
+	(if (and (empty-dataflow-map-p difference-in-out)
+		 (not (empty-dataflow-map-p gen)))
+	    gen
+	    difference-in-out)))))
+#+end_src
+
+The following functions do the same and are completely symmetric:
+
+#+begin_src lisp
+(defun xfers-from-device-w/o-to-caller-xfers-before (cfgraph gen)
+  (xfers-to/from-device-w/o-to-caller-xfers
+   cfgraph gen #'transfers-from-device-before
+   #'to-caller-transfers-from-device))
+
+(defun xfers-from-device-w/o-to-caller-xfers-after (cfgraph gen)
+  (xfers-to/from-device-w/o-to-caller-xfers
+   cfgraph gen #'transfers-from-device-after
+   #'to-caller-transfers-from-device))
+
+(defun to-caller-transfers-from-device (cfgraph gen)
+  (to-caller-transfers-from/to-device
+   cfgraph gen #'exit #'transfers-from-device-before
+   #'transfers-from-device-after #'dataflow-backward))
+#+end_src
+
+
+
+
+
+
+**** Helper functions
+    :PROPERTIES:
+    :header-args+: :package ":generate-transfers"
+    :header-args+: :tangle "../system/micro-passes/generate-transfers/helper-functions.lisp"
+    :END:
+
+The following functions convert dataflow-variables from calling function to
+called function and vice-versa:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-transfers)
+#+end_src
+
+#+begin_src lisp
+(defun dataflow-variables->decls-calling-func (dataflow-variables call)
+  (mapcar #'(lambda (dv) (decl-called-func->calling-func (decl dv) call))
+	  dataflow-variables))
+
+(defun transfers->decls (transfers)
+  (mapcar #'decl (elements transfers)))
+#+end_src
+
+The following functions create the transfers:
+
+#+begin_src lisp
+(defun create-host->device-transfer (decl)
+  (create-transfer "mcl_builtin_transfer_to_device" decl))
+
+;; (defun create-allocation (decl)
+;;   (create-transfer "mcl_builtin_allocate_on_device" decl))
+
+(defun create-device->host-transfer (decl)
+  (create-transfer "mcl_builtin_transfer_from_device" decl))
+
+;; (defun create-deallocation (decl)
+;;   (create-transfer "mcl_builtin_deallocate_on_device" decl))
+
+(defun create-transfer (name-function decl)
+  (make-call-stat
+   (make-call
+    (make-id name-function)
+    (list 
+     (make-var-expr (make-normal-var
+		     (make-basic-var (make-id (name (get-id decl))) nil)))))))
+#+end_src
+
+The following function give the entry/exit transfers but filter the on-host
+variables:
+
+#+begin_src lisp
+(defun entry-transfers (cfgraph)
+  "Returns the transfers that are anticipated on entry in the function."
+  (entry/exit-transfers cfgraph #'entry-on-device-variables-cfgraph))
+
+(defun exit-transfers (cfgraph)
+  "Returns the transfers that are available on exit in the function."
+  (entry/exit-transfers cfgraph #'exit-on-device-variables-cfgraph))
+
+(defun entry/exit-transfers (cfgraph exit-on-device-variables)
+  "Returns the transfers that are anticipated on entry in the function."
+  (filter-dataflow-map
+   #'(lambda (x)
+       (not (member (type-of x) '(use-on-host-variable def-on-host-variable))))
+   (funcall exit-on-device-variables cfgraph)))
+#+end_src
+
+Whether a basic block is call:
+
+#+begin_src lisp
+(defun call-p (bb)
+  (and (typep bb 'bb-stat) (typep (stat bb) 'call-stat)))
+#+end_src
+
+
+
+*** Macros
+    :PROPERTIES:
+    :header-args+: :package ":generate-transfers"
+    :header-args+: :tangle "../system/micro-passes/generate-transfers/macros.lisp"
+    :END:
+
+The macro ~with-func-state~ translates states to the actual call into the maps:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-transfers)
+#+end_src
+
+#+begin_src lisp
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun create-symbol (slot)
+    `(,slot (gethash (global-state-current-func *state*)
+		     (,(intern (format nil "GLOBAL-STATE-~a-MAP" slot))
+		       ,*state*)))))
+
+(defmacro with-func-state (slots &body body)
+  `(symbol-macrolet (,@(loop for slot in slots collect (create-symbol slot)))
+     ,@body))
+#+end_src
+
+The following macro sets a new state and restores it to the old one when
+exiting the scope:
+
+#+begin_src lisp
+(defmacro with-new-func-state (func &body body)
+  (with-gensyms (old-current-func)
+    `(with-slots (current-func) *state*
+       (let ((,old-current-func current-func))
+	 (setf current-func ,func)
+	 ,@body
+	 (setf current-func ,old-current-func)))))
+#+end_src
+
+
+*** Testing
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-generate-transfers/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-generate-transfers
+  (:use :cl :test-mcl :fiveam :ast :ast-mcpl :parse-mcpl :set-parents
+	:resolve-calls :set-callgraph :check-types :resolve-vars
+	:set-vars-written :set-cfgraphs :set-entry-exit-on-device-variables
+	:generate-transfers)
+  (:shadowing-import-from :fiveam :skip)
+  (:export :test-generate-transfers))
+#+end_src
+
+**** The tests
+     :PROPERTIES:
+     :header-args+: :package ":test-generate-transfers"
+     :header-args+: :tangle "../system/tests/test-generate-transfers/test-generate-transfers.lisp"
+     :END:
+
+The top-level tests:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-generate-transfers)
+#+end_src
+
+#+begin_src lisp
+(def-suite generate-transfers :in mcl-test-suite)
+(in-suite generate-transfers)
+
+;; (deftest test-generate-transfers ()
+;;   (combine-results
+;;     (test-simple)
+;;     (test-host-writes)
+;;     (test-host-reads)
+;;     (test-multiple-foreach)
+;;     (test-if-statements)
+;;     (test-multiple-functions)
+;;     (test-sequences-of-calls)
+;;     (test-for-loops)
+;;     (test-local-variables)
+;;     (test-other-vars)
+;;     (test-tiles)))
+#+end_src
+
+#+begin_src lisp :exports none :tangle no
+;; these are temporary functions
+
+(defun pp (ast) (print-pretty:pp ast))
+
+(defun vis (func forward &optional cfgraph)
+  (let ((cfgraph (if cfgraph cfgraph *cfgraph*)))
+    (multiple-value-bind (out in) (funcall func cfgraph)
+      (visualize-dataflow-graph:visualize-dataflow-graph
+       cfgraph
+       (if forward in out)
+       (if forward out in)
+       "/home/pieter/dataflow.dot"))))
+
+(defun get-cfgraph-func (name module)
+  (cfgraph (first (filter #'(lambda (func) (string= (name (id func)) name))
+			  (funcs (code module))))))
+#+end_src
+
+***** Simple tests:
+      
+#+begin_src lisp
+(def-suite simple :in generate-transfers)
+(in-suite simple)
+
+(test simple
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] += input[i];
+     }
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] += input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }")))
+#+end_src
+
+***** Writes that occur on the host
+
+#+begin_src lisp
+(def-suite host-writes :in generate-transfers)
+(in-suite host-writes)
+(test host-writes-only-read
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, float[n] input) {
+     input[0] = 1.0;
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }")
+"perfect void f(const int n, float[n] output, float[n] input) {
+     input[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, float[n] input) {
+    foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     input[0] = 1.0;
+ }")
+		    "perfect void f(const int n, float[n] output, float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+     input[0] = 1.0;
+ }")))
+
+
+(test host-writes-only-written
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }"))
+  (is (transfers-ok (gen-transfers
+		     "perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     output[0] = 1.0;
+}")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+     output[0] = 1.0;
+ }")))
+
+
+(test host-writes-written-read
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     foreach (const int i in n threads) {
+         output[i] += input[i];
+     }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] += input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] += input[i];
+     }
+     output[0] = 1.0;
+}")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] += input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+     output[0] = 1.0;
+ }")))
+#+end_src
+
+
+***** Reads that occur on the host
+
+#+begin_src lisp
+(def-suite host-reads :in generate-transfers)
+(in-suite host-reads)
+
+(test host-reads-simple
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     const float f = output[0];
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     const float f = output[0];
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }"))
+  (is (transfers-ok (gen-transfers
+		     "perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     const float f = output[0];
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+     const float f = output[0];
+ }")))
+#+end_src
+
+***** Multiple foreach
+      :PROPERTIES:
+      :ATTACH_DIR_INHERIT: t
+      :END:
+
+#+begin_src lisp
+(def-suite multiple-foreach :in generate-transfers)
+(in-suite multiple-foreach)
+
+(test multiple-foreach-simple
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     
+     foreach (const int j in n threads) {
+         output[j] = input[j];
+     }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+
+     foreach (const int j in n threads) {
+         output[j] = input[j];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }")))
+
+(test multiple-foreach-reads
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+
+     const float f = input[0];
+
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+
+     const float f = input[0];
+
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }")))
+
+
+(test multiple-foreach-writes
+#|
+  (is 
+	(transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+
+     input[0] = 2.0;
+
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }")
+"perfect void f(const int n, float[n] output, float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+
+     input[0] = 2.0;
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }"))
+|#
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+
+     output[0] = 2.0;
+
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(output);
+     output[0] = 2.0;
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+
+     foreach (const int i in n threads) {
+       output[i] = input[i];
+     }
+
+     output[0] = 2.0;
+
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(output);
+     output[0] = 2.0;
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }")))
+
+
+
+
+#+end_src
+
+***** Test if-statements
+
+The if-statement logic has to be removed.
+
+#+begin_src lisp
+(def-suite if-statements :in generate-transfers)
+(in-suite if-statements)
+
+(test if-statements
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   if (0 == 0) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+   else { 
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   if (0 == 0) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+   }
+   else {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+   }
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+        output[i] = input[i];
+   }
+   if (0 == 0) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+   else { 
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   foreach (const int i in n threads) {
+       output[i] = input[i];
+   }
+   if (0 == 0) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+   }
+   else {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+   }
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+        output[i] = input[i];
+   }
+   if (0 == 0) {
+     const int a;
+     output[0] = 0.0;
+     const int b;
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+   else { 
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+   const int c;
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   foreach (const int i in n threads) {
+       output[i] = input[i];
+   }
+   if (0 == 0) {
+     mcl_builtin_transfer_from_device(output);
+     const int a;
+     output[0] = 0.0;
+     const int b;
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+   }
+   else {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+   }
+   const int c;
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   const int a;
+   if (0 == 0) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     int b;
+     output[0] = 0.0;
+     int c;
+   }
+   else { 
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+   foreach (const int i in n threads) {
+        output[i] = input[i];
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   const int a;
+   if (0 == 0) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(output);
+     const int b;
+     output[0] = 0.0;
+     const int c;
+     mcl_builtin_transfer_to_device(output);
+   }
+   else {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+   foreach (const int i in n threads) {
+       output[i] = input[i];
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   if (0 == 0) {
+     const int a;
+   }
+   else { 
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   if (0 == 0) {
+     const int a;
+     mcl_builtin_transfer_to_device(input);
+     mcl_builtin_transfer_to_device(output);
+   }
+   else { 
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   }
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }"))
+  (transfers-ok (gen-transfers
+		 "perfect void f(const int n, float[n] output, const float[n] input) {
+   if (0 == 0) {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+     output[0] = 1.0;
+   }
+   else {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   if (0 == 0) {
+    mcl_builtin_transfer_to_device(output);
+    mcl_builtin_transfer_to_device(input);
+    foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+     output[0] = 1.0;
+   }
+   else {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+   }
+ }")
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+   output[0] = 1.0;
+}
+
+
+perfect void g(const int n, float[n] output, const float[n] input) {
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+   if (0 == 0) {
+     f(n, output, input);
+     int a;
+   }
+   else {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+   }
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+   mcl_builtin_transfer_from_device(output);
+   output[0] = 1.0;
+}
+
+
+perfect void g(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+   if (0 == 0) {
+     f(n, output, input);
+     const int a;
+     mcl_builtin_transfer_to_device(output);
+   }
+   else {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+   }
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   if (0 == 0) {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+     output[0] = 1.0;
+   }
+   else {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+   }
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   if (0 == 0) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+     mcl_builtin_transfer_from_device(output);
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+   }
+   else {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+   }
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }")))
+#+end_src
+
+***** Multiple functions
+
+
+#+begin_src lisp
+(def-suite multiple-functions :in generate-transfers)
+(in-suite multiple-functions)
+(test simple
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+     f(n, output, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     f(n, output, input);
+     f(n, output, input);
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+")))
+
+#+end_src
+
+#+begin_src lisp
+(test host-writes-before
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+       f(n, output, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+     f(n, output, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(output);
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(input);
+     f(n, output, input);
+     f(n, output, input);
+     mcl_builtin_transfer_from_device(input);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f1(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void f2(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f1(n, output, input);
+     f2(n, output, input);
+ }")
+"perfect void f1(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void f2(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f1(n, output, input);
+     f2(n, output, input);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f1(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void f2(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f2(n, output, input);
+     f1(n, output, input);
+     f2(n, output, input);
+ }")
+		    "perfect void f1(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void f2(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     f2(n, output, input);
+     f1(n, output, input);
+     f2(n, output, input);
+     mcl_builtin_transfer_from_device(input);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f1(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void f2(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f1(n, output, input);
+     f2(n, output, input);
+     f1(n, output, input);
+ }")
+		    "perfect void f1(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void f2(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(input);
+     f1(n, output, input);
+     f2(n, output, input);
+     f1(n, output, input);
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f1(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void f2(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f1(n, output, input);
+     f2(n, output, input);
+     f2(n, output, input);
+     f1(n, output, input);
+ }")
+"perfect void f1(const int n, float[n] output, const float[n] input) {
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void f2(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(input);
+     f1(n, output, input);
+     f2(n, output, input);
+     f2(n, output, input);
+     mcl_builtin_transfer_from_device(output);
+     f1(n, output, input);
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+   }
+")))
+#+end_src
+
+#+begin_src lisp
+(test host-writes-after
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     output[0] = 1.0;
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+     output[0] = 1.0;
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+ }
+")))
+#+end_src
+
+#+begin_src lisp
+(test different-calls
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   f(n, output, input);
+   f(n, output, input);
+   output[0] = 1.0;
+   f(n, output, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   f(n, output, input);
+   f(n, output, input);
+   mcl_builtin_transfer_from_device(output);
+   output[0] = 1.0;
+   mcl_builtin_transfer_to_device(output);
+   f(n, output, input);
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   f(n, output, input);
+   float[n] output2;
+   f(n, output2, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+   mcl_builtin_transfer_from_device(output);
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(input);
+   f(n, output, input);
+   float[n] output2;
+   f(n, output2, input);
+   mcl_builtin_transfer_from_device(input);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   f(n, output, input);
+   f(n, output, input);
+   float[n] output2;
+   f(n, output2, input);
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   f(n, output, input);
+   f(n, output, input);
+   mcl_builtin_transfer_from_device(output);
+   float[n] output2;
+   mcl_builtin_transfer_to_device(output2);
+   f(n, output2, input);
+   mcl_builtin_transfer_from_device(output2);
+   mcl_builtin_transfer_from_device(input);
+ }
+")))
+#+end_src
+
+
+#+begin_src lisp
+(test call-chains-simple
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+     f(n, output, input);
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   g(n, output, input);
+   g(n, output, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   f(n, output, input);
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   g(n, output, input);
+   g(n, output, input);
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+     f(n, output, input);
+     f(n, output, input);
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   g(n, output, input);
+   g(n, output, input);
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   f(n, output, input);
+   f(n, output, input);
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   g(n, output, input);
+   g(n, output, input);
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+   f(n, output, input);
+   output[0] = 0.0;
+   f(n, output, input);
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   g(n, output, input);
+   g(n, output, input);
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   f(n, output, input);
+   mcl_builtin_transfer_from_device(output);
+   output[0] = 0.0;
+   mcl_builtin_transfer_to_device(output);
+   f(n, output, input);
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   g(n, output, input);
+   g(n, output, input);
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+   output[0] = 0.0;
+   f(n, output, input);
+   f(n, output, input);
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   g(n, output, input);
+   g(n, output, input);
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   output[0] = 0.0;
+   mcl_builtin_transfer_to_device(output);
+   f(n, output, input);
+   f(n, output, input);
+   mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(input);
+   g(n, output, input);
+   g(n, output, input);
+   mcl_builtin_transfer_from_device(input);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+   f(n, output, input);
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   h(n, output, input);
+   g(n, output, input);
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   f(n, output, input);
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   h(n, output, input);
+   g(n, output, input);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+     f(n, output, input);
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   g(n, output, input);
+ }
+ 
+ perfect void i(const int n, float[n] output, const float[n] input) {
+   h(n, output, input);
+   h(n, output, input);
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   f(n, output, input);
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   g(n, output, input);
+ }
+
+ perfect void i(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   h(n, output, input);
+   h(n, output, input);
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+")))
+#+end_src
+
+#+begin_src lisp
+(test call-chains-for-loops
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < n; i++) {
+     f(n, output, input);
+   }
+   const int a;
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < 2; i++) {
+     g(n, output, input);
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < n; i++) {
+     f(n, output, input);
+   }
+   const int a;
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   for (int i = 0; i < 2; i++) {
+     g(n, output, input);
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < n; i++) {
+     f(n, output, input);
+   }
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+
+   for (int i = 0; i < 2; i++) {
+     g(n, output, input);
+   }
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < n; i++) {
+     f(n, output, input);
+   }
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   for (int i = 0; i < 2; i++) {
+     g(n, output, input);
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }")))
+#+end_src
+
+
+
+
+***** Sequences of calls
+
+#+begin_src lisp
+(def-suite sequences-of-calls :in generate-transfers)
+(in-suite sequences-of-calls)
+
+(test simple
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+     f(n, output, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     f(n, output, input);
+     f(n, output, input);
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+		     "perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+     const float f = input[0];
+     f(n, output, input);
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     f(n, output, input);
+     const float f = input[0];
+     f(n, output, input);
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+")))
+
+
+(test transfers
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     f(n, output, input);
+     const float f = output[0];
+     f(n, output, input);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(output);
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(input);
+     f(n, output, input);
+     const float f = output[0];
+     f(n, output, input);
+     mcl_builtin_transfer_from_device(input);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+     f(n, output, input);
+     input[0] = 1.0;
+     f(n, output, input);
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+ }
+ 
+ perfect void g(const int n, float[n] output, float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     f(n, output, input);
+     input[0] = 1.0;
+     f(n, output, input);
+     mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f2(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ perfect void f1(const int n, float[n] output, float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     input[0] = 1.0;
+     output[0] = 1.0;
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+         f1(n, output, input);
+         f2(n, output, input);
+ }")
+"perfect void f2(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);     
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+ perfect void f1(const int n, float[n] output, float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);     
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+     input[0] = 1.0;
+     output[0] = 1.0;
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+     f1(n, output, input);
+     f2(n, output, input);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f2(const int n, float[n] output, float[n] input) {
+     input[0] = 1.0;
+     output[0] = 1.0;
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ perfect void f1(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+         f1(n, output, input);
+         f2(n, output, input);
+ }")
+"perfect void f2(const int n, float[n] output, float[n] input) {
+     input[0] = 1.0;
+     output[0] = 1.0;
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);     
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+ perfect void f1(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);     
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+     f1(n, output, input);
+     f2(n, output, input);
+ }")))
+    
+#+end_src
+      
+***** For-loops
+
+The second test is not that ok.
+
+#+begin_src lisp
+(def-suite for-loops :in generate-transfers)
+(in-suite for-loops)
+
+(test simple
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < 2; i++) {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   for (int i = 0; i < 2; i++) {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+		     "perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     for (int i = 0; i < 2; i++) {
+         f(n, output, input);
+     }
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     for (int i = 0; i < 2; i++) {
+         f(n, output, input);
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+		     "perfect void f(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < 2; i++) {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+     output[0] = 1.0;
+   }
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(input);
+   for (int i = 0; i < 2; i++) {
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+     mcl_builtin_transfer_from_device(output);
+     output[0] = 1.0;
+   }
+   mcl_builtin_transfer_from_device(input);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     for (int i = 0; i < 2; i++) {
+         f(n, output, input);
+         output[0] = 1.0;
+     }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+     mcl_builtin_transfer_from_device(output);
+}
+ 
+ perfect void g(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(input);
+     for (int i = 0; i < 2; i++) {
+         f(n, output, input);
+          output[0] = 1.0;
+     }
+     mcl_builtin_transfer_from_device(input);
+ }
+")))
+
+(test swap
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, float[n] input) {
+   for (int i = 0; i < 2; i++) {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+     output <=> input;
+   }
+ }")
+"perfect void f(const int n, float[n] output, float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   for (int i = 0; i < 2; i++) {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+     output <=> input;
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+      foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+     for (int i = 0; i < 2; i++) {
+         f(n, output, input);
+         output <=> input;
+     }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] = input[i];
+     }
+ }
+ 
+ perfect void g(const int n, float[n] output, float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     for (int i = 0; i < 2; i++) {
+         f(n, output, input);
+         output <=> input;
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }
+")))
+
+
+(test advanced
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < 2; i++) {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+   }
+
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   for (int i = 0; i < 2; i++) {
+     foreach (const int j in n threads) {
+       output[j] = input[j];
+     }
+   }
+
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < 2; i++) {
+     const float a = 2.0;
+   }
+
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < 2; i++) {
+     const float a = 2.0;
+   }
+
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+
+   for (int i = 0; i < 2; i++) {
+     const float a = 2.0;
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   foreach (const int j in n threads) {
+     output[j] = input[j];
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+
+   for (int i = 0; i < 2; i++) {
+     const float a = 2.0;
+   }
+ }
+")))
+#+end_src
+
+***** Local variables
+
+#+begin_src lisp
+(def-suite local-variables :in generate-transfers)
+(in-suite local-variables)
+
+(test local-variables
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     float result;
+     result = input[i];
+     output[i] = result;
+   }
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   foreach (const int i in n threads) {
+     float result;
+     result = input[i];
+     output[i] = result;
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_from_device(output);
+ }
+")))
+#+end_src
+
+***** Other variables
+
+#+begin_src lisp
+(test other-vars
+  (is 
+    (transfers-ok (gen-transfers
+"perfect void g(const int n, float[n] output, const float[n] input) {
+   float[n] inputCopy;
+   foreach (const int i in n threads) {
+     inputCopy[i] = input[i];
+   }
+   foreach (const int i in n threads) {
+     output[i] = inputCopy[i];
+   }
+ }")
+"perfect void g(const int n, float[n] output, const float[n] input) {
+   float[n] inputCopy;
+   mcl_builtin_transfer_to_device(input);
+   mcl_builtin_transfer_to_device(inputCopy);
+   foreach (const int i in n threads) {
+     inputCopy[i] = input[i];
+   }
+   mcl_builtin_transfer_from_device(input);
+   mcl_builtin_transfer_to_device(output);
+   foreach (const int i in n threads) {
+     output[i] = inputCopy[i];
+   }
+   mcl_builtin_transfer_from_device(inputCopy);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   float[n] inputCopy;
+   f(n, inputCopy, input);
+   f(n, output, inputCopy);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   float[n] inputCopy;
+   mcl_builtin_transfer_to_device(input);
+   f(n, inputCopy, input);
+   mcl_builtin_transfer_from_device(input);
+   f(n, output, inputCopy);
+   mcl_builtin_transfer_from_device(inputCopy);
+   mcl_builtin_transfer_from_device(output);
+ }
+"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   float[n] inputCopy;
+   f(n, inputCopy, input);
+   g(n, output, inputCopy);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+   mcl_builtin_transfer_from_device(input);
+ }
+
+ perfect void g(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+   mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   float[n] inputCopy;
+   f(n, inputCopy, input);
+   g(n, output, inputCopy);
+   mcl_builtin_transfer_from_device(inputCopy);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+   for (int i = 0; i < 2; i++) {
+     f(n, output, input);
+     output <=> input;
+   }
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   float[n] inputCopy;
+   h(n, inputCopy, input);
+   g(n, output, inputCopy);
+ }")
+"perfect void f(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int n, float[n] output, float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   for (int i = 0; i < 2; i++) {
+     f(n, output, input);
+     output <=> input;
+   }
+   mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void h(const int n, float[n] output, const float[n] input) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_to_device(input);
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+   mcl_builtin_transfer_from_device(input);
+ }
+
+ perfect void k(const int n, float[n] output, const float[n] input) {
+   float[n] inputCopy;
+   h(n, inputCopy, input);
+   g(n, output, inputCopy);
+   mcl_builtin_transfer_from_device(inputCopy);
+ }"))
+  (is (transfers-ok (gen-transfers
+"perfect void g(const int n, float[n] output, const float[n] input) {
+   float[n] inputCopy;
+   foreach (const int i in n threads) {
+     inputCopy[i] = input[i];
+   }
+   inputCopy[0] = 0.0;
+   foreach (const int i in n threads) {
+     output[i] = inputCopy[i];
+   }
+ }")
+"perfect void g(const int n, float[n] output, const float[n] input) {
+    float[n] inputCopy;
+    mcl_builtin_transfer_to_device(input);
+    mcl_builtin_transfer_to_device(inputCopy);
+    foreach (const int i in n threads) {
+        inputCopy[i] = input[i];
+    }
+    mcl_builtin_transfer_from_device(inputCopy);
+    mcl_builtin_transfer_from_device(input);
+    inputCopy[0] = 0.0;
+    mcl_builtin_transfer_to_device(output);
+    mcl_builtin_transfer_to_device(inputCopy);
+    foreach (const int i in n threads) {
+        output[i] = inputCopy[i];
+    }
+    mcl_builtin_transfer_from_device(inputCopy);
+    mcl_builtin_transfer_from_device(output);
+}
+")))
+#+end_src
+
+***** Tiles
+
+#+begin_src lisp
+(def-suite tiles :in generate-transfers)
+(in-suite tiles)
+(test tiles
+  (is
+    (transfers-ok (gen-transfers
+"perfect void f(const int h, const int w, float[h][w] output,
+      const float[h][w] input) {
+
+   for (int i = 0; i < h; i++) {
+     foreach (const int j in w threads) {
+         output[j] = input[j];
+     }
+   }
+ }")
+"perfect void f(const int h, const int w, float[h][w] output, const float[h][w] input) {
+    mcl_builtin_transfer_to_device(output);
+    mcl_builtin_transfer_to_device(input);
+    for (int i = 0; i < h; i++) {
+        foreach (const int j in w threads) {
+            output[j] = input[j];
+        }
+    }
+    mcl_builtin_transfer_from_device(input);
+    mcl_builtin_transfer_from_device(output);
+}"))
+  (is (transfers-ok (gen-transfers
+		     "perfect void f(const int n, float[n] output, const float[n] input) {
+     foreach (const int i in n threads) {
+         output[i] += input[i];
+     }
+ }")
+		    "perfect void f(const int n, float[n] output, const float[n] input) {
+     mcl_builtin_transfer_to_device(output);
+     mcl_builtin_transfer_to_device(input);
+     foreach (const int i in n threads) {
+         output[i] += input[i];
+     }
+     mcl_builtin_transfer_from_device(input);
+     mcl_builtin_transfer_from_device(output);
+ }")))
+#+end_src
+
+***** Helper functions
+
+#+begin_src lisp
+(defun transfers-ok (ast-with-generated-transfers string-wanted)
+  ;; (format t "wanted:~%~a~%" (print-pretty:pp (string->ast string-wanted)))
+  ;; (format t "got:~%~a~%" (print-pretty:pp ast-with-generated-transfers))
+  (ast= ast-with-generated-transfers (string->ast string-wanted)))
+
+(defun gen-transfers (input-string)
+  (let* ((module (string->ast input-string))
+	 (exports (make-hash-table :test 'equal)))
+    (set-parents module)
+    (resolve-calls module exports)
+    (resolve-vars module exports)
+    (check-types module)
+    (set-cfgraphs module t t)
+    (let ((callgraph (set-callgraph (funcs (code module)))))
+      (set-vars-written callgraph)
+      (set-entry-exit-on-device-variables callgraph)
+      (generate-transfers callgraph)
+      module)))
+
+(defparameter *module-template*
+"package a;
+ module a;
+ import perfect;
+
+ ~a
+")
+
+(defun string->ast (input-string)
+  (parse-mcpl (format nil *module-template* input-string)))
+#+end_src
+
+
+** Generate allocations
+
+Generating allocations is more simple than generating transfers if this
+dataflow solution is based on generating transfers.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/generate-allocations/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :generate-allocations
+  (:use :cl :cl-graph :simple-sets :dataflow :controlflow :ast :callgraph :ast-mcpl)
+  (:shadowing-import-from :simple-sets :union :set-difference :intersection)
+  (:import-from :utility-directory :filter)
+  (:export :generate-allocations))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":generate-allocations"
+    :header-args+: :tangle "../system/micro-passes/generate-allocations/generate-allocations.lisp"
+    :END:
+
+The generating allocations and deallocations passes are completely symmetric.
+Most of the code is written by assuming generating allocations.  Generating
+allocations occurs in two phases.  First, we analyze the calls from the top
+function and record whether allocations should be inserted in the calling
+function or in the called function.  We then generate the allocations and
+deallocations.  
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :generate-allocations)
+#+end_src
+
+#+begin_src lisp
+(defun generate-allocations (callgraph)
+  (let ((tops (tops-callgraph callgraph))
+	(pass-info-allocations (make-pass-info-allocations))
+	(pass-info-deallocations (make-pass-info-deallocations)))
+    (loop for top in tops do
+	 (analyze-calls-func top pass-info-allocations nil)
+	 (analyze-calls-func top pass-info-deallocations nil))
+
+    (loop for f in (funcs-ordered callgraph) do
+	 (generate-allocations-func f pass-info-allocations)
+	 (generate-allocations-func f pass-info-deallocations))))
+#+end_src
+
+
+Because the passes are symmetric, we use a ~pass-info~ struct that contains the
+data and functions to direct the computation towards allocation or deallocation.
+
+
+**** Pass information
+
+The pass information struct contains several functions and a mapping from
+function to allocations that can move to the calling function:
+
+#+begin_src lisp
+(defstruct pass-info
+  allocations
+  available-allocation-variables
+  create-allocation
+  insert-before-ast
+  to-caller-allocations-map)
+#+end_src
+
+For inserting the allocations we create the struct as follows:
+
+#+begin_src lisp
+(defun make-pass-info-allocations ()
+  (make-pass-info
+   :allocations #'allocations
+   :available-allocation-variables #'available-allocation-variables
+   :create-allocation #'create-allocation
+   :insert-before-ast #'insert-before-ast
+   :to-caller-allocations-map (make-hash-table)))
+#+end_src
+
+For inserting deallocations, we create the struct as follows:
+
+#+begin_src lisp
+(defun make-pass-info-deallocations ()
+  (make-pass-info
+   :allocations #'deallocations
+   :available-allocation-variables #'anticipated-deallocation-variables
+   :create-allocation #'create-deallocation
+   :insert-before-ast #'insert-after-ast
+   :to-caller-allocations-map (make-hash-table)))
+#+end_src
+
+**** Analyzing calls
+
+The first phase of the analysis aims to record which allocations should be
+performed by the calling function.  We recursively analyze this using the top
+of the callgraph.  As soon as we encounter a call statement, we recurse into
+that function.  To ensure we only analyze each function once, we keep track of
+functions already analyzed.  The allocations that can move to the caller is
+defined to be the set of available-allocation-variables minus the set of
+allocations.  This means that if there is a call that does not have
+allocations, but they are available, then the allocations have already happened
+and the allocations should always move to the caller.
+
+The function also initializes the ~to-caller-allocations-map~ when necessary.
+
+#+begin_src lisp
+(defun analyze-calls-func (func pass-info funcs-done)
+  (unless (member func funcs-done)
+    (with-slots (available-allocation-variables to-caller-allocations-map
+						allocations)
+	pass-info
+      (let* ((cfgraph (cfgraph func))
+	     (to-caller (dataflow-difference
+			 (funcall available-allocation-variables cfgraph)
+			 (funcall allocations cfgraph)))
+	     (bbs (mapcar #'element (vertexes cfgraph))))
+	(create-dataflow-set-func func pass-info)
+	(push func funcs-done)
+	(loop for bb in bbs when (call-to-non-builtin bb)
+	   do (add-to-caller-allocations
+	       bb (gethash bb to-caller) pass-info)
+	     (analyze-calls-func
+	      (func (call (stat bb))) pass-info funcs-done))))))
+#+end_src
+
+The following function adds the allocations that should go to the caller to the
+~pass-info~ datastructure.
+
+#+begin_src lisp
+(defun add-to-caller-allocations (bb available-dataflow-variables pass-info)
+  (with-slots (to-caller-allocations-map) pass-info
+    (let* ((call (call (stat bb)))
+	   (func (func call))
+	   (call-variables
+	    (get-call-variables (elements available-dataflow-variables)
+				call))
+	   (to-caller-allocations (dataflow-variables-calling-func->called-func
+				   call-variables call)))
+      (create-dataflow-set-func func pass-info)
+      (add-all-to-set to-caller-allocations
+		      (gethash func to-caller-allocations-map)))))
+
+(defun get-call-variables (dataflow-variables call)
+  (let* ((decls (mapcar #'get-decl-param (params call))))
+    (filter #'(lambda (dfv) (member (decl dfv) decls)) dataflow-variables)))
+#+end_src
+
+The following function creates an empty dataflow set for a function when
+necessary.
+
+#+begin_src lisp
+(defun create-dataflow-set-func (func pass-info)
+  (with-slots (to-caller-allocations-map) pass-info
+    (unless (gethash func to-caller-allocations-map)
+      (setf (gethash func to-caller-allocations-map)
+	    (make-dataflow-set)))))
+#+end_src
+
+
+**** Generating the allocations
+
+The function below inserts allocations for each basic block unless the
+allocations are known to be handled by the calling function:
+
+#+begin_src lisp
+(defun generate-allocations-func (func pass-info)
+  (with-slots (called-by) func
+    (unless (and called-by
+		 (loop for c in called-by always (call-expr-p c)))
+      (with-slots (allocations to-caller-allocations-map) pass-info
+	(let* ((cfgraph (cfgraph func))
+	       (allocations-map (funcall allocations cfgraph))
+	       (to-caller (gethash func to-caller-allocations-map)))
+	  (loop for bb being the hash-keys in allocations-map
+	     using (hash-value allocation-set)
+	     do (insert-allocations-bb
+		 bb (set-difference allocation-set to-caller) pass-info)))))))
+#+end_src
+
+The following function insert allocations based on whether it is a call to
+another function.
+
+#+begin_src lisp
+(defun insert-allocations-bb (bb allocations-set pass-info)
+  (with-slots (insert-before-ast create-allocation) pass-info
+    (if (call-to-non-builtin bb)
+	(insert-allocations-call bb allocations-set pass-info)
+	(insert-allocations-bb-regular bb allocations-set pass-info))))
+#+end_src
+
+If the basic block is a call to a non-builtin function, we retrieve the
+allocations that should be done by the caller (transforming the declarations
+from the called function to the caller) and intersect that with the allocations
+that should happen at this basic block.  This ensures that we generate the
+allocations that should be moved to the caller and that we do not generate
+these allocations in places where it is not necessary.
+
+#+begin_src lisp
+(defun insert-allocations-call (bb allocations-set pass-info)
+  (with-slots (to-caller-allocations-map) pass-info
+    (let* ((call (call (stat bb)))
+	   (to-caller (make-dataflow-set
+		       (dataflow-variables-called-func->calling-func
+			(elements
+			 (gethash (func call) to-caller-allocations-map))
+			call))))
+      (insert-allocations-bb-regular
+       bb (intersection allocations-set to-caller) pass-info))))
+#+end_src
+
+The following function just inserts the allocations in ~allocations-set~ at
+basic block ~bb~ using the functions that are stored in ~pass-info~. 
+
+#+begin_src lisp
+(defun insert-allocations-bb-regular (bb allocations-set pass-info)
+  (with-slots (insert-before-ast create-allocation) pass-info
+    (loop for allocation in (elements allocations-set)
+	   do (funcall insert-before-ast
+		       (stat bb)
+		       (funcall create-allocation (decl allocation))))))
+#+end_src
+
+
+The following functions create the actual allocations:
+
+#+begin_src lisp
+(defun create-allocation (decl)
+  (create-allocation-with-name "mcl_builtin_allocate_on_device" decl))
+
+(defun create-deallocation (decl)
+  (create-allocation-with-name "mcl_builtin_deallocate_on_device" decl))
+
+(defun create-allocation-with-name (name-function decl)
+  (make-call-stat
+   (make-call
+    (make-id name-function)
+    (list 
+     (make-var-expr (make-normal-var
+                     (make-basic-var (make-id (name (get-id decl))) nil)))))))
+#+end_src
+
+**** The dataflow solutions
+
+Essentially, there is only one dataflow analysis necessary.  The first function
+~allocations~ makes use of ~available-allocation-variables~ discussed below.
+The analysis ~allocation~ indicates per basic block which allocations should be
+performed (without taking into account whether the allocations can be moved to
+the caller).  The allocations are defined to be the difference between the OUT
+and IN set of available-allocation-variables.  This means that if an allocation
+is not available before a basic block but it is available after the basic
+block, then an allocation should happen:
+
+#+begin_src lisp
+(defun allocations (cfgraph)
+  (multiple-value-bind (out in) (available-allocation-variables cfgraph)
+    (dataflow-difference out in)))
+#+end_src
+
+The ~available-allocation-variables~ is simply a forward dataflow where
+allocations that are generated at certain basic blocks are simply propogated
+through the graph (they don't get killed).
+
+#+begin_src lisp
+(defun available-allocation-variables (cfgraph)
+  (let ((gen (gen-allocation-variables cfgraph))
+	(kill (empty-dataflow-map cfgraph)))
+    (must-forward cfgraph gen kill)))
+#+end_src
+
+Generating allocation variables looks for basic blocks that are calls with name
+"mcl_builtin_transfer_to_device":
+
+#+begin_src lisp
+(defun gen-allocation-variables (cfgraph)
+  (gen-de/allocation-variables cfgraph "mcl_builtin_transfer_to_device"))
+
+(defun gen-de/allocation-variables (cfgraph name-builtin-func)
+  (let ((bbs (mapcar #'element (vertexes cfgraph)))
+        (map (make-hash-table)))
+    (dolist (bb bbs)
+      (let ((set (make-dataflow-set)))
+	(get-allocation-vars-from-bb bb set name-builtin-func)
+	(setf (gethash bb map) set)))
+    map))
+
+(defun get-allocation-vars-from-bb (bb set name-builtin-func)
+  (when (and (typep bb 'bb-stat)
+	     (typep (stat bb) 'call-stat))
+    (get-allocation-vars-from-call (call (stat bb)) set name-builtin-func)))
+#+end_src
+
+When the call is the call we are looking for, we create the allocation
+variable, if the call is another builtin function, we leave it allone,
+otherwise we gather the allocation variables that are generated within the
+called function, translate the declarations to declarations of the caller and
+add them to the allocations of the basic block:
+
+#+begin_src lisp
+(defun get-allocation-vars-from-call (call set name-builtin-func)
+  (with-slots (id params func) call
+    (cond ((string= (name id) name-builtin-func)
+	   (add-to-set (make-allocation-variable
+			(get-decl-param (first params))) set))
+	  ((builtin-func-p call))
+	  (t
+	   (get-allocation-vars-from-called-func call set name-builtin-func)))))
+
+(defun get-allocation-vars-from-called-func (call set name-builtin-func)
+  (with-slots (func) call
+    (let ((allocation-vars-called-func
+	   (elements
+	    (universal-set
+	     (gen-de/allocation-variables
+	      (cfgraph func) name-builtin-func)))))
+      (add-all-to-set
+       (dataflow-variables-called-func->calling-func
+	(filter #'(lambda (allocation-var)
+		    (decl-called-func-in-calling-func-p (decl allocation-var)
+							call))
+		allocation-vars-called-func)
+	call)
+       set))))
+#+end_src
+
+The following code makes allocation variables:
+
+#+begin_src lisp
+(defclass allocation-variable (dataflow-variable) ())
+
+(defun make-allocation-variable (decl)
+  (make-instance 'allocation-variable :decl decl))
+#+end_src
+
+
+
+The following functions are similar but then for deallocations:
+
+#+begin_src lisp
+(defun deallocations (cfgraph)
+  (multiple-value-bind (in out) (anticipated-deallocation-variables cfgraph)
+    (dataflow-difference in out)))
+
+(defun anticipated-deallocation-variables (cfgraph)
+  (let ((gen (gen-deallocation-variables cfgraph))
+	(kill (empty-dataflow-map cfgraph)))
+    (must-backward cfgraph gen kill)))
+
+(defun gen-deallocation-variables (cfgraph)
+  (gen-de/allocation-variables cfgraph "mcl_builtin_transfer_from_device"))
+#+end_src
+
+**** Helper functions
+
+#+begin_src lisp
+(defun call-to-non-builtin (bb)
+  (and (typep bb 'bb-stat)
+       (let ((stat (stat bb)))
+	 (and (typep stat 'call-stat)
+	      (not (builtin-func-p (call stat)))))))
+#+end_src
+
+
+
+*** Testing generating allocations
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-generate-allocations/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+
+(defpackage :test-generate-allocations
+  (:use :cl :test-mcl :fiveam :ast :ast-mcpl :generate-allocations
+	:parse-mcpl :set-parents :resolve-calls :set-callgraph :resolve-vars
+	:set-cfgraphs :set-vars-written)
+  (:shadowing-import-from :fiveam :skip)
+  (:export :test-generate-allocations))
+#+end_src
+
+**** The tests
+     :PROPERTIES:
+     :header-args+: :package ":test-generate-allocations"
+     :header-args+: :tangle "../system/tests/test-generate-allocations/test-generate-allocations.lisp"
+     :END:
+
+
+#+begin_src lisp :exports none :tangle no
+;; these are temporary functions
+
+(defun pp (ast) (print-pretty:pp ast))
+
+(defun vis (func forward &optional cfgraph)
+  (let ((cfgraph (if cfgraph cfgraph *cfgraph*)))
+    (multiple-value-bind (out in) (funcall func cfgraph)
+      (visualize-dataflow-graph:visualize-dataflow-graph
+       cfgraph
+       (if forward in out)
+       (if forward out in)
+       "/home/pieter/dataflow.dot"))))
+
+(defun get-cfgraph-func (name module)
+  (cfgraph (first (filter #'(lambda (func) (string= (name (id func)) name))
+			  (funcs (code module))))))
+#+end_src
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-generate-allocations)
+#+end_src
+
+#+begin_src lisp
+(def-suite generate-allocations :in mcl-test-suite)
+(in-suite generate-allocations)
+
+(test generate-allocations
+  (is (allocations-ok (gen-allocations
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+}")
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_allocate_on_device(output);
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+   mcl_builtin_deallocate_on_device(output);
+}"))
+  (is (allocations-ok (gen-allocations
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+}")
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_allocate_on_device(output);
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+   mcl_builtin_deallocate_on_device(output);
+}"))
+  (is (allocations-ok (gen-allocations
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void g(const int n, float[n] output) {
+   f(n, output);
+ }
+")
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_allocate_on_device(output);
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+   mcl_builtin_deallocate_on_device(output);
+}
+ perfect void g(const int n, float[n] output) {
+   f(n, output);
+ }
+"))
+  (allocations-ok (gen-allocations
+		   "perfect void f(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void g(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   f(n, output);
+   mcl_builtin_transfer_from_device(output);
+ }
+")
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+}
+ perfect void g(const int n, float[n] output) {
+   mcl_builtin_allocate_on_device(output);
+   mcl_builtin_transfer_to_device(output);
+   f(n, output);
+   mcl_builtin_transfer_from_device(output);
+   mcl_builtin_deallocate_on_device(output);
+ }
+")
+  (is (allocations-ok (gen-allocations
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void g(const int n, float[n] output) {
+   if (0 == 0) {
+     mcl_builtin_transfer_to_device(output);
+     f(n, output);
+     mcl_builtin_transfer_from_device(output);
+   }
+   else {
+     f(n, output);
+   }
+ }
+")
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+}
+ perfect void g(const int n, float[n] output) {
+   if (0 == 0) {
+     mcl_builtin_allocate_on_device(output);
+     mcl_builtin_transfer_to_device(output);
+     f(n, output);
+     mcl_builtin_transfer_from_device(output);
+     mcl_builtin_deallocate_on_device(output);
+   }
+   else {
+     mcl_builtin_allocate_on_device(output);
+     f(n, output);
+     mcl_builtin_deallocate_on_device(output);
+   }
+ }
+"))
+  (is (allocations-ok (gen-allocations
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+ }
+
+ perfect void g(const int n, float[n] output) {
+   f(n, output);
+   f(n, output);
+ }
+")
+"perfect void f(const int n, float[n] output) {
+   mcl_builtin_transfer_to_device(output);
+   mcl_builtin_transfer_from_device(output);
+}
+ perfect void g(const int n, float[n] output) {
+   mcl_builtin_allocate_on_device(output);
+   f(n, output);
+   f(n, output);
+   mcl_builtin_deallocate_on_device(output);
+ }
+")))
+
+(defun allocations-ok (ast-with-generated-allocations string-wanted)
+  (ast= ast-with-generated-allocations (string->ast string-wanted)))
+
+(defun gen-allocations (input-string)
+  (let* ((module (string->ast input-string))
+         (exports (make-hash-table :test 'equal)))
+    (set-parents module)
+    (resolve-calls module exports)
+    (let ((callgraph (set-callgraph (funcs (code module)))))
+      (resolve-vars module exports)
+      (set-cfgraphs module nil t)
+      (set-vars-written callgraph)
+      (generate-allocations callgraph)
+      module)))
+
+(defparameter *module-template*
+"package a;
+ module a;
+ import perfect;
+
+ ~a
+")
+
+(defun string->ast (input-string)
+  (parse-mcpl (format nil *module-template* input-string)))
+
+#+end_src
+
+** Remove unnecessary transfers
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/remove-unnecessary-transfers/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :remove-unnecessary-transfers
+  (:use :cl :ast :ast-mcpl)
+  (:export :remove-unnecessary-transfers))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package "remove-unnecessary-transfers"
+    :header-args+: :tangle "../system/micro-passes/remove-unnecessary-transfers/remove-unnecessary-transfers.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :remove-unnecessary-transfers)
+#+end_src
+
+#+begin_src lisp
+(defun remove-unnecessary-transfers (module)
+  (visit module #'remove-transfers-fw #'remove-transfers-bw))
+
+(defgeneric remove-transfers-fw (ast))
+(defgeneric remove-transfers-bw (ast))
+
+(defvisitor remove-transfers-fw ast (ast string symbol list number)
+  t)
+(defvisitor remove-transfers-bw ast (ast string symbol list number)
+  nil)
+
+(defmethod remove-transfers-fw ((call-stat call-stat))
+  (let ((call (call call-stat)))
+    (when (and (builtin-func-p call)
+	       (string= (name (id call))
+			"mcl_builtin_transfer_from_device")
+	       (not (written (get-decl-param (first (params call))))))
+      (remove-from-ast call-stat)))
+  t)
+#+end_src
+

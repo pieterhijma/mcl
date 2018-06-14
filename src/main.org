@@ -1,0 +1,278 @@
+# A system for programming many-cores on multiple levels of abstraction.
+# Copyright (C) 2018 Pieter Hijma
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+#+title: Many-Core Levels Documentation
+#+options: toc:nil
+
+* Tangle MCL from Emacs :noexport:
+
+#+begin_src emacs-lisp :exports none :results output silent
+(async-start
+ (lambda ()
+   (require 'org)
+   (require 'ob)
+   (require 'ob-tangle)
+   (let ((files '("main.org" "system-definition.org" "commandline.org"
+		  "mcl.org" "library.org" "pass-library.org"
+		  "hardware_description_language.org" "mcpl.org"
+		  "passes.org"
+		  "micro-passes/checking.org" 
+		  "micro-passes/dataflow.org"
+		  "micro-passes/dataflow-values.org"
+		  "micro-passes/generate-code.org"
+		  "micro-passes/printing.org" 
+		  "micro-passes/resolution.org" 
+		  "micro-passes/transfers.org" 
+		  "micro-passes/transformations.org" 
+		  "micro-passes/translate.org" 
+		  "micro-passes/visualization.org")))
+     (mapc (lambda (file)
+	     (find-file file)
+	     (let ((result (org-babel-tangle)))
+	       (kill-buffer)
+	       result))
+	   files)))
+ (lambda (result)
+   (message "Done with tangling %s." (mapconcat 'identity result " "))))
+(princ "Busy with tangling")
+#+end_src
+
+* Export MCL from Emacs :noexport:
+
+ # exporting
+#+begin_src emacs-lisp :exports none :results output silent
+(defun export ()
+  (require 'package)
+  (package-initialize)
+  (require 'org)
+  (require 'ob)
+  (require 'htmlize)
+  (find-file "mcl.org")
+  (org-html-export-as-html)
+  (unless (file-exists-p "../doc/programmers_guide/")
+    (mkdir "../doc/programmers_guide/"))
+  (write-file "../doc/programmers_guide/mcl.html")
+  (kill-buffer))
+
+(defun msg-me (process event)
+  (when (equal event "finished\n")
+    (message "Exporting to HTML done")
+    (kill-buffer "*html-export*")))
+
+(progn
+  (set-process-sentinel
+   (start-process-shell-command
+    "html-export" "*html-export*"
+    (format "TERM=xterm-256color;emacs -Q -nw --eval '(progn (funcall %S) (kill-emacs))';exit"
+            (symbol-function 'export))) 'msg-me)
+  (princ "Busy exporting to HTML"))
+#+end_src
+
+* Clean MCL :noexport:
+
+
+ # clean
+#+header: :tangle "../scripts/clean-mcl" :tangle-mode (identity #o700)
+#+begin_src sh :exports none :results output silent :shebang #!/bin/sh
+source $MCL_ROOT_DIR/scripts/mcl_dirs.sh
+
+# generated documentation
+/bin/rm -rf $PROGRAMMERS_GUIDE_DIR
+
+remove_file() {
+    local file=$1
+    test -f $file && rm -f $file
+}
+
+# the systems
+find $SRC_DIR/system -mindepth 1 -type d -prune -exec rm -rf {} \;
+remove_file $SRC_DIR/system/packages.lisp
+remove_file $SRC_DIR/system/main.lisp
+remove_file $SRC_DIR/system/mcl.asd
+
+for i in $LIBS
+do
+    /bin/rm -rf $LIB_DIR/$i/system
+done
+
+# the scripts
+/bin/rm -f $SCRIPTS_DIR/mcl_dirs.sh
+/bin/rm -f $SCRIPTS_DIR/export-to-html-mcl
+/bin/rm -f $SCRIPTS_DIR/clean-mcl
+/bin/rm -f $SCRIPTS_DIR/make-mcl
+/bin/rm -f $SCRIPTS_DIR/make-mcl-image.lisp
+/bin/rm -f $SCRIPTS_DIR/fetch-quicklisp-libs
+/bin/rm -f $SCRIPTS_DIR/fetch-quicklisp-libs.lisp
+/bin/rm -f $SCRIPTS_DIR/install-maxima
+/bin/rm -f $SCRIPTS_DIR/install-quicklisp
+/bin/rm -f $SCRIPTS_DIR/setup-sbcl
+/bin/rm -f $SCRIPTS_DIR/test-mcl
+#+end_src
+
+* Other Scripts                                                    :noexport:
+
+** Directories of MCL
+
+#+header: :tangle "../scripts/mcl_dirs.sh"
+#+begin_src sh :exports none :eval no
+SRC_DIR=$MCL_ROOT_DIR/src
+DOC_DIR=$MCL_ROOT_DIR/doc
+LIB_DIR=$MCL_ROOT_DIR/lib
+SCRIPTS_DIR=$MCL_ROOT_DIR/scripts
+PROGRAMMERS_GUIDE_DIR=$DOC_DIR/programmers_guide
+LIBS=$(ls $LIB_DIR)
+#+end_src
+
+** Exporting to HTML
+
+#+header: :eval no :tangle-mode (identity #o700)
+#+begin_src sh :tangle "../scripts/export-to-html-mcl" :shebang #!/bin/sh 
+source $MCL_ROOT_DIR/scripts/mcl_dirs.sh
+
+function check_env_dir() {
+    local name_env_dir=$1
+    if [ -z ${!name_env_dir} ]
+    then
+	echo "Environment variable $name_env_dir has not been set"
+	exit 1
+    fi
+
+    if [ ! -d ${!name_env_dir} ]
+    then
+	echo "Environment variable $name_env_dir does not represent a directory"
+	exit 1
+    fi
+}
+
+check_env_dir MCL_ROOT_DIR
+check_env_dir ORG_BUILD_TOOLS
+
+do_export() {
+    local input=$1
+    local output=$2
+
+    $ORG_BUILD_TOOLS/export-to-html $input $output
+}
+
+do_export_guide() {
+    local input=$1
+    local output=$2
+
+    do_export $input $PROGRAMMERS_GUIDE_DIR/$output
+}
+
+export_lib() {
+    local input_file=$1
+    local lib_name=$2
+
+    echo Exporting library $lib_name
+    do_export_guide $LIB_DIR/$lib_name/$input_file $lib_name".html"
+}
+
+echo "Exporting installation documentation"
+do_export $DOC_DIR/installing_mcl.org $DOC_DIR/installing_mcl.html
+echo "Exporting the manual"
+do_export $DOC_DIR/manual_mcl.org $DOC_DIR/manual_mcl.html
+echo "Exporting the developer's environment setup guide"
+do_export $DOC_DIR/setup_environment_developers.org $DOC_DIR/setup_environment_developers.html
+echo "Exporting the index"
+do_export $SRC_DIR/main.org $DOC_DIR/index.html
+echo "Exporting mcl"
+do_export_guide $SRC_DIR/mcl.org mcl.html
+
+export_lib main.org code-emitter
+export_lib main.org simple-sets
+export_lib main.org cl-graph-extension
+export_lib main.org utility-directory
+#+end_src
+
+
+** Make the MCL binary
+
+The following lisp script will load MCL and dump an image that can be executed:
+
+#+header: :eval no
+#+begin_src lisp :tangle ../scripts/make-mcl-image.lisp
+(in-package :cl-user)
+
+(defparameter *mcl-root-dir* "MCL_ROOT_DIR")
+
+(defun get-env-var (var)
+  (if (not (uiop:getenvp var))
+      (error "Environment variable ~a is not set." var)
+      (uiop:getenv var)))
+
+(defun get-bin-path ()
+  (format nil "~a/bin/" (get-env-var *mcl-root-dir*)))
+
+(asdf:load-system :mcl)
+(ensure-directories-exist (get-bin-path))
+
+(in-package :sb-debug)
+(defun debugger-disabled-hook (c h)
+  (declare (ignore h))
+  (unless (typep c 'errors:mcl-error)
+    (sb-debug:print-backtrace)
+    (format t "~&Please inform Pieter with this stacktrace.~%"))
+  (format t "~a~%" c)
+  (sb-ext:exit :code 1))
+
+(in-package :cl-user)
+
+(sb-ext:disable-debugger)
+(clon:dump (format nil "~amcl" (get-bin-path)) mcl-commandline:main)
+#+end_src
+
+#+header: :eval no :tangle-mode (identity #o700)
+#+begin_src sh :tangle "../scripts/make-mcl" :shebang #!/bin/sh 
+sbcl --load $MCL_ROOT_DIR/scripts/make-mcl-image.lisp
+#+end_src
+
+* Introduction
+
+Many-Core Levels (MCL) is a framework that allows one to write computational
+kernels for different kinds of many-core hardware. It consists of two
+languages: a hardware description language HDL and a programming language
+MCPL. HDL allows one to define hardware with different levels of detail, which
+results in different abstraction levels. MCL defines a hierarchy of hardware
+descriptions, starting with hardware description perfect. Each lower-level
+hardware description defines many-core hardware in more detail. MCPL allows one
+to write computational kernels that are mapped to hardware by specifying which
+hardware description is targeted and by using constructs that define a mapping
+between algorithm and hardware. For more details, refer to [1].  
+
+This document is the starting point for documentation about MCL.  It contains
+links to the following parts:
+
+- [[file:installing_mcl.html][Installation]]
+- [[file:manual_mcl.html][Manual]]
+- Developer's Guide
+  - [[file:programmers_guide/mcl.html][MCL]]
+  - Libraries
+    - [[file:programmers_guide/code-emitter.html][Code Emitter]]
+    - [[file:programmers_guide/simple-sets.html][Simple sets]]
+    - [[file:programmers_guide/cl-graph-extension.html][CL-Graph extension]]
+    - [[file:programmers_guide/utility-directory.html][Utility directory]]
+  - [[file:setup_environment_developers.html][Setting up an environment for developers]]
+    
+MCL has been released with the GPL version 3 license, see Sec. <<copying>>.
+
+[1] Pieter Hijma, Rob V. van Nieuwpoort, Ceriel J.H. Jacobs, and Henri E. Bal:
+Stepwise-refinement for Performance: a methodology for many-core programming
+Concurrency and Computation: Practice and Experience, 27: 4515–4554. DOI:
+[[https://doi.org/10.1002/cpe.3416][10.1002/cpe.3416]].

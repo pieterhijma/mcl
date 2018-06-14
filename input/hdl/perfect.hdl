@@ -1,0 +1,74 @@
+hardware_description perfect;
+
+parallelism hierarchy {
+    memory_space main {
+	default;
+    }
+	
+    par_group threads {
+	max_nr_units = unlimited;
+	par_unit thread {
+	    memory_space reg {
+		default;
+	    }
+	}
+    }
+}
+
+
+device perfect {
+    mem;
+    ic;
+    cores;
+}
+
+
+memory mem {
+    space(main);
+    capacity = unlimited B;
+}
+
+
+memory regs {
+    space(reg);
+    capacity = unlimited B;
+    addressable = false;
+}
+
+
+interconnect ic {
+    connects(mem, cores.core[*]);
+    latency = 1 cycle;
+    bandwidth = unlimited bit/s;
+}
+
+
+execution_group cores {
+    max_nr_units = unlimited;
+
+    execution_unit core {
+		
+	ls_units;
+	regs;
+	slots(thread, 1);
+		
+	instructions ops {
+	    op((+), 1);
+	    op((-), 1);
+	}
+    }
+}
+
+
+load_store_group ls_units {
+    max_nr_units = unlimited;
+	
+    load_store_unit ls_unit {
+	slots(thread, 1);
+		
+	instructions ls_ops {
+	    op("load", 1);
+	    op("store", 1);
+	}
+    }
+}

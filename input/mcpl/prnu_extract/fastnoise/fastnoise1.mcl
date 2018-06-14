@@ -1,0 +1,35 @@
+package prnu_extract.fastnoise;
+
+module fastnoise1;
+
+export fastnoise1;
+
+import perfect;
+import lib.math.common;
+
+const float EPS = 1.0;
+
+perfect void fastnoise1(int h, int w, float[2][h][w] dxsdys, 
+	float[h][w] input) {
+
+    foreach (int i in h threads) {
+    	foreach (int j in w threads) {
+	    
+    	    float dx;
+    	    if (j == 0) dx = input[i][j + 1] - input[i][j];
+    	    else if (j == w - 1) dx = input[i][j] - input[i][j - 1];
+    	    else dx = 0.5 * (input[i][j + 1] - input[i][j - 1]);
+
+    	    float dy;
+    	    if (i == 0) dy = input[i + 1][j] - input[i][j];
+    	    else if (i == h - 1) dy = input[i][j] - input[i - 1][j];
+    	    else dy = 0.5 * (input[i + 1][j] - input[i - 1][j]);
+			
+    	    float norm = sqrt(dx*dx + dy*dy);
+    	    float scale = 1.0 / (EPS + norm);
+			
+    	    dxsdys[0][i][j] = dx * scale;
+	    dxsdys[1][i][j] = dy * scale;
+    	}
+    }
+}

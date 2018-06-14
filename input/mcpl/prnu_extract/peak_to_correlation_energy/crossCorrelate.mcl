@@ -1,0 +1,36 @@
+package prnu_extract.peak_to_correlation_energy;
+
+module crossCorrelate;
+
+import gpu;
+
+
+
+/* perfect void crossCorrelate(int n, Complex[n] out, Complex[n] x, Complex[n] y) { */
+    
+/*     foreach (int i in n threads) { */
+/* 	float x_real = x[i].real; */
+/* 	float x_imag = x[i].imag; */
+/* 	out[i].real = x_real * y[i].real - x_imag * y[i].imag; */
+/* 	out[i].imag = x_real * y[i].imag + x_imag * y[i].real; */
+/*     } */
+/* } */
+
+
+
+
+gpu void crossCorrelate(const int n, dev Complex[n] out, const dev Complex[n] x, const dev Complex[n] y) {
+    const int nrThreadsN = min(512, n);
+    const int nrBlocksN = divide_up(n, 1 * nrThreadsN);
+    foreach (const int bi in nrBlocksN blocks) {
+        foreach (const int ti in nrThreadsN threads) {
+            const int i = bi * (1 * nrThreadsN) + ti;
+            if (i < n) {
+                const float x_real = x[i].real;
+                const float x_imag = x[i].imag;
+                out[i].real = x_real * y[i].real - x_imag * y[i].imag;
+                out[i].imag = x_real * y[i].imag + x_imag * y[i].real;
+            }
+        }
+    }
+}
