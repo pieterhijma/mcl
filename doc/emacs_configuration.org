@@ -1,0 +1,391 @@
+#+property: header-args :tangle yes
+
+
+* The Emacs configuration file
+
+** Package configuration
+
+We use ~use-package~ to install Emacs packages in a modular and reliable way.
+
+#+begin_src emacs-lisp
+(require 'package)
+
+(eval-and-compile
+  (package-initialize)
+  (setq package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
+			   ("marmalade" . "http://marmalade-repo.org/packages/")
+			   ("org" . "http://orgmode.org/elpa/")
+			   ("melpa" . "http://melpa.milkbox.net/packages/")))
+
+  (unless (package-installed-p 'use-package)
+    (package-refresh-contents)
+    (package-install 'use-package)))
+
+(require 'use-package)
+(setq use-package-always-ensure t)
+ #+end_src
+
+~package-initialize~ is executed in an ~eval-and-compile~ block to ensure that
+it is loaded properly compile time.  
+
+** Automatic compilation
+
+Auto compile everything on load, in order to speed up future loads.
+#+begin_src emacs-lisp
+(use-package auto-compile
+  :ensure t
+  :config
+  (progn
+    (auto-compile-on-load-mode)
+    (setq load-prefer-newer t)))
+#+end_src
+
+** General Configuration
+*** Visual Appearance
+
+Now that we have the packages configured, we want to clean up the
+visual appearances of Emacs.  You can start Emacs full-screen if wanted:
+#+begin_src emacs-lisp
+(setq initial-frame-alist '((fullscreen . maximized)))
+(setq inhibit-startup-screen t)
+(setq inhibit-startup-message t)
+#+end_src
+
+The following settings set the modeline to use column numbers:
+
+#+begin_src emacs-lisp
+(column-number-mode 1)
+#+end_src
+
+
+*** Backup files
+
+#+begin_src emacs-lisp
+(setq make-backup-files nil)
+#+end_src
+
+
+*** IDO Mode
+
+Simple, yet powerful extension to Emacs for conveniently search files or load
+buffers from SSH nodes.
+
+#+begin_src emacs-lisp
+(use-package ido
+  :ensure t
+  :config (ido-mode t))
+#+end_src
+
+*** Version Control
+
+Magit is a convenient wrapper for git.  We can activate it with a keybinding:
+
+#+begin_src emacs-lisp
+(use-package magit
+  :ensure t
+  :bind ("C-x g" . magit-status))
+#+end_src
+
+The following package asks whether to exit Emacs if there are still unpushed
+changes.
+
+ #+begin_src emacs-lisp
+(use-package vc-check-status
+  :ensure t
+  :init (vc-check-status-activate 1))
+ #+end_src
+
+Emacs often asks to follow symlinks.  By default we turn it off as sometimes
+those symlinks are part of a different version controlled system.  
+
+#+begin_src emacs-lisp
+(setq vc-follow-symlinks nil)
+#+end_src
+
+*** Diff
+
+The following functions ensure (together with a shell-script ~ediff~) that it
+is possible to call ~ediff~ on two files.  The usage is ~emacs -diff file1
+file2~. 
+
+#+begin_src emacs-lisp
+(defun command-line-diff (switch)
+  (let ((file1 (pop command-line-args-left))
+        (file2 (pop command-line-args-left)))
+    (ediff file1 file2)))
+(add-to-list 'command-switch-alist '("diff" . command-line-diff))
+#+end_src
+
+ The following options make the result nice:
+
+ #+begin_src emacs-lisp
+(setq ediff-diff-options "-w")
+(setq ediff-split-window-function 'split-window-horizontally)
+(setq ediff-window-setup-function 'ediff-setup-windows-plain)
+ #+end_src
+
+*** Snippets
+
+Snippets is done with ~yasnippet~:
+
+ #+begin_src emacs-lisp
+(use-package yasnippet
+  :ensure t
+  :init (setq yas-snippet-dirs '("~/.emacs.d/snippets"))
+  :config
+  (yas-reload-all)
+  (add-hook 'org-mode-hook #'yas-minor-mode))
+ #+end_src
+
+When adding a new snippet, move to the ~snippets~ top-level directory and
+execute ~yas-compile-directory~.
+
+*** General settings
+
+The following makes sure that you don't have to type yes or no all the time:
+
+#+begin_src emacs-lisp
+(defalias 'yes-or-no-p 'y-or-n-p)
+
+(define-key text-mode-map (kbd "TAB") 'tab-to-tab-stop)
+(setq tab-stop-list (number-sequence 4 120 4))
+
+(setq dabbrev-case-fold-search nil)
+#+end_src
+
+** Org
+
+Org mode needs much configuration, especially for Babel, the system that allows
+incorporation of source code into ~.org~ file.  Instead of loading
+package ~org~, we use ~org-plus-contrib~ which also gives the contributed
+modules.
+
+*Note:* Org should be installed without any org buffer activated!  So,
+consolidate the configuration file, close all Emacs instances to be sure and
+install it from a fresh Emacs.  Sometimes, it is necessary to remove all *.elc
+files and start Emacs again.
+
+ #+begin_src emacs-lisp
+(use-package org
+  :ensure org-plus-contrib
+  :config (progn 
+	    (org-babel-do-load-languages
+	     'org-babel-load-languages
+	     '((lisp . t)
+	       (emacs-lisp . t)
+	       (shell . t)))
+	    (setq org-src-fontify-natively t)
+	    (setq org-src-tab-acts-natively t)
+	    (setq org-src-preserve-indentation t)))
+#+end_src
+
+The following function determines which languages can be immediately executed:
+
+#+begin_src emacs-lisp
+(defun my-org-confirm-babel-evaluate (lang body)
+  (not (or (string= lang "sh")
+	   (string= lang "lisp"))))
+(setq org-confirm-babel-evaluate 'my-org-confirm-babel-evaluate)
+#+end_src
+
+*** Babel
+**** Babel for Common Lisp
+
+Below are various functions for editing Common Lisp files and files in general
+in Org Babel.
+
+The following function adds a property to a drawer and is adapted from
+~org-entry-put~ in the org source-code.
+
+ #+begin_src emacs-lisp
+(defun org-add-to-property (property value)
+  (cond ((null value) (setq value ""))
+	((not (stringp value)) (error "Properties values should be strings"))
+	((not (org--valid-property-p property))
+	 (user-error "Invalid property name: \"%s\"" property)))
+  (org-with-point-at nil
+    (org-back-to-heading t)
+    (let* ((beg (point))
+	   (range (org-get-property-block beg 'force))
+	   (end (cdr range))
+	   (case-fold-search t))
+      (goto-char (car range))
+      (if (re-search-forward (org-re-property property nil t) end t)
+	  (goto-char (match-beginning 0))
+	(goto-char end))
+      (insert "\n")
+      (backward-char)
+      (insert ":" property ":")
+      (and value (insert " " value))
+      (org-indent-line)
+      (run-hook-with-args 'org-property-changed-functions property value))))
+ #+end_src
+
+The following functions specify tangle arguments for property drawers:
+
+ #+begin_src emacs-lisp
+(defun set-header-arguments-lisp-all (tangle package)
+  (interactive "F:tangle: \ns:package: ")
+  (org-add-to-property "header-args+"
+		       (format ":tangle \"%s\"" (file-relative-name tangle)))
+  (org-add-to-property "header-args+" (format ":package \"%s\"" package)))
+
+(defun set-header-arguments-lisp-tangle (tangle)
+  (interactive "F:tangle: ")
+  (org-add-to-property "header-args+"
+		       (format ":tangle \"%s\"" (file-relative-name tangle))))
+(defun set-header-arguments-lisp-package (package)
+  (interactive "s:package: ")
+  (org-add-to-property "header-args+" (format ":package \"%s\"" package)))
+ #+end_src
+
+The following function sets the right package for the buffer for interaction
+with slime:
+
+#+begin_src emacs-lisp
+(defun org-edit-for-common-lisp ()
+  "Calls an editor for lisp and tries to set the package for the 
+buffer to what is defined in the org property :package"
+  (interactive)
+  (let ((element (org-element-at-point)))
+    (case (org-element-type element)
+      (src-block 
+       (let* ((info (org-babel-get-src-block-info))
+	      (params (nth 2 info))
+	      (package (cdr (assq :package params))))
+	 (org-edit-src-code)
+	 (if package
+	     (setq slime-buffer-package package))))
+      (otherwise
+       (org-edit-special)))))
+#+end_src
+
+The following key is defined globally, to be able to jump back from Org tangled
+code to the original Org file:
+
+#+begin_src emacs-lisp
+(global-set-key (kbd "C-c j") (lambda ()
+				(interactive)
+				(org-babel-tangle-jump-to-org)
+				(org-edit-for-common-lisp)))
+#+end_src
+
+The following keys work in Org mode for defining the right package and
+tangle-file for a section in a property drawer.
+
+#+begin_src emacs-lisp
+(add-hook 'org-mode-hook (lambda ()
+			   (local-set-key (kbd "C-c '")
+					  'org-edit-for-common-lisp)
+			   (local-set-key (kbd "C-c h a a")
+					  'set-header-arguments-lisp-all)
+			   (local-set-key (kbd "C-c h a p")
+					  'set-header-arguments-lisp-package)
+			   (local-set-key (kbd "C-c h a t")
+					  'set-header-arguments-lisp-tangle)))
+#+end_src
+
+**** Packages for org
+
+The package ~htmlize~ ensures syntax-highlighted code in org files.
+
+#+begin_src emacs-lisp
+(use-package htmlize
+  :ensure t)
+#+end_src
+
+The following package ensure tangling and generating HTML code in different
+processes:
+
+#+begin_src emacs-lisp
+(use-package async
+  :ensure t)
+(use-package deferred
+  :ensure t)
+#+end_src
+
+** Editing Lisps
+
+*** General configuration
+
+Paredit-mode is a powerful mode for editing Lisp source files that does need
+some time to become comfortable with it, but in the end it is a very valuable
+way to edit lisp files.
+
+#+begin_src emacs-lisp
+(use-package paredit
+  :ensure t
+  :config (progn
+	    (add-hook 'emacs-lisp-mode-hook       #'enable-paredit-mode)
+	    (add-hook 'eval-expression-minibuffer-setup-hook
+		      #'enable-paredit-mode)
+	    (add-hook 'lisp-mode-hook             #'enable-paredit-mode)
+	    (add-hook 'lisp-interaction-mode-hook #'enable-paredit-mode)
+	    (add-hook 'slime-repl-mode-hook (lambda () (paredit-mode +1)))))
+#+end_src
+
+
+Another helpful mode is showing the parentheses:
+
+#+begin_src emacs-lisp
+(show-paren-mode 1)
+#+end_src
+
+*** Slime
+
+Slime is an advanced REPL for lisp, we set the Common-Lisp indentation function
+and we add a mapping for compiling a complete buffer:
+
+#+begin_src emacs-lisp
+(use-package slime
+  :ensure t
+  :init
+  (setq inferior-lisp-program "/usr/bin/sbcl")
+  :config
+  (slime-setup '(slime-fancy slime-asdf))
+  (setq slime-enable-evaluate-in-emacs t)
+  (add-hook 'lisp-mode-hook
+	   (lambda ()
+	     (set (make-local-variable 'lisp-indent-function)
+		  'common-lisp-indent-function)
+	     (local-set-key (kbd "C-c b")
+			    'compile-buffer))))
+#+end_src
+
+The following packages enable auto-completion:
+
+#+begin_src emacs-lisp
+(use-package ac-slime
+  :ensure t
+  :requires (auto-complete auto-complete-config popup)
+  :init
+  (add-to-list 'ac-dictionary-directories
+	       "~/.emacs.d/elpa/auto-complete-20150618.1949/dict")
+  (ac-config-default)
+  :config
+  (add-hook 'slime-mode-hook 'set-up-slime-ac)
+  (add-hook 'slime-repl-mode-hook 'set-up-slime-ac)
+  (add-to-list 'ac-modes 'slime-repl-mode)
+  (add-to-list 'ac-modes 'lisp-mode)
+  (ac-config-default))
+#+end_src
+
+The following function compiles a complete buffer:
+
+#+begin_src emacs-lisp
+(defun compile-buffer ()
+  (interactive)
+  (slime-compile-region (point-min) (point-max)))
+#+end_src
+
+** Other modes
+   
+*** OpenCL
+
+#+begin_src emacs-lisp
+(use-package opencl-mode
+  :ensure t
+  :config (add-to-list 'auto-mode-alist '("\\.cl\\'" . opencl-mode)))
+#+end_src
+
+

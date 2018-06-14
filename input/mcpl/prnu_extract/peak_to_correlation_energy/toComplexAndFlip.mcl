@@ -1,0 +1,20 @@
+package prnu_extract.peak_to_correlation_energy;
+
+module toComplexAndFlip;
+
+import perfect;
+
+
+
+perfect void toComplexAndFlip(int h, int w, Complex[h][w] output, 
+	float[h][w] input) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    int oi = h - i - 1;
+	    int oj = w - j - 1;
+	    output[oi][oj].real = input[i][j];
+	    output[oi][oj].imag = 0.0;
+	}
+    }
+}
+

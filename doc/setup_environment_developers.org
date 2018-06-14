@@ -1,0 +1,293 @@
+#+title: Setting up an environment for developers
+
+* Introduction
+
+This document describes how to set up an environment so that developers can
+work properly with MCL.  It will be mainly based on Emacs, its org-mode, and
+Slime, a REPL that interacts with Common Lisp.  The following sections describe
+a convenient set up for Emacs.  The final section is a small tutorial
+describing how to work with MCL and Emacs.
+
+* Emacs configuration
+
+** Introduction
+
+This document describes a configuration of Emacs for conveniently work in MCL.
+This file ~$MCL_ROOT_DIR/doc/emacs_configuration.org~ can be
+copied to ~$HOME/.emacs.d/~.
+
+*** How it works
+
+With just a few lines of elisp in the ~.emacs~ file, we can extract the elisp
+code from this org-mode file (also known as tangling), compile and execute
+it. The next time Emacs is opened, it detects the ~.elc~ file and tries to
+load it, but only if it's newer than the ~.org~ file. So, org makes it easy
+to document the configuration file, while still keeping it fast to load.  The
+contents of the ~.emacs~ file should contain this:
+
+#+begin_src emacs-lisp :tangle no
+(package-initialize)
+
+(let ((org-config-file "~/.emacs.d/emacs_configuration.org")
+      (elc-config-file "~/.emacs.d/emacs_configuration.elc"))
+  (if (file-newer-than-file-p org-config-file elc-config-file)
+      (org-babel-load-file org-config-file t)
+    (load elc-config-file)))
+#+end_src
+
+Since the file may already contain definitions, we do not tangle the file, but
+it should be edited by hand.
+
+
+#+include: emacs_configuration.org :minlevel 2
+
+* Snippets
+
+The following snippets make it easier to work with org-mode.  The tutorial will
+discuss this.  This snippet creates a ~src~ block:
+
+#+begin_src org :tangle "~/.emacs.d/snippets/org-mode/src" :mkdirp yes
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: org-babel insert code block
+# key: src
+# --
+,#+begin_src lisp
+$0
+,#+end_src
+#+end_src
+
+This snippet creates a src block for a package definition:
+
+#+begin_src org :tangle "~/.emacs.d/snippets/org-mode/package" :mkdirp yes
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: org-babel insert code block for packages
+# key: package
+# --
+#+header: :tangle "system/$1/packages.lisp"
+,#+begin_src lisp :mkdirp yes
+(in-package :cl-user)
+
+(defpackage :$2
+  (:use :cl $3)
+  (:export $0))
+,#+end_src
+#+end_src
+
+The following snippet splits a src block in half:
+
+#+begin_src org :tangle "~/.emacs.d/snippets/org-mode/split" :mkdirp yes
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: org-babel split a code block
+# key: split
+# --
+,#+end_src
+$0
+,#+begin_src lisp
+#+end_src
+
+
+* Tutorial
+
+This tutorial assumes that ~$HOME/.emacs~ loads
+~$HOME/.emacs.d/emacs_configuration.org~ as described in the previous section.
+After starting up Emacs, the script will automatically download and load all
+the required packages.  Emacs compiled the configuration file and most likely
+issued some warnings.  We will close Emacs with ~C-x C-c~ and restart it
+immediately.  The warnings are now likely to be gone and will only reappear if
+~$HOME/.emacs.d/emacs_configuration.org~ is changed.
+
+** Overview of the generic packages
+
+*** Ido
+
+Ido-mode gives autocompletion when searching files.  For example with ~C-x C-f~
+you can browse to ~$MCL_ROOT_DIR~.  When arrived there, you can do ~C-d~ to see
+the listing of the directory.
+
+Similarly, it is possible to list the contents on a host ~host~ over SSH using:
+~C-x C-f / / ssh:host: <ENTER> <ENTER>~.
+
+*** Magit
+
+This mode allows one execute git commands.  For example, ~$MCL_ROOT_DIR~ is
+under version control, so we can go there as explained in the previous section
+and perform ~C-x g~ on the directory listing.  With ~?~ you get an overview of
+available commands.  With ~q~ you close the buffers.
+
+** Working in MCL
+   :PROPERTIES:
+   :header-args+: :tangle no
+    :END:
+
+*** The REPL
+
+Usually, programming lisp is done via a REPL ~(loop (print (eval (read))))~
+backwards, which is actually a small lisp program that gives you a REPL.  You
+can try this out in the actual REPL.  Stop it with ~C-c C-c~ and then ABORT.
+
+The REPL we are using is called Slime and can be started with: ~M-x slime~.
+From this we can insert lisp expressions such as ~(+ 2 2)~ that will be
+evaluated and printed.  Inside the Slime buffer the ~,~ can be used to execute
+commands for Slime itself.  For example, we can change the directory of the
+Slime process with ~, cd~.  We can also use it to load MCL: ~, load-system
+<ENTER> mcl~ (autocomplete should work).  MCL will be compiled.
+
+When finished, we can execute the MCL tests.  The tests have to be executed
+from ~$MCL_ROOT_DIR~, so we can go there with ~, cd~.  We can then evaluate the
+lisp expression: ~(test-mcl:test-mcl)~, autocomplete should work as well.  This
+executes the function ~test-mcl~ in package ~test-mcl~.
+
+By default, the REPL starts in package ~cl-user~, but we can change that to
+~mcl~ by doing ~, in <ENTER> mcl~.  We can now execute function in this
+package, for example (auto-complete should work):
+
+#+begin_src lisp
+(print-pretty "input/mcpl/matrixmultiplication/matrixmultiplication.mcl")
+#+end_src
+
+or a function that generates code into ~$MCL_OUTPUT_DIR~:
+
+#+begin_src lisp
+(gen)
+#+end_src
+
+These functions are defined in ~src/mcl.org~.
+
+*** Logging
+
+ These functions show level 1 of logging, but it is also possible to
+ increase the amount of logging:
+
+ #+begin_src lisp
+(logging:set-level 2)
+ #+end_src
+
+ When executing ~(gen)~ again, we not only see the passes, but also the
+ micro-passes.
+
+
+*** Editing org-files
+
+Org-mode allows one to do literate programming.  The ~.org~ files form the
+source and these files are tangled to ~.lisp~ files that will reside in
+~$MCL_ROOT_DIR/src/system~.  The ~.org~ files can also be exported to ~.html~
+or ~.pdf~ and then it serves as documentation.  The lisp code resides in code
+blocks that start with ~#+begin_src~ and end with ~#+end_src~.  Emacs is an
+editor that supports multiple modes and syntax highlighting within one file.
+You can directly code in the source blocks, but it is also possible to open a
+new buffer with the language's native mode.  You can open such a buffer by
+moving into a code block and do ~C-c '~.  
+
+For example, we could open the file ~src/mcl.org~, move into the first code
+block that tangles into the file ~system/packages.lisp~ and do ~C-c '~.  We get
+a new buffer with major mode ~Lisp~, minor modes ~Paredit~, ~OrgSrc~, and
+~adoc~, and the Slime minor mode recognizes that we are in package ~cl-user~
+with ~sbcl~ as backend.  If we move to the ~defpackage~ expression, we can
+compile this expression with ~C-c C-c~.  This expression is compiled in package
+~cl-user~.  We can close the buffer with ~C-c '~ again.  
+
+If we move to subsection /The main file/, we can see that the subsection has
+several properties (open with TAB).  The properties state that each source
+block within this section has additional header arguments, namely that the
+package should be ~:mcl~ and that the source blocks will tangle into file
+~system/main.lisp~.  If we move to the first source block in the file and open
+the native buffer with ~C-c '~, we see that Slime knows that the package is
+~mcl~ instead of ~cl-user~.  It deducts this from the ~(in-package :mcl)~
+expression.  If we move to the source block below, then there is no
+~(in-package :mcl)~ expression, but since we defined the ~:package~ property in
+this subsection, Slime knows that we should compile function in the package
+~:mcl~.  Every start of a ~.lisp~ file needs to have an ~(in-package
+<package>)~ expression, otherwise the package is assumed to be ~cl-user~.
+*Note* that this is a common mistake why functions fail to compile.
+
+We added several convenience functions to make editing lisp easier from within
+Org-mode.  We can add a new lisp source blocks by typing ~src<TAB>~.  This
+expands a snippet that is defined in ~$HOME/.emacs.d/snippets/org-mode~.  We
+can split large source blocks by typing ~split<TAB>~.  We can also create a
+source block for defining new packages with several entry points to fill in the
+gaps with ~package<TAB>~.  Within a new section, we can define a property list
+as we have seen above with ~C-c h a a~.  This function will ask for a file to
+tangle into (autocompletion works) and the package.  It is also possible to
+only add a property for tangling (~C-c h a t~) or only for a package (~C-c h a
+p~).
+
+*** Debugging
+
+Since Common-Lisp is a dynamically typed language, we applied test-driven
+development.  This means that most of the functionality has its own tests.  If
+MCL runs in Slime, and the program crashes, you will end up in the Slime
+debugger.  In the Slime debugger, it is possible to analyze the whole stack,
+change datastructures within the frames, jump to the function that causes the
+problem, recompile the problematic function, restart a couple of frames down,
+move datastructures to a new REPL instance, and modify them.
+
+For instance, it is common that we want to inspect the AST after some
+transformation.   For example, if we flatten an MCL file (transform the
+multi-dimensional types to one-dimensional ones), we also translate the file.
+So, if we run in package ~:mcl~ (in Slime ~, in mcl~):
+
+#+begin_src lisp
+(logging:set-level 1)
+(flatten "input/mcpl/matrixmultiplication/matrixmultiplication.mcl" "gpu")
+#+end_src
+
+We can see that pass /translate/ is being executed before pass /flatten-types/.
+Suppose, we want to inspect the AST just before /flatten-types/ is executed, we
+could go to the file ~src/passes.org~, move to section /Flatten types/, move
+into the first source block, open it with ~C-c '~, add a ~(break)~ expression
+in the function ~flatten-module~, and compile it with ~C-c C-c~.
+
+We run the same expression again (with ~M-p~, we get the previous expression):
+
+#+begin_src lisp
+(flatten "input/mcpl/matrixmultiplication/matrixmultiplication.mcl" "gpu")
+#+end_src
+
+We now end up in the Slime debugger SLDB.  We can move to frame 0 and
+press <ENTER>.  This frame has variable ~module~.  We can inspect the
+expression of the variable by moving to the ~#<AST-MCPL:...>~ expression,
+called a presentation, and press <ENTER>.  We can now walk the AST by moving
+into ~code~, ~funcs~, ~func~, ~code-block~ etc.  Walking back can be done with
+~l~.  It is also possible to change the values.  We can quit the presentation
+mode with ~q~. 
+
+Another possibility is to load the value in the REPL from SLDB, by moving to
+the representation and press ~M-<ENTER>~.  This brings us back to the REPL with
+the presentation evaluated inside the REPL.  We can store it in a variable by
+evaluating the following expression, where ~*~ represents the last expression,
+which is in this case the AST expression.  
+
+#+begin_src lisp
+(defparameter *ast* *)
+#+end_src
+
+Evaluating this expression returns the symbol ~*ast*~ and if we evaluate it, we
+get its presentation again.  We can move to the presentation and do ~C-c v TAB~
+to inspect the value in the same way as above.  Note that our program is still
+running in the background and awaiting our input to continue or not.  We could
+now change a value in the AST and print it with the following expression:
+
+#+begin_src lisp
+(print-pretty:pp *ast*)
+#+end_src
+
+Moving back to the debugger buffer, we could decide to step through the program
+by hitting ~s~.  We can press ~a~ to abort.
+
+In general, it is possible to jump from the debugger back to the source code.
+In the case of function ~flatten-module~ this is not possible because we
+compiled it in a buffer that is disconnected from the source file.  However, in
+functions that are compiled from the tangled lisp files, we can jump back to
+the originating source.  For example, if we run the following expression again,
+we end up in the debugger again, because of the ~(break)~ statement.
+
+#+begin_src lisp
+(flatten "input/mcpl/matrixmultiplication/matrixmultiplication.mcl" "gpu")
+#+end_src
+
+We cannot move to ~flatten-module~.  However, if we move to frame 1 below
+and move to ~(passes:do-flatten-types)~ and press ~M-.~, we move to the lisp
+file that was tangled from the ~.org~ file.  This file is read-only and should
+not be edited.  With the command ~C-c j~ we jump back to the ~.org~ file where
+~do-flatten-types~ was defined, and native buffer is opened immediately where
+we can edit the function.  We can close the buffer again with ~C-c '~.  

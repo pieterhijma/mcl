@@ -1,0 +1,756 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Passes
+
+In this section we define several passes.
+
+#+toc: headlines 4 local
+
+** The package
+   :PROPERTIES:
+   :header-args+: :tangle "system/passes/packages.lisp"
+   :header-args+: :package ":cl-user"
+   :END:
+
+#+header: 
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+
+(utility-directory:unexport-symbols :passes)
+#+end_src
+
+#+begin_src lisp
+(defpackage :passes
+  (:use :cl
+	:ast :ast-mcpl :errors :pass-library :hardware-descriptions :mcl-util
+	:parse-mcpl
+	:check-package
+	:set-parents
+	:check-exports
+	:load-hardware-descriptions
+	:resolve-calls
+	:resolve-types
+	:resolve-vars
+	:generate-code
+	:set-callgraph
+	:set-vars-written
+	:check-types
+	:check-memory-spaces
+	:set-cfgraphs
+	:print-pretty
+        :code-emitter)
+  (:shadow  :generate-cashmere-code :generate-code)
+  (:shadowing-import-from :pass-library :exports)
+  (:import-from :alexandria :appendf :copy-hash-table :flatten)
+  (:import-from :anaphora :aif :it)
+  (:import-from :cl-fad :pathname-as-directory :file-exists-p)
+  (:import-from :mcl-quickutil :transpose)
+  (:import-from :utility-directory :fixed-point :hash-table=))
+#+end_src
+
+** Semantic analysis
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/semantic-analysis.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+First we define the pass and the ~do~ function.  Semantic analysis has no
+dependencies.  First, we parse the file that was given as input and register it
+in the ~pass-data~ datastructure.  After that, we compute a fixed point by
+parsing all modules that are imported by the modules registered in the
+~pass-data~ data structure.
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+
+#+begin_src lisp
+(defpass semantic-analysis)
+
+(defun do-semantic-analysis (pass-data name-mcpl-file)
+  (with-slots (modules callgraph exports) pass-data
+    (parse-module name-mcpl-file pass-data)
+    (fixed-point modules #'copy-hash-table #'hash-table=
+      (parse-all-modules pass-data))
+    (domodules (m modules) (set-parents m))
+    (check-all-exports pass-data)
+    (domodules (m modules) (resolve-calls m exports))
+    (create-callgraph pass-data)
+    (domodules (m modules) (resolve-types m exports))
+    (domodules (m modules) (resolve-vars m exports))
+    (domodules (m modules) (check-types m))
+    (domodules (m modules) (set-cfgraphs m))
+    (set-vars-written callgraph)
+    (check-memory-spaces callgraph)
+    modules))
+
+#+end_src
+
+*** Parsing all modules
+
+Parsing a module based on a file name first checks whether the file exists,
+then parses the file and registers the module in a map with a key, unique for
+that file based on the package and the module name.  The package of a module
+has to correspond with the directory structure, from which we can infer the
+root directory for all modules.  For each file we check whether the root
+directory corresponds.
+
+#+begin_src lisp
+(defun parse-module (name-mcpl-file pass-data)
+  (if (file-exists-p name-mcpl-file)
+      (let ((module (parse-mcpl-file name-mcpl-file)))
+	(setf (gethash (get-key module) (modules pass-data)) module)
+	(set-root-directory pass-data module name-mcpl-file))
+      (mcl-error nil "File ~a does not exist" name-mcpl-file)))
+#+end_src
+
+
+Setting the root directory calls the micro-pass ~check-package~ that verifies
+the name of the file and the package/module structure.
+
+#+begin_src lisp
+(defun set-root-directory (pass-data module name-mcpl-file)
+  (with-slots (root-directory) pass-data
+    (let ((found-root-directory (check-package module name-mcpl-file)))
+      (if (null root-directory)
+	  (setf root-directory found-root-directory)
+	  (when (not (equal root-directory found-root-directory))
+	    (pkg-error (location module)
+		       "Found more than one root directories: ~a and ~a"
+		       root-directory found-root-directory))))))
+#+end_src
+
+
+The function ~parse-all-modules~ processes all imports from all modules in the
+~pass-data~ data structure.  This means that each imported module gets an entry
+in ~pass-data~ with initial value ~nil~.  After this, we parse each key with
+value ~nil~.
+
+#+begin_src lisp
+(defun parse-all-modules (pass-data)
+  (with-slots (root-directory modules) pass-data
+    (loop for v being the hash-values in (copy-hash-table modules)
+	 do (process-imports v pass-data))
+    (loop for k being the hash-keys using (hash-value v) in modules
+       when (null v) do
+	 (parse-module (format nil "~a~a.mcl" root-directory k) pass-data))))
+#+end_src
+
+The following functions process the imports.  An import can be an MCPL module
+or a hardware description.  If the name of the module is a hardware
+description, we load the hardware description, otherwise, we add the key of the
+identifier of the import to the ~pass-data~ data structure.
+
+#+begin_src lisp
+(defun process-imports (module pass-data)
+  (dolist (i (imports module))
+    (process-import i pass-data)))
+
+(defgeneric process-import (import pass-data))
+
+(defmethod process-import ((import lib-import) pass-data)
+  (with-slots (id) import
+    (when (not (process-import-id id))
+      (let ((key (get-key id)))
+	(with-slots (modules) pass-data
+	  (when (not (nth-value 1 (gethash key modules)))
+	    (setf (gethash key modules) nil)))))))
+
+(defgeneric process-import-id (import))
+
+(defmethod process-import-id ((id id))
+  (with-slots (name) id
+    (if (hardware-description-p name)
+	(load-hardware-description name)
+	nil)))
+
+(defmethod process-import-id ((ci compound-id))
+  (declare (ignore ci))
+  nil)
+#+end_src
+
+
+*** Check all exports 
+
+#+begin_src lisp
+(defun check-all-exports (pass-data)
+  (with-slots (modules exports) pass-data
+    (loop for k being the hash-keys in (modules pass-data) using (hash-value v)
+	  do (setf (gethash k exports) (check-exports v)))))
+#+end_src
+
+*** Create a callgraph
+
+#+begin_src lisp
+(defun create-callgraph (pass-data)
+  (setf (callgraph pass-data) (set-callgraph (get-funcs pass-data))))
+
+(defun get-funcs (pass-data)
+  (loop for m being the hash-values in (modules pass-data)
+     append (funcs (code m))))
+#+end_src
+
+
+** Translate
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/translate.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass translate
+  (:dependencies semantic-analysis))
+#+end_src
+
+#+begin_src lisp
+(defun do-translate (pass-data target)
+  (with-slots (modules callgraph exports) pass-data
+    (translate:translate
+     (alexandria:hash-table-values modules) callgraph target exports)
+    pass-data))
+#+end_src
+
+** Flatten types
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/flatten-types.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass flatten-types
+  (:dependencies semantic-analysis remove-hardware-vars))
+
+(defun do-flatten-types (pass-data options)
+  (declare (ignore options))
+  (with-slots (modules exports) pass-data
+    (domodules (m modules) (flatten-module m))
+    (domodules (m modules) (set-parents m))
+    (domodules (m modules) (resolve-vars m exports))
+    ;;(domodules (m modules) (check-types m))
+    ))
+
+(defun flatten-module (module)
+  (visit module #'flatten-var-fw #'flatten-var-bw)
+  (visit module #'flatten-type-fw #'flatten-type-bw))
+
+(defgeneric flatten-var-fw (ast))
+(defgeneric flatten-var-bw (ast))
+
+(defvisitor flatten-var-fw ast (ast string symbol list number)
+  t)
+
+(defvisitor flatten-var-bw ast (ast string symbol list number)
+  nil)
+
+(defmethod flatten-var-bw ((v var))
+  (replace-in-ast v :with (flatten-var:flatten-var v)))
+
+(defgeneric flatten-type-fw (ast))
+(defgeneric flatten-type-bw (ast))
+
+(defvisitor flatten-type-fw ast (ast string symbol list number)
+  t)
+
+(defvisitor flatten-type-bw ast (ast string symbol list number)
+  nil)
+
+(defmethod flatten-type-fw ((type mcl-type))
+  (replace-in-ast type :with (flatten-types:flatten-type type)))
+
+#+end_src
+
+** Print pretty
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/print-pretty.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass print-pretty
+  (:dependencies semantic-analysis)
+  (:options translate flatten-types move-foreach-to-func remove-hardware-vars
+	    generate-transfers remove-hardware-vars
+	    move-dimension-constants-out-foreach))
+#+end_src
+
+#+begin_src lisp
+(defun do-print-pretty (pass-data name-mcpl-file)
+  (let ((module (gethash (get-key-from-filename name-mcpl-file pass-data)
+			 (modules pass-data))))
+    (pp module)))
+#+end_src
+
+** Generate code
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/generate-code.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass generate-code
+  (:dependencies semantic-analysis translate flatten-types
+		 move-dimension-constants-out-foreach
+		 remove-hardware-vars move-foreach-to-func generate-transfers
+		 specialize-funcs-on-memory-space transform-tile-expressions)
+  (:options))
+#+end_src
+
+#+begin_src lisp
+(defun do-generate-code (pass-data options)
+  (destructuring-bind (type-code target entry-funcs output-dir) options
+    (with-slots (modules callgraph) pass-data
+      (loop for m being the hash-values in modules
+	 collect (generate-code:generate-code
+                  m type-code (read-codegen target) entry-funcs output-dir
+                  callgraph)))))
+
+(defun read-codegen (target)
+  (let ((codegen-filename (create-codegen-filename target)))
+    (if (file-exists-p codegen-filename)
+        (with-open-file (in codegen-filename)
+            (with-standard-io-syntax
+              (first (rest (read in)))))
+        (mcl-error nil "target ~s does not exist" target))))
+
+(defun create-codegen-filename (target)
+  (format nil "~a/input/codegen/~a.lisp" (getenv "MCL_ROOT_DIR") target))
+#+end_src
+
+** Generate Cashmere code
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/generate-cashmere-code.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass generate-cashmere-code
+  (:dependencies semantic-analysis translate flatten-types
+		 move-dimension-constants-out-foreach
+		 remove-hardware-vars 
+		 specialize-funcs-on-memory-space)
+  (:options))
+#+end_src
+
+#+begin_src lisp
+(defun do-generate-cashmere-code (pass-data options)
+  (destructuring-bind (type-code target output-dir) options
+    (with-slots (modules callgraph) pass-data
+      (loop for m being the hash-values in modules
+         when (generate-code:generate-code
+                  m type-code (read-codegen target) nil output-dir
+                  callgraph)
+	 collect it))))
+#+end_src
+
+
+#+begin_src lisp
+(defparameter *targets* '("fermi"))
+#+end_src
+
+We not only generate an OpenCL file for every mcl-file, but we also generate
+one overall ~MCL.java~ file which allows one to call MCL kernels from java with
+convenience.  The ~write-mcl-file~ takes as input a list of ~cashmere-info~'s
+that contains the information to create the convenience functions.
+
+#+begin_src lisp
+(defun generate-cashmere-code (mcl-file-names targets output-dir)
+  (write-mcl-file
+   (loop for mcl-file-name in mcl-file-names
+      append (generate-cashmere-code-for-file
+              mcl-file-name targets output-dir))
+   output-dir))
+#+end_src
+
+In the following function we generate a ~cashmere-info~ for every target and
+every file.  Every file contains one entry-point to a kernel and we generate
+various Java call functions from it.  Some have the original array-types and
+others have Buffer or Pointer types instead of the array types.  Per target, we
+have then several variants.  However, we would like to have several targets per
+variant, so that we can adjust the way we call the kernel accordingly per
+variant.  We then merge the target-versions together in these cashmere-info's.
+
+#+begin_src lisp
+(defun generate-cashmere-code-for-file (mcl-file-name targets output-dir)
+  (let ((variants-per-target (loop for target in targets
+                       append (generate-cashmere-code-for-target
+                               target mcl-file-name output-dir))))
+    (loop for target in (targets-per-variant variants-per-target)
+       append (merge-for-target target))))
+
+(defun targets-per-variant (variants-per-target)
+  (transpose variants-per-target))
+
+(defun merge-for-target (cashmere-infos)
+  (let ((hash-table (make-hash-table :test 'equal)))
+    (loop for ci in (flatten cashmere-infos)
+       do (add-or-merge ci hash-table))
+    (loop for m being the hash-values in hash-table collect m)))
+
+(defun add-or-merge (cashmere-info hash-table)
+  (aif (gethash (module cashmere-info) hash-table)
+       (merge-into it cashmere-info)
+       (setf (gethash (module cashmere-info) hash-table) cashmere-info)))
+
+(defun merge-into (merge to-be-merged)
+  (assert (string= (module merge) (module to-be-merged)))
+  (assert (string= (default-func merge ) (default-func to-be-merged)))
+  (assert (string= (copy-func-header merge) (copy-func-header to-be-merged)))
+  (assert (string= (set-argument merge) (set-argument to-be-merged)))
+  (appendf (call-conditions merge) (call-conditions to-be-merged)))
+#+end_src
+
+The following function generates for a target and mcl-file an OpenCL file and
+returns in principal one cashmere-info that indicates how the kernel can be
+called from Java.  However, since we want to be able to call the kernel both
+with array types and ~Buffer~ or ~Pointer~ types in Java, we generate several
+variants.
+
+#+begin_src lisp
+(defun generate-cashmere-code-for-target (target mcl-file-name output-dir)
+  (enable-pass 'specialize-funcs-on-memory-space 'move-foreach-to-func-cashmere)
+  (run-pass 'generate-cashmere-code
+            (list (cons 'semantic-analysis mcl-file-name)
+                  (cons 'translate target)
+                  (cons 'generate-cashmere-code
+                        (list "cashmere" target output-dir)))))
+#+end_src
+
+This function writes the ~MCL.java~ file based on the ~cashmere-info~
+information. 
+
+#+begin_src lisp
+(defun write-mcl-file (cashmere-infos output-dir)
+  (let* ((base-dir (pathname-as-directory output-dir))
+         (file (merge-pathnames "MCL.java" base-dir)))
+    (with-open-file (out (ensure-directories-exist file)
+                         :direction :output :if-exists :supersede)
+        (format out (make-contents-mcl-file cashmere-infos)))))
+
+(defun make-contents-mcl-file (cashmere-infos)
+  (emit "import org.jocl.Pointer;"
+	""
+	"import ibis.cashmere.constellation.Argument;"
+	"import ibis.cashmere.constellation.Buffer;"
+	"import ibis.cashmere.constellation.KernelLaunch;"
+	"import ibis.cashmere.constellation.MCCashmereNotAvailable;"
+	""
+	""
+	"class MCL {"
+	""
+	"    ~a" (emit-list cashmere-infos :nr-lines 2 :function #'make-funcs)
+	"}"))
+
+(defun make-funcs (cashmere-info)
+  (with-slots (default-func copy-func-header set-argument call-conditions)
+      cashmere-info
+    (emit "~a" (emit-list (split-lines default-func))
+          ""
+          "~a {" copy-func-header
+          "    ~a" (emit-list (split-lines set-argument))
+          ""
+          "    ~a" (make-call-conditions call-conditions)
+          "    else {"
+          "        throw new MCCashmereNotAvailable(\"no compatible device found\");"
+          "    }"
+          "}")))
+
+(defun make-call-conditions (call-conditions)
+  (destructuring-bind (f &rest r) call-conditions
+    (if r
+        (emit "~a" (make-call-condition f nil)
+              "~a" (emit-list r :nr-lines 0 :function #'make-call-condition))
+        (emit "~a" (make-call-condition f nil)))))
+
+(defun make-call-condition (call-condition else)
+  (destructuring-bind (condition stats call) call-condition
+    (emit "~aif (~a) {" (if else "else" "") condition
+          "    ~a" (emit-list stats)
+          "    ~a;" call
+          "}")))
+#+end_src
+
+** Remove hardware variables
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/remove-hardware-vars.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass remove-hardware-vars
+  (:dependencies semantic-analysis translate))
+
+(defun do-remove-hardware-vars (pass-data options)
+  (declare (ignore options))
+  (loop for m being the hash-values in (modules pass-data)
+	do (remove-hardware-vars:remove-hardware-vars m)))
+#+end_src
+
+** Moving dimension constants out foreach
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/move-foreach-to-func.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass move-dimension-constants-out-foreach
+  (:dependencies semantic-analysis translate))
+ 
+
+(defun do-move-dimension-constants-out-foreach (pass-data options)
+  (declare (ignore options))
+  (with-slots (modules callgraph exports) pass-data
+    (domodules (m modules)
+      (move-dimension-constants:move-dimension-constants m))
+    (domodules (m modules) (set-parents m))
+    (domodules (m modules) (resolve-calls m exports))
+    (create-callgraph pass-data)
+    (domodules (m modules) (resolve-vars m exports))
+    ;;(domodules (m modules) (check-types m))
+    (domodules (m modules) (set-cfgraphs m))
+    (set-vars-written callgraph)
+    modules))
+#+end_src
+
+** Moving foreach statements to functions
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/move-foreach-to-func.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass move-foreach-to-func
+  (:dependencies semantic-analysis flatten-types
+		 move-dimension-constants-out-foreach
+		 generate-transfers))
+ 
+
+(defun do-move-foreach-to-func (pass-data options)
+  (declare (ignore options))
+  (with-slots (modules callgraph exports) pass-data
+    (domodules (m modules) (move-foreach-to-func:move-foreach-to-func m))
+    (domodules (m modules) (set-parents m))
+    (domodules (m modules) (resolve-calls m exports))
+    (create-callgraph pass-data)
+    (domodules (m modules) (resolve-types m exports))
+    (domodules (m modules) (resolve-vars m exports))
+    (domodules (m modules) (check-types m))
+    (domodules (m modules) (set-cfgraphs m))
+    (set-vars-written callgraph)
+    ;;(domodules (m modules) (check-types m))
+    modules))
+#+end_src
+
+** Moving foreach statements to functions Cashmere
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/move-foreach-to-func-cashmere.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass move-foreach-to-func-cashmere
+  (:dependencies semantic-analysis flatten-types
+		 move-dimension-constants-out-foreach))
+ 
+
+(defun do-move-foreach-to-func-cashmere (pass-data options)
+  (declare (ignore options))
+  (with-slots (modules callgraph exports) pass-data
+    (domodules (m modules)
+      (move-foreach-to-func-cashmere:move-foreach-to-func-cashmere m))
+    (domodules (m modules) (set-parents m))
+    (domodules (m modules) (resolve-calls m exports))
+    (create-callgraph pass-data)
+    (domodules (m modules) (resolve-types m exports))
+    (domodules (m modules) (resolve-vars m exports))
+    (domodules (m modules) (check-types m))
+    (domodules (m modules) (set-cfgraphs m))
+    (set-vars-written callgraph)
+    ;;(domodules (m modules) (check-types m))
+    modules))
+#+end_src
+
+** Generating transfers
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/generate-transfers.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass generate-transfers
+  (:dependencies semantic-analysis flatten-types))
+ 
+(defun do-generate-transfers (pass-data options)
+  (declare (ignore options))
+  (with-slots (modules callgraph exports) pass-data
+    (domodules (m modules) (set-cfgraphs m t t))
+    (set-entry-exit-on-device-variables:set-entry-exit-on-device-variables
+     callgraph)
+    (generate-transfers:generate-transfers callgraph)
+    (domodules (m modules) (set-parents m))
+    (domodules (m modules) (resolve-vars m exports))
+    (domodules (m modules) (set-cfgraphs m))
+
+    (generate-allocations:generate-allocations callgraph)
+    (domodules (m modules) (set-parents m))
+    (domodules (m modules) (resolve-vars m exports))
+
+    (domodules (m modules)
+      (remove-unnecessary-transfers:remove-unnecessary-transfers m))
+    (domodules (m modules) (set-parents m))
+    (domodules (m modules) (resolve-calls m exports))
+    (create-callgraph pass-data)
+    (domodules (m modules) (resolve-vars m exports))
+    (set-vars-written callgraph)
+    (domodules (m modules) (set-cfgraphs m))
+    modules))
+#+end_src
+
+** Specializing functions on memory-space
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/specialize-funcs-on-ms.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass specialize-funcs-on-memory-space
+  (:dependencies semantic-analysis)
+  (:at-most-one (move-foreach-to-func move-foreach-to-func-cashmere)))
+ 
+(defun do-specialize-funcs-on-memory-space (pass-data options)
+  (declare (ignore options))
+  (with-slots (modules callgraph exports) pass-data
+    ;; (loop for v being the hash-values in modules
+    ;;    do (format t (print-pretty:pp v)))
+    (specialize-funcs-on-memory-space:specialize-funcs-on-memory-space
+     (alexandria:hash-table-values modules) callgraph exports)
+    (clrhash exports)
+    (check-all-exports pass-data)
+    (domodules (m modules) (set-parents m))
+    (domodules (m modules) (resolve-calls m exports))
+    (create-callgraph pass-data)
+    (domodules (m modules) (resolve-types m exports))
+    (domodules (m modules) (resolve-vars m exports))
+    (domodules (m modules) (check-types m))
+    (domodules (m modules) (set-cfgraphs m))
+    (set-vars-written callgraph)
+    modules))
+#+end_src
+
+
+
+
+** Transform tile expressions
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/transform-tile-expressions.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass transform-tile-expressions
+  (:dependencies semantic-analysis move-foreach-to-func flatten-types))
+ 
+(defun do-transform-tile-expressions (pass-data options)
+  (declare (ignore options))
+  (with-slots (modules exports) pass-data
+    ;; (domodules (m modules)
+    ;;   (transform-tile-expressions:transform-tile-expressions m exports))
+    modules))
+#+end_src
+
+

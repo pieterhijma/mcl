@@ -1,0 +1,2722 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :results output silent :tangle-mode (identity #o400) :mkdirp yes
+
+* Many-Core Programming Language
+
+#+toc: headlines 4 local
+
+** The AST of MCPL
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/ast-mcpl/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+
+(utility-directory:unexport-symbols :ast-mcpl)
+#+end_src
+
+#+begin_src lisp
+(defpackage :ast-mcpl
+  (:use :cl :ast)
+  (:import-from :utility-directory :def-methods)
+  (:import-from :alexandria :compose)
+  (:export :get-basic-decls
+	   :get-basic-decl
+	   :get-basic-decls-in-scope
+	   :get-id
+	   :normal-id-p
+	   :func-id-p
+	   :type-id-p
+	   :const-id-p
+
+	   :param-written-p
+	   :param-p
+	   :get-position-in-call
+	   :param-call->param-func
+	   :get-decl-param
+	   :get-basic-decl-param
+	   :decl-calling-func->called-func
+	   :decl-called-func->calling-func
+	   :decl-calling-func-in-called-func-p
+	   :decl-called-func-in-calling-func-p
+	   :call-expr-p
+	   :call-stat-p
+
+	   :get-decl-var
+	   :constant-p
+	   :global-p
+	   :priority
+	   :binary-p
+	   :unary-p
+	   :left-associative-p
+	   :right-associative-p
+
+
+	   :get-module
+
+	   :get-func
+	   :func-exists-p
+
+	   :get-base-type
+
+	   :get-memory-spaces-modifier
+
+	   :memory-space-disallowed
+	   :primitive-decl-p
+	   :primitive-type-p
+	   :get-type-decl
+
+	   :in-foreach-p
+	   :top-level-foreach-p
+	   :inner-foreach-p
+
+	   :builtin-func-p
+	   :cast-func-p
+	   :get-type-builtin-func
+	   :transfer-p
+
+	   :global-constant-p
+	   :typedef-var-p
+	   :typedef-decl-p
+	   
+	   :ancestors-match))
+#+end_src
+
+*** The AST
+    :PROPERTIES:
+    :header-args+: :package ":ast-mcpl"
+    :header-args+: :tangle "system/library/ast-mcpl/ast.lisp"
+    :END:
+
+**** top-level
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :ast-mcpl)
+#+end_src
+
+#+begin_src lisp
+(defast module
+        ((module (pkg id exports imports code) ())) 
+        ())
+
+(defast lib-import 
+        ((lib-import (id) ())) 
+        ())
+
+(defast code 
+        ((code (top-decls funcs) ())) 
+        ())
+
+(defast func 
+        ((func (hw-desc mcl-type id params code-block)
+	       (cfgraph called-by
+			;; written-on-device-entry
+			;; read-on-device-entry
+			;; written-on-device-exit
+			;; read-on-device-exit
+			entry-on-device-variables
+			exit-on-device-variables)))
+        ())
+#+end_src
+
+**** declarations
+
+#+begin_src lisp
+(defast top-decl 
+        ((const-decl (decl) ())
+         (typedef (id params fields) ()))
+        ())
+
+(defast decl 
+        ((normal-decl (modifiers basic-decls) ())
+         (assign-decl (modifiers basic-decl expr) ())) 
+        (as-basic-decls written loaded))
+
+(defast decl-modifier 
+        ((const () ())
+         (user-defined (modifier) ()))
+        ())
+
+(defast basic-decl 
+        ((basic-decl (mcl-type id) (decl vars)))
+        ())
+#+end_src
+
+**** types
+
+#+begin_src lisp
+(defast mcl-type 
+        ((void () ())
+         (int () ())
+         (flt () ())
+         (double () ())
+         (bool () ())
+         (mcl-byte () ())
+         (custom-type (id params) (typedef))
+         (array-type (base-type sizes) ()))
+        ())
+
+(defast array-size 
+        ((decl-array-size (size decl) ())
+         (overlap (left size right) ()))
+        ())
+#+end_src
+
+**** statements
+
+#+begin_src lisp
+(defast stat 
+        ((decl-stat (decl) ())
+         (assign-stat (var expr) ())
+         (block-stat (code-block) ())
+         (inc-stat (inc) ())
+         (call-stat (call) ())
+         (return-stat (expr) ())
+         (if-stat (cond-expr stat elseStat) ())
+         (for-stat (decl cond-expr inc stat) ())
+         (as-stat (var basic-decls) ())
+         (foreach-stat (decl nr-iters par-group stat))
+         (barrier-stat (mem-space) ())
+	 (swap-stat (var-left var-right) ()))
+        ())
+
+(defast code-block 
+        ((code-block (stats) ()))
+        ())
+
+(defast increment 
+        ((inc (var option) ())
+         (inc-step (var option expr) ()))
+        ())
+
+(defast call 
+        ((call (id params) (func)))
+        ())
+#+end_src
+
+**** vars
+
+#+begin_src lisp
+(defast var 
+    ((normal-var (basic-var) ())
+     (dot-var (basic-var var) ()))
+  ())
+
+(defast basic-var 
+    ((basic-var (id array-exprs) (basic-decl)))
+  ())
+
+(defast id 
+    ((id (name) ())
+     (compound-id (name compound) ()))
+  ())
+#+end_src
+
+**** expressions
+
+#+begin_src lisp
+(defast expr 
+        ((log-or (l r) ())
+	 (log-and (l r) ())
+	 (bitor (l r) ())
+	 (bitand (l r) ())
+	 (equ (l r) ())
+	 (ne (l r) ())
+         (lt (l r) ())
+         (gt (l r) ())
+         (le (l r) ())
+         (ge (l r) ())
+	 (bitshl (l r) ())
+	 (bitshr (l r) ())
+	 (pow (l r) ())
+         (add (l r) ())
+         (sub (l r) ())
+         (mul (l r) ())
+         (div (l r) ())
+         (modulo (l r) ())
+         (minus (e) ())
+         (neg (e) ())
+         (call-expr (call) ())
+         (var-expr (var) ())
+	 (int-constant (int-value) ())
+         (float-constant (float-value) ())
+         (bool-constant (bool-value) ()))
+  (eval-type))
+#+end_src
+
+*** Printing functions
+    :PROPERTIES:
+    :header-args+: :package ":ast-mcpl"
+    :header-args+: :tangle "system/library/ast-mcpl/printing.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :ast-mcpl)
+#+end_src
+
+#+begin_src lisp
+(defmethod print-object ((ast id) stream)
+   (print-unreadable-object (ast stream :type t)
+     (format stream "~s" (name ast))))
+
+
+(create-print-functions ((module id) (lib-import id) (func id) (const-decl decl)
+			 (decl get-basic-decl)
+			 (basic-decl id) (typedef id) (custom-type id)
+			 (call id) (var basic-var) (basic-var id)
+			 (call-stat call) (var-expr var)
+			 (assign-stat var) (decl-stat decl)
+			 (user-defined modifier)))
+#+end_src
+
+*** Accessor functions
+    :PROPERTIES:
+    :header-args+: :package ":ast-mcpl"
+    :header-args+: :tangle "system/library/ast-mcpl/accessors.lisp"
+    :END:
+
+**** Retrieving basic declarations
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :ast-mcpl)
+#+end_src
+
+
+#+begin_src lisp
+(defgeneric get-basic-decls (ast))
+
+(defmethod get-basic-decls ((d normal-decl))
+  (append (basic-decls d) (as-basic-decls d)))
+
+(defmethod get-basic-decls ((d assign-decl))
+  (append (list (basic-decl d)) (as-basic-decls d)))
+#+end_src
+
+
+#+begin_src lisp
+(defgeneric get-basic-decl (ast)
+  (:documentation "Get the main basic-decl of a decl."))
+
+(defmethod get-basic-decl ((d normal-decl))
+  (first (basic-decls d)))
+
+(defmethod get-basic-decl ((d assign-decl))
+  (basic-decl d))
+
+(defmethod get-basic-decl ((v var))
+  (get-basic-decl (basic-var v)))
+
+(defmethod get-basic-decl ((bv basic-var))
+  (basic-decl bv))
+#+end_src
+
+**** Retrieving the identifier
+
+#+begin_src lisp
+(defgeneric get-id (ast)
+  (:documentation "Get the id of an ast-form"))
+
+(defmethod get-id ((d decl))
+  (get-id (get-basic-decl d)))
+
+(defmethod get-id ((bd basic-decl))
+  (id bd))
+
+(defmethod get-id ((v var))
+  (id (basic-var v)))
+
+(defmethod get-id ((td typedef))
+  (id td))
+
+(defmethod get-id ((bv basic-var))
+  (id bv))
+
+(defmethod get-id ((cd const-decl))
+  (get-id (decl cd)))
+
+(defgeneric normal-id-p (id)
+  (:documentation "Whether id is a normal id"))
+
+(defmethod normal-id-p ((id id))
+  (lower-case-p (elt (name id) 0)))
+
+(defmethod normal-id-p ((ci compound-id))
+  (normal-id-p (compound ci)))
+
+(defgeneric func-id-p (id)
+  (:documentation "Whether id is an identifier for a function"))
+
+(defmethod func-id-p ((id id))
+  (normal-id-p id))
+
+(defgeneric type-id-p (id)
+  (:documentation "Whether id is an identifier for a type"))
+
+(defmethod type-id-p ((id id))
+  (with-slots (name) id
+    (and (>= (length name) 2)
+	 (upper-case-p (elt name 0))
+	 (lower-case-p (elt name 1)))))
+
+(defmethod type-id-p ((ci compound-id))
+  (type-id-p (compound ci)))
+
+(defgeneric const-id-p (id)
+  (:documentation "Whether id is an identifier for a constant."))
+
+(defmethod const-id-p ((id id))
+  (with-slots (name) id
+    (and (>= (length name) 2)
+	 (upper-case-p (elt name 0))
+	 (let ((c (elt name 1)))
+	   (or (upper-case-p c)
+	       (eql c #\_))))))
+
+(defmethod const-id-p ((ci compound-id))
+  (const-id-p (compound ci)))
+#+end_src
+
+**** Retrieving the basic declaration of a variable
+
+#+begin_src lisp
+(defun get-decl-var (var)
+  "Get the declaration of the variable."
+  (let ((d (decl (get-basic-decl-var var))))
+    (assert d)
+    d))
+#+end_src
+
+#+begin_src lisp
+(defgeneric get-basic-decl-var (var)
+  (:documentation "Get the basic declaration of the var."))
+
+(defmethod get-basic-decl-var ((ve var-expr))
+  (get-basic-decl-var (var ve)))
+
+(defmethod get-basic-decl-var ((v var))
+  (get-basic-decl-var (basic-var v)))
+
+(defmethod get-basic-decl-var ((bv basic-var))
+  (let ((bd (basic-decl bv)))
+    (assert bd)
+    bd))
+#+end_src
+
+**** Retrieving the basic declarations in scope
+
+First, we find a parent of the ast-form, for which the analysis would also
+hold.  This means that we find a parent in forms that cannot introduce
+declarations that are also in the scope of ast-form.
+
+#+begin_src lisp
+(defun get-basic-decls-in-scope (ast)
+  (let ((until-parent (find-until-parent ast)))
+    (if (null until-parent)
+	nil
+	(append (find-decls (parent until-parent) until-parent)
+		(get-basic-decls-in-scope (parent until-parent))))))
+#+end_src
+
+
+The function ~find-decls~ finds the declarations in an ast-form until it hits
+~until-ast~.   The parents can only be ast-forms that introduce a new scope.
+
+#+begin_src lisp
+(defgeneric find-decls (parent until-ast))
+
+(defmethod find-decls ((parent ast) (until-ast ast))
+  (error "illegal find-decls for ~a and ~a" parent until-ast))
+
+(defmethod find-decls ((cb code-block) (until stat))
+  (loop for s in (stats cb)
+     until (eq s until)
+     append (get-basic-decls-stat s)))
+
+(defmethod find-decls ((fe foreach-stat) (d decl))
+  nil)
+
+(defmethod find-decls ((fe foreach-stat) (e expr))
+  nil)
+
+(defmethod find-decls ((fe foreach-stat) (id id))
+  nil)
+
+(defmethod find-decls ((fe foreach-stat) (s stat))
+  (basic-decls (decl fe)))
+
+(defmethod find-decls ((fs for-stat) (d decl))
+  nil)
+
+(defun get-basic-decls-decl (decl)
+  (typecase decl
+    (assign-decl (list (basic-decl decl)))
+    (normal-decl (basic-decls decl))))
+
+(defmethod find-decls ((fs for-stat) (e expr))
+  (get-basic-decls-decl (decl fs)))
+
+(defmethod find-decls ((fs for-stat) (i increment))
+  (get-basic-decls-decl (decl fs)))
+
+(defmethod find-decls ((fs for-stat) (s stat))
+  (get-basic-decls-decl (decl fs)))
+
+(defmethod find-decls ((f func) (id id))
+  nil)
+
+(defmethod find-decls ((f func) (mcl-type mcl-type))
+  nil)
+
+(defmethod find-decls ((f func) (d decl))
+  (loop for p in (params f)
+	until (eq p d)
+	append (get-basic-decls-decl p)))
+
+(defmethod find-decls ((f func) (cb code-block))
+  (loop for p in (params f) appending (get-basic-decls-decl p)))
+#+end_src
+
+Now we have defined the ast-forms that introduce a new scope, it is possible to
+define a function that finds the parent for which the analysis stops.  The
+following macro makes it easier to define ~find-until-parent~ functions:
+
+#+begin_src lisp
+(defgeneric find-until-parent (ast))
+
+(defmacro def-find-until-parent (ast-type parent-types)
+  `(defmethod find-until-parent ((ast ,ast-type))
+     (if (member (type-of (parent ast)) ,parent-types)
+	 ast
+	 (find-until-parent (parent ast)))))
+
+(defmethod find-until-parent ((ast ast))
+  (if (null (parent ast))
+      nil
+      (find-until-parent (parent ast))))
+#+end_src
+
+The ~def-find-until-parent~ macro specifies that if we for example a ~decl~,
+then the parent must be a ~foreach-stat~, ~for-stat~, or ~func~.  Otherwise, the
+search continues.
+
+#+begin_src lisp
+(def-find-until-parent decl '(foreach-stat for-stat func))
+(def-find-until-parent expr '(foreach-stat for-stat))
+(def-find-until-parent id '(foreach-stat func))
+(def-find-until-parent stat '(foreach-stat for-stat code-block))
+(def-find-until-parent increment '(for-stat))
+(def-find-until-parent mcl-type '(func))
+(def-find-until-parent code-block '(func))
+#+end_src
+
+The function ~get-basic-decls-stat~ retrieves all basic-decls from a statement.
+If the statement is a ~decl-stat~, it continues in the ~decls~.  
+
+#+begin_src lisp
+(defgeneric get-basic-decls-stat (stat))
+
+(defmethod get-basic-decls-stat ((s stat))
+  nil)
+
+(defmethod get-basic-decls-stat ((ds decl-stat))
+  (get-basic-decls-decl (decl ds)))
+
+(defmethod get-basic-decls ((as as-stat))
+  (basic-decls as))
+#+end_src
+
+***** Testing 
+
+****** The package
+       :PROPERTIES:
+       :header-args+: :package ":cl-user"
+       :header-args+: :tangle "system/tests/test-ast-mcpl/packages.lisp"
+       :END:      
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-ast-mcpl
+  (:use :cl :test-mcl :fiveam :ast :ast-mcpl :parse-mcpl :set-parents)
+  (:export :test-ast-mcpl))
+#+end_src
+
+****** The tests
+       :PROPERTIES:
+       :header-args+: :package ":test-ast-mcpl"
+       :header-args+: :tangle "system/tests/test-ast-mcpl/test-ast-mcpl.lisp"
+       :END:      
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-ast-mcpl)
+#+end_src
+
+#+begin_src lisp
+(def-suite ast-mcpl :in mcl-test-suite)
+(in-suite mcl-test-suite)
+
+(defparameter *module* 
+"package a;
+module b;
+
+perfect void f(int a) {
+  int b;
+  int c = a;
+}")
+
+(test get-basic-decls-in-scope
+  (is
+    (do-get-basic-decls-in-scope *module* "a" 'var '("a" "b"))))
+
+
+
+(defun do-get-basic-decls-in-scope (module-string name type basic-decl-strings)
+  (let* ((module (set-parents (parse-mcpl module-string)))
+	 (from-ast (get-ast-form name type module)))
+    (null (set-exclusive-or basic-decl-strings
+			    (mapcar #'(lambda (x) (name (get-id x)))
+				    (get-basic-decls-in-scope from-ast))
+			    :test #'string=))))
+
+(defun get-ast-form (name type module)
+  (retrieve-all module #'(lambda (x)
+			   (and (typep x type)
+				(equal (name (get-id x)) name)))))
+
+
+#+end_src
+
+**** Builtin functions.
+
+The following variable contains the name of the function, the type, and a list
+for each parameter and whether it is written (t) or not (nil).
+
+#+begin_src lisp
+(defparameter *specs-builtin-funcs*
+  `(("toFloat" ,(make-flt) (nil))
+    ("toDouble" ,(make-double) (nil))
+    ("mcl_builtin_read" ,(make-void) (nil))
+    ("mcl_builtin_write" ,(make-void) (t))
+    ("mcl_builtin_transfer_to_device" ,(make-void) (nil))
+    ("mcl_builtin_transfer_from_device" ,(make-void) (t))
+    ("mcl_builtin_allocate_on_device" ,(make-void) (nil))
+    ("mcl_builtin_deallocate_on_device" ,(make-void) (nil))
+    ("min" ,(make-int) (nil))
+    ("max" ,(make-int) (nil))
+    ("divide_up" ,(make-int) (nil))))
+
+(defparameter *builtin-funcs*
+  (mapcar #'first *specs-builtin-funcs*))
+
+(defgeneric builtin-func-p (function)
+  (:documentation "Whether a function is builtin."))
+
+(defmethod builtin-func-p ((func func))
+  (let ((stat (first (stats (code-block func)))))
+    (and stat
+	 (typep stat 'call-stat)
+	 (builtin-func-p (call stat)))))
+
+(defmethod builtin-func-p ((call call))
+  (builtin-func-p (id call)))
+
+(defmethod builtin-func-p ((id id))
+  (builtin-func-p (name id)))
+
+(defmethod builtin-func-p ((name-function string))
+  (member name-function *builtin-funcs* :test #'string=))
+
+(defgeneric get-type-builtin-func (function)
+  (:documentation "Get the type of a builtin function."))
+
+(defmethod get-type-builtin-func ((name-function string))
+  (second (assoc name-function *specs-builtin-funcs* :test #'string=)))
+
+(defgeneric transfer-p (ast)
+  (:documentation "Whether an AST-form a transfer is."))
+
+(def-methods transfer-p ((ast (ast string number symbol list)))
+  nil)
+
+(defmethod transfer-p ((cs call-stat))
+  (member (name (id (call cs)))
+	  '("mcl_builtin_transfer_to_device"
+	    "mcl_builtin_transfer_from_device"
+	    "mcl_builtin_allocate_on_device"
+	    "mcl_builtin_deallocate_on_device")
+	  :test #'string=))
+
+#+end_src
+**** Checking for casting functions
+
+#+begin_src lisp
+(defgeneric cast-func-p (function))
+
+(defmethod cast-func-p ((ce call-expr))
+  (cast-func-p (call ce)))
+
+(defmethod cast-func-p ((call call))
+  (cast-func-p (id call)))
+
+(defmethod cast-func-p ((id id))
+  (member (name id) '("toFloat") :test #'string=))
+#+end_src
+**** Parameters and calls
+
+#+begin_src lisp
+(defgeneric param-p (expr-decl-or-var)
+  (:documentation "Whether an expression, declaration or variable is 
+a parameter.  In case it is a declaration, it will be treated as formal
+ parameter, otherwise, it will be treated as actual parameter."))
+
+(defmethod param-p ((ast ast))
+  nil)
+
+(defmethod param-p ((d decl))
+  (eq (type-of (parent d)) 'func))
+
+(defmethod param-p ((e expr))
+  (eq (type-of (parent e)) 'call))
+
+(defmethod param-p ((v var))
+  (param-p (parent v)))
+
+(defgeneric get-position-in-call (decl-expr-var call)
+  (:documentation "Get the position of a declaration, expression or variable
+in a call"))
+
+(defmethod get-position-in-call ((decl decl) call)
+  (with-slots (params) call
+    (loop
+       for i from 0 below (length params)
+       for param in params
+       when (typep param 'var-expr)
+       when (eq decl (get-decl-var (var param)))
+       do (return i))))
+
+(defgeneric param-call->param-func (expr))
+
+(defmethod param-call->param-func ((expr expr))
+  (let ((call (parent expr)))
+    (nth (position expr call) (func call))))
+#+end_src
+
+The following two functions transform decls from the called functions to the
+calling function and vice versa.
+
+#+begin_src lisp
+(defun decl-called-func-in-calling-func-p (decl-called-func call)
+  (let ((pos (position decl-called-func (params (func call)))))
+    (and pos
+	 (let ((expr (nth pos (params call))))
+	   (typep expr 'var-expr)))))
+  
+(defun decl-called-func->calling-func (decl-called-func call)
+  (let ((expr (nth (position decl-called-func (params (func call)))
+		   (params call))))
+    (get-decl-param expr)))
+
+(defun decl-calling-func-in-called-func-p (decl-calling-func call)
+  (position decl-calling-func (mapcar #'get-decl-param (params call))))
+
+(defun decl-calling-func->called-func (decl-calling-func call)
+  (nth (position decl-calling-func (mapcar #'get-decl-param (params call)))
+       (params (func call))))
+#+end_src
+
+#+begin_src lisp
+(defgeneric get-decl-param (param))
+
+(defmethod get-decl-param ((param decl))
+  param)
+
+(defmethod get-decl-param ((param var-expr))
+  (get-decl-param (var param)))
+
+(defmethod get-decl-param ((param var))
+  (get-decl-var param))
+
+(defmethod get-decl-param ((param expr))
+  nil)
+#+end_src
+
+#+begin_src lisp
+(defgeneric get-basic-decl-param (param))
+
+(defmethod get-basic-decl-param ((param basic-decl))
+  param)
+
+(defmethod get-basic-decl-param ((param var-expr))
+  (get-basic-decl-param (var param)))
+
+(defmethod get-basic-decl-param ((param var))
+  (get-basic-decl-var param))
+
+(defmethod get-basic-decl-param ((param expr))
+  nil)
+#+end_src
+
+
+Whether a call is an expression call or a statement call:
+
+#+begin_src lisp
+(defgeneric call-stat-p (call))
+
+(defmethod call-stat-p ((call-stat call-stat))
+  t)
+
+(defmethod call-stat-p ((call-expr call-expr))
+  nil)
+
+(defmethod call-stat-p ((stat stat))
+  nil)
+
+(defmethod call-stat-p ((call call))
+  (call-stat-p (parent call)))
+
+
+#+end_src
+
+
+#+begin_src lisp
+(defgeneric call-expr-p (call))
+
+(defmethod call-expr-p ((call-stat call-stat))
+  nil)
+
+(defmethod call-expr-p ((call-expr call-expr))
+  t)
+
+(defmethod call-expr-p ((call call))
+  (call-expr-p (parent call)))
+
+
+#+end_src
+
+**** Checking whether a parameter is written
+
+#+begin_src lisp
+(defgeneric param-written-p (expr-decl-or-var)
+  (:documentation "Whether a param is written. The argument can be
+an expr, decl or var."))
+
+(defgeneric param-written-builtin-p (func index))
+
+(defmethod param-written-builtin-p ((call call) index)
+  (param-written-builtin-p (id call) index))
+
+(defmethod param-written-builtin-p ((id id) index)
+  (param-written-builtin-p (name id) index))
+
+(defmethod param-written-builtin-p ((s string) index)
+  (nth index (third (assoc s *specs-builtin-funcs*))))
+
+(defmethod param-written-p ((e expr))
+  (assert (param-p e))
+  (and (eq (type-of e) 'var-expr)
+       (let ((index (get-index-param e))
+	     (call (parent e)))
+	 (if (builtin-func-p call)
+	     (param-written-builtin-p call index)
+	     (param-written-p (nth index (params (func call))))))))
+
+(defmethod param-written-p ((bd basic-decl))
+  (param-written-p (decl bd)))
+
+(defmethod param-written-p ((d decl))
+  (assert (param-p d))
+  (written d))
+
+(defmethod param-written-p ((v var))
+  (assert (param-p v))
+  (param-written-p (parent v)))
+#+end_src
+
+**** Retrieve the index of parameter
+
+#+begin_src lisp
+(defgeneric get-index-param (expr-or-decl)
+  (:documentation "get the index of the parameter in the parameter list"))
+
+(defmethod get-index-param ((e expr))
+  (assert (param-p e))
+  (position e (params (parent e))))
+
+(defmethod get-index-param ((d decl))
+  (assert (param-p d))
+  (position d (params (parent d))))
+#+end_src
+
+**** Retrieve the module of an AST form
+
+#+begin_src lisp
+(defgeneric get-module (ast)
+  (:documentation "Get the module of this ast-form if it exists or nil."))
+
+(defmethod get-module ((ast ast))
+  (get-module (parent ast)))
+
+(defmethod get-module ((module module))
+  module)
+#+end_src
+
+**** Retrieve the enclosing function of an AST form
+
+#+begin_src lisp
+(defgeneric get-func (ast)
+  (:documentation "Get the function of this ast-form if it exists or nil."))
+
+(defmethod get-func ((ast ast))
+  (get-func (parent ast)))
+
+(defmethod get-func ((module module))
+  nil)
+
+(defmethod get-func ((func func))
+  func)
+#+end_src
+
+**** Information about expressions
+
+#+begin_src lisp
+(defgeneric binary-p (expr))
+
+(defmethod binary-p ((expr expr))
+  (member (type-of expr) '(pow mul div modulo add sub bitshl bitshr lt gt le ge
+                           equ ne bitand bitor log-and log-or)))
+
+(defgeneric unary-p (expr))
+
+(defmethod unary-p ((expr expr))
+  (member (type-of expr) '(neg minus)))
+
+(defgeneric priority (expr))
+
+(defmethod priority ((expr expr))
+  (etypecase expr
+    (minus 40)
+    (neg 40)
+    (pow 35)
+    (mul 30)
+    (div 30)
+    (modulo 30)
+    (add 25)
+    (sub 25)
+    (bitshl 20)
+    (bitshr 20)
+    (lt 15)
+    (gt 15)
+    (le 15)
+    (ge 15)
+    (equ 10)
+    (ne 10)
+    (bitand 9)
+    (bitor 8)
+    (log-and 7)
+    (log-or 6)))
+
+(defgeneric left-associative-p (expr))
+
+(defmethod left-associative-p ((expr expr))
+  (member (type-of expr) '(mul div add sub modulo)))
+
+(defgeneric right-associative-p (expr))
+
+(defmethod right-associative-p ((expr expr))
+  nil)
+#+end_src
+
+**** Checking whether something is constant
+
+#+begin_src lisp
+(defgeneric constant-p (decl)
+  (:documentation "Check whether a declaration is constant."))
+
+(defmethod constant-p ((decl decl))
+  (find (make-const nil) (modifiers decl) :test #'ast=))
+
+(defmethod constant-p ((var var))
+  (constant-p (get-decl-var var)))
+
+(defmethod constant-p ((e expr))
+  (cond ((unary-p e)
+	 (constant-p (e e)))
+	((binary-p e)
+	 (and (constant-p (l e)) (constant-p (r e))))
+	((typep e 'var-expr)
+	 (constant-p (var e)))
+	(t
+	 t)))
+
+(defmethod constant-p ((ce call-expr))
+  (if (cast-func-p ce) (constant-p (first (params (call ce)))) nil))
+
+(defgeneric global-p (decl)
+  (:documentation "Check whether a declaration is a global declaration."))
+
+(defmethod global-p ((decl decl))
+  (typep (parent decl) 'const-decl))
+
+(defmethod global-p ((var var))
+  (global-p (get-decl-var var)))
+#+end_src
+
+**** Getting the base type of an array
+
+#+begin_src lisp
+(defgeneric get-base-type (type)
+  (:documentation "Retrieve the base-type of an array."))
+
+(defmethod get-base-type ((type mcl-type))
+  type)
+
+(defmethod get-base-type ((at array-type))
+  (get-base-type (base-type at)))
+#+end_src
+
+**** Getting the names of memory spaces
+
+#+begin_src lisp
+(in-package :ast-mcpl)
+
+(defgeneric get-memory-spaces-modifier (ast)
+  (:documentation "Get the memory spaces in the modifier of the decl that
+belongs to AST form ast."))
+
+(defmethod get-memory-spaces-modifier ((decl decl))
+  (mapcar #'modifier
+	  (remove-if (complement #'(lambda (x) (typep x 'user-defined))) (modifiers decl))))
+#+end_src
+
+**** Whether a memory space is disallowed
+
+#+begin_src lisp
+(in-package :ast-mcpl)
+
+(defgeneric memory-space-disallowed (ast)
+  (:documentation "Whether a memory space is disallowed for the ast form."))
+
+(defmethod memory-space-disallowed ((decl decl))
+  (and (primitive-decl-p decl) (constant-p decl)))
+#+end_src
+
+Checking whether a memory-space is disallowed in the following functions is
+from the perspective of a call:
+
+#+begin_src lisp
+(defmethod memory-space-disallowed ((e expr))
+  (if (typep e 'var-expr)
+      (memory-space-disallowed (var e))
+      (constant-p e)))
+
+(defmethod memory-space-disallowed ((v var))
+  (memory-space-disallowed (get-decl-var v)))
+#+end_src
+
+
+#+begin_src lisp
+(defparameter *primitive-types*
+  (list (make-int) (make-flt) (make-bool) (make-mcl-byte) (make-double)))
+
+(defgeneric primitive-decl-p (decl)
+  (:documentation "Whether a decl or var is primitive."))
+
+(defmethod primitive-decl-p ((decl decl))
+  (primitive-type-p (get-type-decl decl)))
+
+(defmethod primitive-decl-p ((bd basic-decl))
+  (primitive-type-p (mcl-type bd)))
+
+(defgeneric primitive-type-p (type))
+
+(defmethod primitive-type-p ((type mcl-type))
+  (find type *primitive-types* :test #'ast=))
+
+(defgeneric get-type-decl (ast)
+  (:documentation "Get the type of a declaration form"))
+
+(defmethod get-type-decl ((decl decl))
+  (get-type-decl (get-basic-decl decl)))
+
+(defmethod get-type-decl ((basic-decl basic-decl))
+  (mcl-type basic-decl))
+#+end_src
+
+**** Whether an AST is in a foreach
+
+#+begin_src lisp
+(defun in-foreach-p (ast)
+  (let ((parent (parent ast)))
+    (if (or (null parent) (typep parent 'func))
+	nil
+	(or (typep parent 'foreach-stat) (in-foreach-p parent)))))
+
+(defun top-level-foreach-p (ast)
+  (and (typep ast 'foreach-stat)
+       (not (in-foreach-p ast))))
+
+(defun inner-foreach-p (ast)
+  (and (typep ast 'foreach-stat)
+       (null (remove-if (complement #'(lambda (x) (typep x 'foreach-stat)))
+		     (stats (code-block (stat ast)))))))
+
+#+end_src
+
+**** Typedef variables and declarations
+
+#+begin_src lisp
+(defun typedef-var-p (var)
+  (typedef-decl-p (get-decl-var var)))
+
+(defun typedef-decl-p (decl)
+  (typep (parent decl) 'typedef))
+#+end_src
+
+**** Global constants
+
+#+begin_src lisp
+(defgeneric global-constant-p (var-expr-or-decl)
+  (:documentation "Whether a variable, expression, or declaration is a
+ global constant."))
+
+(defmethod global-constant-p ((var var))
+  (global-constant-p (get-decl-var var)))
+
+(defmethod global-constant-p ((decl decl))
+  (typep (parent decl) 'const-decl))
+#+end_src
+
+**** Whether functions exist
+
+#+begin_src lisp
+(defgeneric func-exists-p (func ast)
+  (:documentation "Whether a function exists in the module of ast"))
+
+(defmethod func-exists-p ((name-func string) (code code))
+  (member name-func (funcs code) :key (compose #'name #'id) :test #'string=))
+
+(defmethod func-exists-p (func (module module))
+  (func-exists-p func (code module)))
+
+(defmethod func-exists-p (func (ast ast))
+  (func-exists-p func (parent ast)))
+#+end_src
+
+
+
+**** Ancestors
+
+#+begin_src lisp
+(defun ancestors-match (ast ancestors)
+  (if (null ancestors)
+      t
+      (let ((parent (parent ast)))
+	(destructuring-bind (f &rest r) ancestors
+	  (and parent (typep parent f) (ancestors-match parent r))))))
+#+end_src
+
+
+
+** The parser
+
+*** The parser
+
+**** the package
+     :PROPERTIES:
+     :header-args+: :package ":cl-user"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/packages.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :parse-mcpl
+  (:use :cl :ast :ast-mcpl :esrap :parser.common-rules
+	:parser.common-rules.operators :parsing)
+  (:import-from :alexandria :read-file-into-string)
+  (:export :parse-mcpl :parse-mcpl-expr :parse-mcpl-file))
+#+end_src
+
+
+**** top-level
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :parse-mcpl)
+
+(declaim (optimize (speed 0) (space 1) (compilation-speed 0) (debug 3)))
+(sb-ext:restrict-compiler-policy 'debug 3)
+#+end_src
+
+An MCL file is a contains a module with a package declaration.  
+
+#+begin_src lisp
+(defparameter *keywords* '("package" "module" "export" "import" "type" "void" "int"
+			   "double" "float" "byte" "bool" "as" "return"
+			   "foreach" "barrier" "in" "if" "else" "const"
+			   "for"))
+
+(defrule skippable (+  (or whitespace
+			   c-style-comment/rest-of-line
+			   c-style-comment/delimited)))
+
+(defrule skippable? (* (or whitespace
+			  c-style-comment/rest-of-line
+			  c-style-comment/delimited)))
+
+
+(defrule module (and skippable? package-kw/?s qual-id/?s semi-colon/?s
+		       module-kw/?s id/?s semi-colon/?s
+		       module-exports/?s
+		       lib-imports/?s
+		       code/?s)
+  (:destructure (skippable
+		 package-kw qual-id semi-colon
+		 module-kw id semi-colon2
+		 exports
+		 imports
+		 code)
+		(declare (ignore skippable package-kw semi-colon semi-colon2))
+		(make-module qual-id id exports imports code module-kw)))
+
+(defrule/s module-exports (? (and export-kw/?s module-exports-1/?s semi-colon/?s))
+  (:function second))
+
+(defrule/s module-exports-1 (and module-export (* comma-module-export))
+  (:destructure (module-export &optional other-module-exports)
+		(if other-module-exports
+		    (cons module-export other-module-exports)
+		    (list module-export))))
+
+(defrule/s comma-module-export (and comma/?s module-export)
+  (:function second))
+
+(defrule/s module-export (or id camel-id caps-id))
+
+(defrule/s lib-imports (* lib-import/?s))
+
+(defrule/s lib-import (and import-kw/?s qual-id/?s semi-colon/?s)
+  (:lambda (result &bounds start end)
+    (make-lib-import (second result) (make-loc start end))))
+
+(defrule/s code (and top-decls/?s funcs/?s)
+  (:destructure (top-decls funcs) (make-code top-decls funcs nil)))
+
+#+end_src
+
+**** top declarations
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+#+begin_src lisp
+(defrule/s top-decls (* top-decl/?s))
+
+(defrule/s top-decl (or const-decl typedef))
+
+(defrule/s const-decl (and const-kw/?s type/?s caps-id/?s equals/?s exp/?s semi-colon/?s)
+  (:destructure (const type id eq expr sc &bounds start end)
+		(declare (ignore eq sc))
+		(make-const-decl
+		 (make-assign-decl
+		  (list const)
+		  (make-basic-decl type id (location id))
+		  expr
+		  (location id))
+		 (make-loc start end))))
+
+(defrule/s typedef (and type-kw/?s camel-id/?s (? formal-params/?s) block-open/?s
+			(* decl-separated/?s)
+			block-close/?s)
+  (:destructure (kw id params bo decls bc &bounds start end)
+		(declare (ignore kw bo bc))
+		(make-typedef id params decls (make-loc start end))))
+
+(defrule/s decl-separated (and decl/?s semi-colon/?s)
+  (:function first))
+
+#+end_src
+
+
+
+**** functions
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+
+
+#+begin_src lisp
+(defrule/s funcs (* func/?s))
+
+(defrule/s func (and id/?s type/?s id/?s formal-params/?s block/?s)
+  (:destructure (hw-desc mcl-type id-func params block)
+		(make-func hw-desc mcl-type id-func params block (location hw-desc))))
+
+(defrule/s formal-params (and parenthesis-open/?s
+			      decl-comma-separated/?s
+			      parenthesis-close/?s)
+  (:function second))
+
+(defrule/s decl-comma-separated (? (and decl/?s (* comma-decl/?s)))
+  (:destructure (&optional decl other-decls)
+		(if decl
+		    (if other-decls
+			(cons decl other-decls)
+			(list decl))
+		    nil)))
+		
+(defrule/s comma-decl (and comma/?s decl/?s)
+  (:function second))
+
+(defrule/s block
+    (and block-open/?s stats/?s block-close/?s)
+  (:destructure (open stats close &bounds start end)
+		(declare (ignore open close))
+		(make-code-block stats (make-loc start end))))
+#+end_src
+
+
+**** Statements
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+#+begin_src lisp
+(defrule/s stats (* stat))
+
+(defrule/s stat (or block-stat
+		    barrier-stat
+		    foreach-stat
+		    for-stat
+		    if-stat
+		    return-stat
+		    call-stat
+		    assign-stat
+		    as-stat
+		    inc-stat
+		    decl-stat
+		    swap-stat))
+
+(defrule/s block-stat block
+  (:lambda (b &bounds start end)
+    (make-block-stat b (make-loc start end))))
+
+(defrule/s foreach-stat (and foreach-kw/?s parenthesis-open/?s decl/?s in-kw/?s exp/?s id/?s parenthesis-close/?s stat/?s)
+  (:destructure (kw po decl in exp id pc stat &bounds start end)
+		(declare (ignore kw po in pc))
+		(make-foreach-stat decl exp id stat (make-loc start end))))
+
+(defrule/s for-stat (and for-kw/?s parenthesis-open/?s decl/?s semi-colon/?s exp/?s semi-colon/?s inc/?s parenthesis-close/?s stat/?s)
+  (:destructure (kw po decl sc1 cond-expr sc2 inc pc stat &bounds start end)
+		(declare (ignore kw po sc1 sc2 pc))
+		(make-for-stat decl cond-expr inc stat (make-loc start end))))
+
+(defrule/s return-stat (and return-kw/?s exp/?s semi-colon/?s)
+  (:destructure (kw exp semi-colon &bounds start end)
+		(declare (ignore kw semi-colon))
+		(make-return-stat exp (make-loc start end))))
+
+(defrule/s if-stat (and if-kw/?s parenthesis-open/?s exp parenthesis-close/?s stat/?s
+			(? (and else-kw/?s stat/?s)))
+  (:destructure (kw po cond-expr pc stat &optional else &bounds start end)
+		(declare (ignore kw po pc))
+		(make-if-stat cond-expr stat (second else) (make-loc start end))))
+
+(defrule/s barrier-stat (and barrier-kw/?s parenthesis-open/?s id/?s parenthesis-close/?s semi-colon/?s)
+  (:destructure (kw po id pc sc &bounds start end)
+		(declare (ignore kw po pc sc))
+		(make-barrier-stat id (make-loc start end))))
+
+(defrule/s decl-stat (and decl/?s semi-colon/?s)
+  (:lambda (result &bounds start end)
+    (make-decl-stat (first result) (make-loc start end))))
+
+(defrule/s assign-stat (and var/?s equals/?s  exp/?s semi-colon/?s)
+  (:destructure (var eq expr sc &bounds start end)
+		(declare (ignore eq sc))
+		(make-assign-stat var expr (make-loc start end))))
+
+(defrule/s as-stat (and var/?s as-kw/?s basic-decl/?s (* as-decl/?s) semi-colon/?s)
+  (:destructure (var as-kw bd as-decls sc &bounds start end)
+		(declare (ignore as-kw sc))
+		(make-as-stat var (cons bd as-decls) (make-loc start end))))
+
+(defrule/s call-stat (and call/?s semi-colon/?s)
+  (:lambda (result &bounds start end)
+    (make-call-stat (first result) (make-loc start end))))
+
+(defrule/s inc-stat (and inc/?s semi-colon/?s)
+  (:lambda (result &bounds start end)
+    (make-inc-stat (first result) (make-loc start end))))
+
+(defrule/s swap-stat (and var/?s swap-op/?s var semi-colon/?s)
+  (:destructure (var-left sw var-right sc &bounds start end)
+		(declare (ignore sw sc))
+		(make-swap-stat var-left var-right (make-loc start end))))
+#+end_src
+
+#+begin_src lisp
+(defrule/s call (and qual-id actual-params-0)
+  (:destructure (id params &bounds start end)
+		(make-call id params (make-loc start end))))
+
+(defrule/s actual-params-0 (and parenthesis-open/?s exp-comma-separated-0/?s parenthesis-close/?s)
+  (:function second))
+
+(defrule/s actual-params-1 (and parenthesis-open/?s exp-comma-separated-1/?s parenthesis-close/?s)
+  (:function second))
+
+(defrule/s inc (or incr/?s decr/?s step/?s))
+
+(defrule/s incr (and var incr-op/?s)
+  (:lambda (r &bounds start end)
+    (make-inc (first r) t (make-loc start end))))
+
+(defrule/s decr (and var decr-op/?s)
+  (:lambda (r &bounds start end)
+    (make-inc (first r) nil (make-loc start end))))
+
+(defrule/s step (and var/?s step-op/?s exp/?s)
+  (:destructure (v op exp)
+		(make-inc-step v op exp)))
+
+(defrule/s step-op (or step-add step-sub step-mul step-div step-bitshr))
+#+end_src
+
+
+**** declarations
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+#+begin_src lisp
+(defrule/s decl (or assign-decl/?s normal-decl/?s))
+
+(defrule/s assign-decl (and modifiers/?s basic-decl/?s equals/?s exp/?s)
+  (:destructure (modifiers basic-decl equals exp)
+		(declare (ignore equals))
+		(make-assign-decl modifiers basic-decl exp)))
+
+(defrule/s normal-decl (and modifiers/?s basic-decl/?s (* as-decl))
+  (:destructure (modifiers basic-decl as-basic-decls &bounds start end)
+		(make-normal-decl modifiers (cons basic-decl as-basic-decls) (make-loc start end))))
+
+(defrule/s as-decl (and as-kw/s basic-decl/?s)
+  (:function second))
+
+(defrule/s modifiers (* modifier/s))
+
+(defrule/s modifier (or const-kw user-defined-modifier))
+
+(defrule/s user-defined-modifier (and id (! dot))
+  ;; we have to add here that id is not followed by a dot.  Otherwise we cannot
+  ;; parse a qualified custom type.
+  (:destructure (id not-followed-by-dot &bounds start end)
+		(declare (ignore not-followed-by-dot))
+		(make-user-defined id (make-loc start end))))
+
+(defrule/s basic-decl (and type/?s id/?s)
+  (:destructure (type id &bounds start end)
+		(make-basic-decl type id (make-loc start end))))
+
+#+end_src
+
+**** types
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+
+#+begin_src lisp
+(defrule/s type (and basic-type/?s (* array/?s))
+  (:destructure (bt sizes)
+		(do-type bt sizes)))
+
+(defrule/s basic-type (or void int float double byte bool custom-type))
+
+(defmacro type-literal (type-string &optional make-func)
+  (let ((rule-sym (intern (string-upcase type-string)))
+	(make-sym (intern (format nil "MAKE-~a" (string-upcase (if make-func make-func type-string))))))
+    (alexandria:with-gensyms (item start end)
+      `(defrule ,rule-sym (and ,type-string (! (character-ranges (#\a #\z))))
+	 (:lambda (,item &bounds ,start ,end)
+	   (declare (ignore ,item))
+	   (,make-sym (make-loc ,start ,end)))))))
+
+(type-literal "void")
+(type-literal "int")
+(type-literal "float" "flt")
+(type-literal "double")
+(type-literal "byte" "mcl-byte")
+(type-literal "bool")
+
+(defrule/s custom-type (and qual-camel-id/?s (? actual-params-1/?s))
+  (:destructure (id &optional params &bounds start end)
+		(make-custom-type id params (make-loc start end))))
+
+(defrule/s array (and bracket-open/?s array-sizes-1/?s bracket-close/?s)
+  (:function second))
+
+(defrule/s array-sizes-1 (and array-size/?s (* comma-array-size/?s))
+  (:destructure (array-size &optional other-array-sizes)
+		(if other-array-sizes
+		    (cons array-size other-array-sizes)
+		    (list array-size))))
+
+(defrule/s comma-array-size (and comma/?s array-size/?s)
+  (:function second))
+
+(defrule/s array-size exp
+  (:lambda (e &bounds start end)
+    (make-decl-array-size e nil (make-loc start end))))
+#+end_src
+
+
+
+
+**** expressions
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+#+begin_src lisp
+(defrule/s exp logic-or/?s)
+
+(defrule/s logic-or (and logic-and/?s (* (and logic-or-op/?s logic-and/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-left-assoc exp op-exp-list)))
+
+(defrule/s logic-and (and bit-or/?s (* (and logic-and-op/?s bit-or/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-left-assoc exp op-exp-list)))
+
+(defrule/s bit-or (and bit-and/?s (* (and bitwise-or-op/?s bit-and/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-left-assoc exp op-exp-list)))
+
+(defrule/s bit-and (and equality/?s (* (and bitwise-and-op/?s equality/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-left-assoc exp op-exp-list)))
+
+(defrule/s equality (and logic-cmp/?s (? (and equality-op/?s logic-cmp/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-non-assoc exp op-exp-list)))
+
+(defrule/s equality-op (or equals-op/?s not-equals-op/?s))
+
+(defrule/s logic-cmp (and bitsh/?s (? (and logic-cmp-op/?s bitsh/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-non-assoc exp op-exp-list)))
+
+(defrule/s logic-cmp-op (or le-op/?s ge-op/?s lt-op/?s gt-op/?s))
+
+(defrule/s bitsh (and term/?s (* (and bitsh-op/?s term/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-left-assoc exp op-exp-list)))
+
+(defrule/s bitsh-op (or bitshl-op/?s bitshr-op/?s))
+
+(defrule/s term (and factor/?s (* (and term-op/?s factor/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-left-assoc exp op-exp-list)))
+
+(defrule/s term-op (or add-op/?s minus-op/?s))
+
+(defrule/s factor (and power/?s (* (and factor-op/?s power/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-left-assoc exp op-exp-list)))
+  
+(defrule/s factor-op/?s (or mul-op/?s div-op/?s mod-op/?s))
+
+(defrule/s power (and unary/?s (* (and pow-op/?s unary/?s)))
+  (:destructure (exp &optional op-exp-list)
+		(do-right-assoc exp op-exp-list)))
+
+(defrule/s unary (or minus/?s negate/?s atom/?s))
+
+(defrule/s minus/?s (and minus-op/?s atom/?s)
+  (:destructure (minus atom &bounds start end)
+		(declare (ignore minus))
+		(make-minus atom (make-loc start end))))
+
+(defrule/s negate/?s (and neg-op/?s atom/?s)
+  (:destructure (neg atom &bounds start end)
+		(declare (ignore neg))
+		(make-neg atom (make-loc start end))))
+
+(defrule/s atom (or call-exp/?s var-exp/?s float-lit/?s int-lit/?s parenthesized-exp/?s))
+
+(defrule/s call-exp call/?s
+  (:lambda (c &bounds start end) (make-call-expr c (make-loc start end))))
+
+(defrule/s var-exp var/?s
+  (:lambda (v &bounds start end) (make-var-expr v (make-loc start end))))
+
+(defrule/s parenthesized-exp (and parenthesis-open/?s exp/?s parenthesis-close/?s)
+  (:function second))
+
+(defrule/s int-lit integer-literal
+  (:lambda (int &bounds start end)
+    (make-int-constant int (make-loc start end))))
+
+(defrule/s float-lit single-float-literal
+  (:lambda (f &bounds start end)
+    (make-float-constant f (make-loc start end))))
+#+end_src
+
+
+
+
+**** variables
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+#+begin_src lisp
+(defrule/s var (and basic-var/?s (? dot-part/?s))
+  (:destructure (bv &optional v &bounds start end)
+		(if v
+		    (make-dot-var bv v (make-loc start end))
+		    (make-normal-var bv (make-loc start end)))))
+
+(defrule/s dot-part (and dot/?s var/?s)
+  (:function second))
+
+(defrule/s basic-var (and id-possibly-capitalized/?s (* array-exp/?s))
+  (:destructure (id &optional array-exps &bounds start end)
+		(make-basic-var id array-exps (make-loc start end))))
+
+
+(defrule/s array-exp (and bracket-open/?s exp-comma-separated-1/?s bracket-close/?s)
+  (:function second))
+
+(defrule/s exp-comma-separated-1 (and exp/?s (* comma-exp/?s))
+  (:destructure (exp &optional other-exps)
+		(if other-exps
+		    (cons exp other-exps)
+		    (list exp))))
+
+(defrule/s exp-comma-separated-0 (? (and exp/?s (* comma-exp/?s)))
+  (:destructure (&optional exp other-exps)
+		(if exp
+		    (if other-exps
+			(cons exp other-exps)
+			(list exp))
+		    nil)))
+
+(defrule/s comma-exp (and comma/?s exp/?s)
+  (:function second))
+#+end_src
+
+
+
+**** identifiers
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+
+#+begin_src lisp
+(defun not-keyword-p (id)
+  (not (member id *keywords* :test #'string=)))
+
+(defrule/s id (not-keyword-p identifier)
+  (:lambda (name &bounds start end)
+    (make-id name (make-loc start end))))
+
+(defrule/s qual-id (and id (? (and #\. qual-id)))
+  (:destructure (before-dot dot-part &bounds start end)
+		(if dot-part
+		    (make-compound-id (name before-dot) (second dot-part) (make-loc start end))
+		    before-dot)))
+
+(defrule/s id-possibly-capitalized (or id caps-id))
+
+(defrule/s caps-id (and (character-ranges (#\A #\Z))
+			(* (or (character-ranges (#\A #\Z) (#\0 #\9))
+			       #\_)))
+  (:text t)
+  (:lambda (name &bounds start end)
+    (make-id name (make-loc start end))))
+
+(defrule/s qual-camel-id (or camel-id dot-camel-id))
+
+(defrule/s camel-id (and (character-ranges (#\A #\Z))
+			 (character-ranges (#\a #\z))
+			 (* (character-ranges (#\a #\z) (#\A #\Z) (#\0 #\9))))
+  (:text t)
+  (:lambda (name &bounds start end)
+    (make-id name (make-loc start end))))
+
+(defrule/s dot-camel-id (and qual-id dot camel-id)
+  (:destructure (qual-id dot camel-id)
+		(declare (ignore dot))
+		(make-camel-compound-id qual-id camel-id)))
+#+end_src
+
+**** keywords
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+#+begin_src lisp
+(defkw "package")
+(defkw "module"
+  (:lambda (kw &bounds start end)
+    (declare (ignore kw))
+    (make-loc start end)))
+(defkw "export")
+(defkw "import")
+(defkw "type")
+(defkw "as")
+(defkw "return")
+(defkw "foreach")
+(defkw "barrier")
+(defkw "in")
+(defkw "if")
+(defkw "else")
+(defkw "const"
+  (:lambda (item &bounds start end)
+    (declare (ignore item))
+    (make-const (make-loc start end))))
+(defkw "for")
+#+end_src
+
+**** tokens
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+#+begin_src lisp
+(defrule/s logic-or-op "||"
+  (:constant #'make-log-or))
+(defrule/s logic-and-op "&&"
+  (:constant #'make-log-and))
+(defrule/s bitwise-or-op "|"
+  (:constant #'make-bitor))
+(defrule/s bitwise-and-op "&"
+  (:constant #'make-bitand))
+(defrule/s equals-op "=="
+  (:constant #'make-equ))
+(defrule/s not-equals-op "!="
+  (:constant #'make-ne))
+(defrule/s lt-op #\<
+  (:constant #'make-lt))
+(defrule/s gt-op #\>
+  (:constant #'make-gt))
+(defrule/s le-op "<="
+  (:constant #'make-le))
+(defrule/s ge-op ">="
+  (:constant #'make-ge))
+(defrule/s bitshl-op "<<"
+  (:constant #'make-bitshl))
+(defrule/s bitshr-op ">>"
+  (:constant #'make-bitshr))
+(defrule/s add-op #\+
+  (:constant #'make-add))
+(defrule/s minus-op #\-
+  (:constant #'make-sub))
+(defrule/s mul-op #\*
+  (:constant #'make-mul))
+(defrule/s div-op #\/
+  (:constant #'make-div))
+(defrule/s mod-op #\%
+  (:constant #'make-modulo))
+(defrule/s pow-op #\^
+  (:constant #'make-pow))
+(defrule/s neg-op #\!)
+
+(defrule/s incr-op "++")
+(defrule/s decr-op "--")
+(defrule/s step-add "+=")
+(defrule/s step-sub "+=")
+(defrule/s step-mul "*=")
+(defrule/s step-div "/=")
+(defrule/s step-bitshr ">>=")
+
+(defrule/s swap-op "<=>")
+#+end_src
+
+
+**** utility functions
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/parser.lisp"
+     :END:
+
+#+begin_src lisp
+(defun parse-mcpl-expr (expr)
+  (parse 'exp expr))
+
+(defun parse-mcpl (string)
+  (parse 'module string))
+
+(defun parse-mcpl-file (filename)
+  (parse-mcpl (read-file-into-string filename)))
+#+end_src
+
+**** library
+     :PROPERTIES:
+     :header-args+: :package ":parse-mcpl"
+     :header-args+: :tangle "system/micro-passes/parse-mcpl/library.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :parse-mcpl)
+#+end_src
+
+#+begin_src lisp
+(defun do-type (bt sizes)
+  (if (null sizes)
+    bt
+    (make-array-type (do-type bt (cdr sizes)) (car sizes) (location bt))))
+
+(defgeneric make-camel-compound-id (compound-id camel-id))
+
+(defmethod make-camel-compound-id ((id ast-mcpl:id) camel-id)
+  (with-slots (name location) id
+    (make-compound-id name camel-id location)))
+
+(defmethod make-camel-compound-id ((ci compound-id) camel-id)
+  (with-slots (name compound location) ci
+    (make-compound-id name (make-camel-compound-id compound camel-id) location)))
+#+end_src
+
+
+*** Testing the parser
+
+**** The package
+     :PROPERTIES:
+     :header-args+: :package ":cl-user"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/packages.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-parse-mcpl
+  (:use :cl :fiveam :test-mcl :parse-mcpl :ast :ast-mcpl)
+  (:export :test-parse-mcpl))
+#+end_src
+
+**** top-level
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-parse-mcpl)
+
+(declaim (optimize (speed 0) (space 1) (compilation-speed 0) (debug 3)))
+(sb-ext:restrict-compiler-policy 'debug 3)
+#+end_src
+
+#+begin_src lisp
+(def-suite parse-mcpl :in mcl-test-suite)
+
+(in-suite parse-mcpl)
+#+end_src
+
+
+#+begin_src lisp
+(test minimal-module
+  (let ((ast (module-for-decls nil)))
+    (is (ast= ast
+	      (parse-mcpl "package m;
+                    module a;
+                    perfect void f() {
+                    }")))))
+#+end_src
+
+**** minimal module
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+(test minimal-module 
+  (let ((ast (module-for-decls nil)))
+    (is
+      (ast= ast
+            (parse-mcpl "package m;
+                    module a;
+                    perfect void f() {
+                    }")))))
+#+end_src
+
+**** declarations
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite decls :in parse-mcpl)
+(in-suite decls)
+
+(test function-with-one-param
+  (let ((ast (module-for-decls (list (make-normal-decl
+                             nil 
+                             (list (make-basic-decl 
+                                     (make-int nil)
+                                     (make-id "a" nil)
+                                     nil))
+                             nil)))))
+    (is
+      (ast= ast
+            (parse-mcpl "package m;
+                    module a;
+                    perfect void f(int a) {
+                    }")))))
+
+
+(test function-with-as-param
+  (let ((ast (module-for-decls (list (make-normal-decl
+                                   nil 
+                                   (list (make-basic-decl 
+                                           (make-int nil)
+                                           (make-id "a" nil)
+                                           nil)
+                                         (make-basic-decl 
+                                           (make-int nil)
+                                           (make-id "b" nil)
+                                           nil))
+                                   nil)))))
+    (is
+      (ast= ast
+            (parse-mcpl "package m;
+                    module a;
+                    perfect void f(int a as int b) {
+                    }")))))
+
+
+(test function-with-params 
+  (let ((ast (module-for-decls (list (make-normal-decl
+                                   nil 
+                                   (list (make-basic-decl 
+                                           (make-int nil)
+                                           (make-id "a" nil)
+                                           nil))
+                                   nil)
+                                 (make-normal-decl
+                                   nil
+                                   (list (make-basic-decl 
+                                           (make-int nil)
+                                           (make-id "b" nil)
+                                           nil))
+                                   nil)))))
+    (is
+      (ast= ast
+            (parse-mcpl "package m;
+                    module a;
+                    perfect void f(int a, int b) {
+                    }")))))
+
+(test function-with-const-param 
+  (let ((ast (module-for-decls (list (make-normal-decl
+                                   (list (make-const nil))
+                                   (list (make-basic-decl 
+                                           (make-int nil)
+                                           (make-id "a" nil)
+                                           nil))
+                                   nil)))))
+    (is
+      (ast= ast
+            (parse-mcpl "package m;
+                    module a;
+                    perfect void f(const int a) {
+                    }")))))
+
+(test function-with-modifiers-param 
+  (let ((ast (module-for-decls (list (make-normal-decl
+                                   (list (make-const nil) 
+                                         (make-user-defined 
+                                           (make-id "shared" nil) nil))
+                                   (list (make-basic-decl 
+                                           (make-int nil)
+                                           (make-id "a" nil)
+                                           nil))
+                                   nil)))))
+    (is
+      (ast= ast
+            (parse-mcpl "package m;
+                    module a;
+                    perfect void f(const shared int a) {
+                    }")))))
+#+end_src
+
+
+**** expresssions
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite exprs :in parse-mcpl)
+(in-suite exprs)
+
+(test int-constant 
+  (let ((ast (module-for-expr (make-int-constant 1 nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = 1) {
+                        }")))))
+
+(test add 
+  (let ((ast (module-for-expr 
+               (make-add 
+                 (make-int-constant 1 nil)
+                 (make-int-constant 1 nil)
+                 nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = 1 + 1) {
+                        }")))))
+
+
+(test multiple-add 
+  (let ((ast (module-for-expr 
+	      (make-sub
+               (make-add 
+                 (make-int-constant 1 nil)
+		 (make-int-constant 2 nil))
+	       (make-int-constant 3 nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = 1 + 2 - 3) {
+                        }")))))
+
+(test mul-add 
+  (let ((ast (module-for-expr 
+               (make-add 
+                 (make-int-constant 1 nil)
+                 (make-mul 
+                   (make-int-constant 2 nil)
+                   (make-int-constant 3 nil)
+                   nil)
+                 nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = 1 + 2 * 3) {
+                        }")))))
+
+(test mul-add-var
+  (let ((ast (module-for-expr 
+               (make-add 
+                 (make-int-constant 1 nil)
+                 (make-mul 
+                   (make-int-constant 2 nil)
+                   (make-var-expr (make-normal-var (make-basic-var (make-id "a") nil)))
+                   nil)
+                 nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = 1 + 2 * a) {
+                        }")))))
+
+(test brackets
+  (let ((ast (module-for-expr 
+               (make-mul 
+                 (make-add 
+                   (make-int-constant 1 nil)
+                   (make-int-constant 2 nil)
+                   nil)
+                 (make-int-constant 3 nil)
+                 nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = (1 + 2) * 3) {
+                        }")))))
+
+(test unary
+  (let ((ast (module-for-expr 
+               (make-minus (make-int-constant 1 nil) nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = -1) {
+                        }")))))
+
+(test unary-bracket
+  (let ((ast (module-for-expr 
+               (make-minus (make-add 
+                               (make-int-constant 1 nil)
+                               (make-int-constant 2 nil)
+                               nil)
+                             nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = -(1 + 2)) {
+                        }")))))
+
+(test modulo
+  (let ((ast (module-for-expr 
+               (make-modulo (make-int-constant 1 nil)
+                            (make-int-constant 2 nil)
+                            nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        /* comment */
+                        perfect void f(int a = 1 % 2) {
+                        }")))))
+
+(test non-assoc
+  (let ((ast (module-for-expr 
+               (make-lt 
+                 (make-int-constant 1 nil)
+                 (make-int-constant 2 nil)
+                 nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = 1 < 2) {
+                        }")))))
+#+end_src
+
+**** vars
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite vars :in parse-mcpl)
+(in-suite vars)
+
+
+(test var
+  (let ((ast (module-for-expr (make-var-expr 
+                                (make-normal-var 
+				 (make-basic-var 
+				  (make-id "b" nil) nil nil) 
+				 nil) 
+                                nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = b) {
+                        }")))))
+
+(test var-array
+  (let ((ast (module-for-expr (make-var-expr 
+                                (make-normal-var 
+                                  (make-basic-var 
+                                    (make-id "b" nil) 
+                                    (list 
+                                      (list 
+                                        (make-int-constant 1 nil))) 
+                                    nil) nil) nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = b[1]) {
+                        }")))))
+
+(test var-array-tiled
+  (let ((ast (module-for-expr (make-var-expr 
+                                (make-normal-var 
+                                  (make-basic-var 
+                                    (make-id "b" nil) 
+                                    (list 
+                                      (list 
+                                        (make-int-constant 1 nil))
+                                      (list 
+                                        (make-int-constant 2 nil))) 
+                                    nil) nil) nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = b[1][2]) {
+                        }")))))
+
+(test var-array-multi-dim
+  (let ((ast (module-for-expr (make-var-expr 
+                                (make-normal-var 
+                                  (make-basic-var 
+                                    (make-id "b" nil) 
+                                    (list 
+                                      (list 
+                                        (make-int-constant 1 nil)
+                                        (make-int-constant 2 nil)))
+                                    nil) nil) nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = b[1,2]) {
+                        }")))))
+
+(test var-dot
+  (let ((ast (module-for-expr (make-var-expr 
+                                (make-dot-var
+                                  (make-basic-var 
+                                    (make-id "b" nil) 
+                                    nil
+                                    nil) 
+                                  (make-normal-var
+                                    (make-basic-var
+                                      (make-id "c" nil)
+                                      nil
+                                      nil)
+                                    nil) nil) nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = b.c) {
+                        }")))))
+#+end_src
+
+
+**** calls
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite calls :in parse-mcpl)
+(in-suite calls)
+
+(test call
+  (let ((ast (module-for-expr (make-call-expr 
+                                (make-call 
+                                  (make-id "b" nil) 
+                                  (list (make-int-constant 1 nil)
+                                        (make-int-constant 2 nil))
+                                  nil)
+                                nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int a = b(1, 2)) {
+                        }")))))
+#+end_src
+
+**** types
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite types :in parse-mcpl)
+(in-suite types)
+
+(test array-type
+  (let ((ast (module-for-type (make-array-type 
+                                (make-int nil) 
+                                (list (make-decl-array-size
+                                        (make-int-constant 2 nil)
+                                        nil
+                                        nil))
+                                nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int[2] a) {
+                        }")))))
+
+(test tiled-array-type
+  (let ((ast (module-for-type (make-array-type
+                                (make-array-type 
+                                  (make-int nil) 
+                                  (list (make-decl-array-size 
+                                          (make-int-constant 3 nil)
+                                          nil
+                                          nil))
+                                  nil)
+                                (list (make-decl-array-size 
+                                        (make-int-constant 2 nil)
+                                        nil 
+                                        nil))
+                                nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int[2][3] a) {
+                        }")))))
+
+(test multi-dim-array-type
+  (let ((ast (module-for-type (make-array-type
+                                (make-int nil) 
+                                (list (make-decl-array-size 
+                                        (make-int-constant 2 nil)
+                                        nil
+                                        nil)
+                                      (make-decl-array-size 
+                                        (make-int-constant 3 nil)
+                                        nil
+                                        nil))
+                                nil))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f(int[2,3] a) {
+                        }")))))
+#+end_src
+
+**** statements
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite stats :in parse-mcpl)
+(in-suite stats)
+
+(test return-stat
+  (let ((ast (module-for-stats 
+               (list (make-return-stat (make-int-constant 1 nil) nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          return 1;
+                        }")))))
+
+(test foreach-stat
+  (let ((ast (module-for-stats 
+               (list (make-foreach-stat 
+                       (make-normal-decl
+                         nil
+                         (list (make-basic-decl 
+                                 (make-int nil)
+                                 (make-id "a" nil)
+                                 nil))
+                         nil)
+                       (make-int-constant 1 nil)
+                       (make-id "threads" nil)
+                       (make-block-stat 
+                         (make-code-block 
+                           (list (make-barrier-stat 
+                                   (make-id "b" nil) nil)) nil) nil)
+                       nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          foreach (int a in 1 threads) {
+                            barrier(b);
+                          }
+                        }")))))
+
+(test if-stat
+  (let ((ast (module-for-stats 
+               (list (make-if-stat
+                       (make-int-constant 1 nil)
+                       (make-block-stat 
+                         (make-code-block 
+                           (list (make-barrier-stat 
+                                   (make-id "b" nil) nil)) nil) nil)
+                       nil
+                       nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          if (1) {
+                            barrier(b);
+                          }
+                        }")))))
+
+(test if-else-stat
+  (let ((ast (module-for-stats 
+               (list (make-if-stat
+                       (make-int-constant 1 nil)
+                       (make-block-stat 
+                         (make-code-block 
+                           (list (make-barrier-stat 
+                                   (make-id "b" nil) nil)) nil) nil)
+                       (make-block-stat 
+                         (make-code-block 
+                           (list (make-barrier-stat 
+                                   (make-id "c" nil) nil)) nil) nil)
+                       nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          if (1) {
+                            barrier(b);
+                          }
+                          else {
+                            barrier(c);
+                          }
+                        }")))))
+
+(test for-stat
+  (let ((ast (module-for-stats 
+               (list (make-for-stat
+                       (make-assign-decl 
+                         nil 
+                         (make-basic-decl 
+                           (make-int nil) (make-id "i" nil) nil)
+                         (make-int-constant 0 nil)
+                         nil)
+                       (make-lt 
+                         (make-var-expr 
+                           (make-normal-var 
+                             (make-basic-var (make-id "i" nil) nil nil)
+                             nil)
+                           nil)
+                         (make-int-constant 2 nil)
+                         nil)
+                       (make-inc 
+                         (make-normal-var 
+                           (make-basic-var 
+                             (make-id "i" nil) nil nil) 
+                           nil)
+                         t 
+                         nil)
+                       (make-block-stat 
+                         (make-code-block 
+                           (list (make-barrier-stat 
+                                   (make-id "b" nil) nil)) nil) nil)
+                       nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          for (int i = 0; i < 2; i++) {
+                            barrier(b);
+                          }
+                        }")))))
+
+(test id-stat-decl
+  (let ((ast (module-for-stats 
+               (list (make-decl-stat 
+                       (make-normal-decl 
+                         (list (make-user-defined (make-id "a" nil) nil))
+                         (list (make-basic-decl 
+                                 (make-int nil)
+                                 (make-id "b" nil) 
+                                 nil))
+                         nil)
+                       nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          a int b;
+                        }")))))
+
+(test id-stat-assign
+  (let ((ast (module-for-stats 
+               (list (make-assign-stat
+                       (make-normal-var 
+                         (make-basic-var (make-id "a" nil) nil nil)
+                         nil)
+                       (make-int-constant 1 nil)
+                       nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          a = 1;
+                        }")))))
+
+(test id-stat-as
+  (let ((ast (module-for-stats 
+               (list (make-as-stat
+                       (make-normal-var 
+                         (make-basic-var (make-id "a" nil) nil nil)
+                         nil)
+                       (list (make-basic-decl
+                               (make-int nil)
+                               (make-id "b" nil)
+                               nil))
+                       nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          a as int b;
+                        }")))))
+
+(test id-stat-call
+  (let ((ast (module-for-stats 
+               (list (make-call-stat 
+                       (make-call (make-id "a" nil) nil nil)
+                       nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          a(); 
+                        }")))))                       
+
+(test const-decl-stat
+  (let ((ast (module-for-stats 
+               (list (make-decl-stat
+                       (make-normal-decl (list (make-const nil)
+                                                 (make-user-defined 
+                                                   (make-id "shared" nil)
+                                                   nil))
+                                           (list (make-basic-decl
+                                                   (make-int nil)
+                                                   (make-id "a" nil)
+                                                   nil))
+                                           nil) nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          const shared int a;
+                        }")))))
+
+(test empty-decl-stat
+  (let ((ast (module-for-stats 
+               (list (make-decl-stat
+                       (make-normal-decl nil
+                                           (list (make-basic-decl
+                                                   (make-int nil)
+                                                   (make-id "a" nil)
+                                                   nil))
+                                           nil) nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          int a;
+                        }")))))
+
+(test inc-stat
+  (let ((ast (module-for-stats 
+               (list (make-inc-stat 
+                       (make-inc 
+                         (make-normal-var 
+                           (make-basic-var (make-id "a" nil) nil nil)
+                           nil)
+                         t
+                         nil)
+                       nil)))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          a++;
+                        }")))))
+
+(test inc-stat-exp
+  (let ((ast (module-for-stats 
+               (list (make-inc-stat 
+                       (make-inc-step
+                         (make-normal-var 
+                           (make-basic-var (make-id "a" nil) nil))
+                         "+="
+                         (make-int-constant 2)))))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                          a += 2;
+                        }")))))
+#+end_src
+
+**** test exports
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+(def-suite exports :in parse-mcpl)
+(in-suite exports)
+
+(test exports
+  (let ((ast (make-module
+	      (make-id "m")
+	      (make-id "a")
+	      (list (make-id "function") (make-id "Type") (make-id "CONSTANT"))
+	      nil
+	      (make-code
+	       nil
+	       (list (make-func
+		      (make-id "perfect")
+		      (make-void)
+		      (make-id "f")
+		      nil
+		      (make-code-block nil)))))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        export function, Type, CONSTANT;
+                        perfect void f() {
+                        }")))))
+#+end_src
+
+**** test qualified ids
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+
+(def-suite qualified-ids :in parse-mcpl)
+(in-suite qualified-ids)
+
+
+(test qualified-ids
+  (let ((ast (module-for-stats
+	      (list (make-decl-stat
+		     (make-normal-decl
+		      nil
+		      (list (make-basic-decl
+			     (make-custom-type
+			      (make-compound-id
+			       "m"
+			       (make-compound-id
+				"b"
+				(make-id "Type")))
+			      (list (var-expr "a") (var-expr "b")))
+			     (make-id "c")))))
+		    (make-call-stat
+		     (make-call
+		      (make-compound-id
+		       "m"
+		       (make-compound-id
+			"b"
+			(make-id "call")))
+		      (list (var-expr "a") (var-expr "b"))))))))
+    (is
+      (ast= ast (parse-mcpl "package m;
+                        module a;
+                        perfect void f() {
+                           m.b.Type(a, b) c;
+                           m.b.call(a, b);
+                        }")))))
+#+end_src
+
+**** helper functions
+     :PROPERTIES:
+     :header-args+: :package ":test-parse-mcpl"
+     :header-args+: :tangle "system/tests/test-parse-mcpl/test-parser.lisp"
+     :END:
+
+#+begin_src lisp
+(defun module-for-decls-stats (decls stats)
+  (make-module
+   (make-id "m")
+   (make-id "a")
+   nil
+   nil
+   (make-code 
+    nil 
+    (list 
+     (make-func
+      (make-id "perfect" nil)
+      (make-void nil)
+      (make-id "f" nil)
+      decls
+      (make-code-block stats nil)
+      nil))
+    nil)))
+
+(defun module-for-decls (decls)
+  (module-for-decls-stats decls nil))
+
+ (defun module-for-stats (stats)
+   (module-for-decls-stats nil stats))
+
+(defun module-for-expr (expr)
+  (let ((decls (list (make-assign-decl
+                       nil
+                       (make-basic-decl 
+                         (make-int nil)
+                         (make-id "a" nil)
+                         nil)
+                       expr 
+                       nil))))
+    (module-for-decls decls)))
+
+(defun module-for-type (tp)
+  (let ((decl (make-normal-decl
+                nil
+                (list (make-basic-decl 
+                        tp
+                        (make-id "a" nil)
+                        nil))
+                nil)))
+    (module-for-decls (list decl))))
+
+(defun var-expr (name)
+  (make-var-expr (make-normal-var (make-basic-var (make-id name) nil))))
+#+end_src
+
+

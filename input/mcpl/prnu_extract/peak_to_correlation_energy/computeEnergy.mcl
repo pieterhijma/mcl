@@ -1,0 +1,60 @@
+package prnu_extract.peak_to_correlation_energy;
+
+module computeEnergy;
+
+import gpu;
+
+const int SQUARE_SIZE = 11;
+const int RADIUS = SQUARE_SIZE / 2;
+
+gpu void computeEnergy(int nrBlocks, int h, int w, double[nrBlocks] energy, 
+	int[1] indexPeak, Complex[h][w] input) {
+    
+    const int nrThreads = 256;
+    const int n = h * w;
+    const int stepSize = nrThreads * nrBlocks;
+    
+    foreach (int bi in nrBlocks blocks) {
+	local double[nrThreads] reduceMem;
+	foreach (int ti in nrThreads threads) {
+	    double sum = 0.0;
+
+	    if (ti < n) {
+
+		int indexPeakY = indexPeak[0] / w;
+		int indexPeakX = indexPeak[0] - (indexPeakY * w);
+
+
+
+		for (int i = bi * nrThreads + ti; i < n;i += stepSize) {
+		    int row = i / w;
+		    int col = i - (row*w);
+
+		    bool inRowPeak = row > indexPeakY - RADIUS && 
+			row < indexPeakY + RADIUS;
+		    bool inColPeak =  col > indexPeakX - RADIUS &&
+			col < indexPeakX + RADIUS;
+
+		    if (!(inRowPeak && inColPeak)) {
+			double val = input[row][col].real;
+			sum += val * val;
+		    }
+		}
+	    }
+
+	    reduceMem[ti] = sum;
+	    barrier(local);
+
+	    for (int i = nrThreads/2; i > 0; i >>= 1) {
+		if (ti < i) {
+		    reduceMem[ti] += reduceMem[ti + i];
+		}
+		barrier(local);
+	    }
+
+	    if (ti == 0) {
+		energy[bi] = reduceMem[ti] / (toDouble(n) - SQUARE_SIZE * SQUARE_SIZE);
+	    }
+	}
+    }
+}

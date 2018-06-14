@@ -1,0 +1,3119 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Transformations
+
+This section shows several micro-passes that transform the AST.
+
+#+toc: headlines 1 local
+
+** flatten types
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/flatten-types/packages.lisp"
+    :END:
+
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :flatten-types
+  (:use :cl :ast :ast-mcpl :simplify-expressions)
+  (:import-from :mcl-quickutil :iota)
+  (:export :flatten-type))
+#+end_src
+
+*** Flattening types
+    :PROPERTIES:
+    :header-args+: :package ":flatten-types"
+    :header-args+: :tangle "../system/micro-passes/flatten-types/flatten-type.lisp"
+    :END:
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :flatten-types)
+#+end_src
+
+#+begin_src lisp
+(defgeneric flatten-type (type)
+  (:documentation "flatten type into a one-dimensional type."))
+
+(defmethod flatten-type ((type mcl-type))
+  type)
+
+(defmethod flatten-type ((at array-type))
+  (let ((base-type (get-base-type at))
+	(size (reduce #'(lambda (result index)
+			  (make-mul result (compute-size at index)))
+		      (nreverse (iota (length (sizes at))))
+		      :initial-value (make-int-constant 1))))
+    (make-array-type base-type 
+		     (list (make-decl-array-size (simplify size) nil)))))
+#+end_src
+
+#+begin_src lisp
+(defgeneric compute-size (type dim)
+  (:documentation "Compute the size for a particular dimension."))
+
+(defmethod compute-size ((type mcl-type) dim)
+  (make-int-constant 1))
+
+(defmethod compute-size ((at array-type) dim)
+  (let ((size (compute-size-ignoring-overlap at dim))
+	(overlap-size (compute-size-overlap (base-type at) dim)))
+    (make-add size overlap-size)))
+#+end_src
+
+The following methods compute the size of a particular dimension ignoring the
+overlap that may be defined.
+
+#+begin_src lisp
+(defgeneric compute-size-ignoring-overlap (type dim))
+
+(defmethod compute-size-ignoring-overlap ((type mcl-type) dim)
+  (make-int-constant 1))
+
+(defmethod compute-size-ignoring-overlap ((at array-type) dim)
+  (make-mul (compute-size-ignoring-overlap (base-type at) dim)
+	    (get-size-overlap (nth dim (sizes at)))))
+#+end_src
+
+The following methods compute the size of the overlap for a particular
+dimension:
+
+#+begin_src lisp
+(defgeneric compute-size-overlap (type dimension))
+
+(defmethod compute-size-overlap ((type mcl-type) dim)
+  (make-int-constant 0))
+
+(defmethod compute-size-overlap ((at array-type) dim)
+  (let ((overlap (make-mul
+		  (get-overlap-overlap (nth dim (sizes at)))
+		  (compute-size-ignoring-overlap (base-type at) dim))))
+    (make-add overlap (compute-size-overlap (base-type at) dim))))
+#+end_src
+
+
+The following methods retrieve the size when overlap is considered:
+
+#+begin_src lisp
+(defgeneric get-size-overlap (array-size))
+
+(defmethod get-size-overlap ((array-size array-size))
+  (size array-size))
+#+end_src 
+
+The following methods retrieve the overlap when overlap is considered:
+
+#+begin_src lisp
+(defgeneric get-overlap-overlap (array-size))
+
+(defmethod get-overlap-overlap ((array-size decl-array-size))
+  (make-int-constant 0))
+
+(defmethod get-overlap-overlap ((overlap overlap))
+  (make-add (left overlap) (right overlap)))
+#+end_src 
+
+
+*** Testing flattening types
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-flatten-types/packages.lisp"
+    :END:
+
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-flatten-types
+  (:use :cl :ast :ast-mcpl :simplify-expressions :test-mcl :fiveam
+	:flatten-types)
+  (:export :test-flatten-type))
+#+end_src
+
+**** The tests
+     :PROPERTIES:
+     :header-args+: :package ":test-flatten-types"
+     :header-args+: :tangle "../system/tests/test-flatten-types/test-flatten-type.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-flatten-types)
+#+end_src
+
+#+begin_src lisp
+(def-suite flatten-types :in mcl-test-suite)
+(in-suite flatten-types)
+#+end_src
+
+#+begin_src lisp
+(test flattening
+  (is (ast= (make-flt nil) (flatten-type (make-flt nil))))
+  (is (ast= (make-array-type (make-flt nil) (list (do-array-size 10)) nil)
+	    (flatten-type (make-array-type (make-flt) (list (do-array-size 10))))))
+  (is (ast= (make-array-type (make-flt) (list (do-mul "m" "n")))
+	    (flatten-type (make-array-type (make-flt)
+					   (list (do-array-size "n")
+						 (do-array-size "m")))))))
+#+end_src
+
+
+#+begin_src lisp
+(test compute-size
+  (is (ast= (simplify (flatten-types::compute-size
+		       (make-array-type (make-flt) (list (do-array-size "n")))
+		       0))
+	    (do-var "n"))))
+#+end_src
+
+**** Helper functions
+     :PROPERTIES:
+     :header-args+: :package ":test-flatten-types"
+     :header-args+: :tangle "../system/tests/test-flatten-types/test-flatten-type.lisp"
+     :END:
+
+#+begin_src lisp
+(defgeneric do-array-size (string-expr-or-int))
+
+(defmethod do-array-size ((i fixnum))
+  (do-array-size (make-int-constant i nil)))
+
+(defmethod do-array-size ((e expr))
+  (make-decl-array-size e nil nil))
+
+(defmethod do-array-size ((s string))
+  (do-array-size (do-var s)))
+#+end_src
+
+#+begin_src lisp
+(defun do-var (s)
+  (make-var-expr
+   (make-normal-var (make-basic-var (make-id s nil) nil nil) nil) nil))
+
+(defun do-mul (s1 s2)
+  (do-array-size (make-mul (do-var s1) (do-var s2) nil)))
+#+end_src
+
+
+
+** Flatten variables
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/flatten-var/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :flatten-var
+  (:use :cl :iterate :ast :ast-mcpl)
+  (:shadow :flatten)
+  (:shadowing-import-from :ast-mcpl :collect)
+  (:export :flatten-var))
+#+end_src
+
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":flatten-var"
+    :header-args+: :tangle "../system/micro-passes/flatten-var/flatten-var.lisp"
+    :END:
+
+To ensure that the child/parent relations for AST nodes is correct, it is
+important for transformations that new AST are formed and not old ones
+reused (possibly having a wrong parent).  In the flatten, pass, it could be the
+case that more than one var reuse AST-forms from the type, which would lead to
+inconsistent data.  Therefore, we have to verify that we copy values from the
+type and not just reuse them.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :flatten-var)
+#+end_src
+
+#+begin_src lisp
+(defun flatten-var (var &optional type)
+  (if type
+      (flatten var type)
+      (flatten var (get-type-decl (basic-decl (basic-var var))))))
+
+(defgeneric flatten (var type)
+  (:documentation "Flatten a variable var using type type."))
+
+(defmethod flatten ((nv normal-var) (type mcl-type))
+  (setf (basic-var nv) (flatten (basic-var nv) type))
+  nv)
+
+(defmethod flatten ((dv dot-var) (type mcl-type))
+  (with-slots (basic-var var) dv
+    (setf var (flatten-var var))
+    (setf basic-var (flatten basic-var type))
+    dv))
+
+
+(defmethod flatten ((bv basic-var) (type mcl-type))
+  (if (null (array-exprs bv))
+      bv
+      (make-one-dimensional bv type)))
+#+end_src
+
+In the following function we retrieve the sizes of the type, which means that
+whenever such a size is used, we need to copy it.
+
+#+begin_src lisp
+(defgeneric make-one-dimensional (offsets sizes))
+
+(defmethod make-one-dimensional ((bv basic-var) (type mcl-type))
+  (setf (array-exprs bv) (list (list (make-one-dimensional (array-exprs bv) (get-sizes type)))))
+  bv)
+#+end_src
+
+The following function copies sizes, because ~offset-size-prod~ and
+~offset-dim~ copy it.  
+
+#+begin_src lisp
+(defmethod make-one-dimensional ((offsets list) (sizes list))
+  (let ((last-dimension (1- (length (first offsets)))))
+    (iter (for i from 0 below last-dimension)
+	  (reducing i by #'(lambda (result dim)
+		(make-add result (offset-size-prod offsets sizes dim)))
+		    :initial-value (offset-dim offsets sizes last-dimension)))))
+#+end_src
+
+This function makes multiplications of offsets and sizes.  It multiplies the
+offset of a given dimension and layer in the tiles and multiplies this with
+sizes for each layer higher up to the highest layer for a given dimension.
+Since ~sizes~ comes from the type, we have to copy the value.
+
+#+begin_src lisp
+(defun offset-size-prod-layer (offsets sizes dim layer)
+  (make-mul
+   (nth dim (nth layer offsets))
+   (iterate (for i from (1+ layer) below (length offsets))
+	    (reducing i by #'(lambda (result i)
+	       (make-mul result
+			 (get-size-without-overlap 
+			  (copy-ast (nth dim (nth i sizes))))))
+		      :initial-value (make-int-constant 1)))))
+#+end_src
+    
+This function multiplies the offset of a given dimension with a multiplication
+of sizes of higher dimensions.  It copies the AST-form from sizes because
+~offset-dim~ and ~size-dim~ do this.
+
+#+begin_src lisp
+(defun offset-size-prod (offsets sizes dim)
+  (make-mul
+   (offset-dim offsets sizes dim)
+   (iter (for i from (1+ dim) below (length (first offsets)))
+	 (reducing i by #'(lambda (result j)
+			    (make-mul result (size-dim sizes j)))
+		   :initial-value  (make-int-constant 1)))))
+#+end_src
+    
+#+begin_src lisp
+
+(defgeneric get-size-without-overlap (size))
+
+(defmethod get-size-without-overlap ((das decl-array-size))
+  (size das))
+
+(defmethod get-size-without-overlap ((e expr))
+  e)
+#+end_src
+
+This function copies sizes because ~size-dim-layer~ does it.
+
+#+begin_src lisp
+(defun size-dim (sizes dim)
+  (size-dim-layer sizes (1- (length sizes)) dim))
+#+end_src
+
+Since sizes comes from the type, we have to copy the value to get a fresh
+AST-form. 
+
+#+begin_src lisp
+(defun size-dim-layer (sizes layer dim)
+  (let ((size (copy-ast (nth dim (nth layer sizes)))))
+    (if (eql 0 layer)
+	size
+	(make-add
+	 (make-add
+	  (make-mul
+	   (get-size-size size)
+	   (size-dim-layer sizes (1- layer) dim))
+	  (get-left-size size))
+	 (get-right-size size)))))
+
+(defgeneric get-size-size (size)
+  (:documentation "Get the size from an array size."))
+
+(defmethod get-size-size ((das decl-array-size))
+  (size das))
+
+(defmethod get-size-size ((e expr))
+  e)
+
+(defgeneric get-left-size (size)
+  (:documentation "Get the left size from an array size."))
+
+(defmethod get-left-size ((das decl-array-size))
+  (make-int 0))
+
+(defmethod get-left-size ((e expr))
+  (make-int-constant 0))
+
+(defgeneric get-right-size (size)
+  (:documentation "Get the right size from an array size."))
+
+(defmethod get-right-size ((das decl-array-size))
+  (make-int 0))
+
+(defmethod get-right-size ((e expr))
+  (make-int-constant 0))
+#+end_src
+
+The following function returns the offsets for a given dimension.  It starts
+with the offset for a given dimension in the last layer.  For each layer it
+adds this to the product of a size for that layer.  
+
+The function copies AST-forms from sizes because ~offset-size-prod-layer~
+copies it.
+
+#+begin_src lisp
+(defun offset-dim (offsets sizes dim)
+  (let ((last-layer (1- (length offsets))))
+    (iter (for layer from 0 below last-layer)
+	  (reducing layer 
+		    by #'(lambda (result l)
+			   (make-add
+			    result
+			    (offset-size-prod-layer offsets sizes dim l)))
+		    :initial-value (nth dim (nth last-layer offsets))))))
+#+end_src
+
+#+begin_src lisp
+(defgeneric get-sizes (type)
+  (:documentation "Get a 2-dimensional list of size expressions from type."))
+
+(defmethod get-sizes ((sizes list))
+  (mapcar #'size sizes))
+
+(defmethod get-sizes ((at array-type))
+  (with-slots (base-type sizes) at
+    (let ((size-exprs (get-sizes sizes)))
+      (typecase base-type
+	(array-type (append (list size-exprs) (get-sizes base-type)))
+	(otherwise (list size-exprs))))))
+#+end_src
+
+
+*** Testing flattening variables
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-flatten-var/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-flatten-var
+  (:use :cl :test-mcl :fiveam :ast :ast-mcpl :parse-mcpl :flatten-var
+	:simplify-expressions)
+  (:export :test-flatten-var))
+#+end_src
+
+**** The functionality
+     :PROPERTIES:
+     :header-args+: :package ":test-flatten-var"
+     :header-args+: :tangle "../system/tests/test-flatten-var/test-flatten-var.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-flatten-var)
+#+end_src
+
+#+begin_src lisp
+(def-suite flatten-var :in mcl-test-suite)
+(in-suite flatten-var)
+
+(defun create-array-size (array-expr)
+  (make-decl-array-size (make-int-constant array-expr) nil))
+
+(defun create-array-sizes (array-exprs)
+  (mapcar #'create-array-size array-exprs))
+
+(defun create-array-type (array-exprs)
+  (if (null array-exprs)
+      (make-int)
+      (make-array-type (create-array-type (rest array-exprs))
+		       (create-array-sizes (first array-exprs)))))
+
+(test flatten-var
+  (is (ast= (flatten-var
+	   (var (parse-mcpl-expr "a[b,c]"))
+	   (create-array-type '((2 3))))
+	  (var (parse-mcpl-expr "a[c + b * (1 * 3)]"))))
+  (is (ast= (flatten-var
+	     (var (parse-mcpl-expr "a[b][c]"))
+	     (create-array-type '((2) (3))))
+	    (var (parse-mcpl-expr "a[c + b * (1 * 3)]"))))
+  (is (ast= (flatten-var
+	     (var (parse-mcpl-expr "a[a,b][c,d]"))
+	     (create-array-type '((2 3) (4 5))))
+	    (var
+	     (parse-mcpl-expr
+	      "a[d + b * (1 * 5) + (c + a * (1 * 4)) * (1 * (5 * 3 + 0 + 0))]")))))
+#+end_src
+
+
+** Fold constants
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/fold-constants/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :fold-constants
+  (:use :cl :ast :ast-mcpl)
+  (:import-from :anaphora :aif :it)
+  (:export :fold-constant))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":fold-constants"
+    :header-args+: :tangle "../system/micro-passes/fold-constants/fold-constants.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :fold-constants)
+#+end_src
+
+#+begin_src lisp
+(defgeneric fold-constant (ast &optional bindings)
+  (:documentation "Fold constants in AST form.
+Optionally, a map of bindings from string to expressions can be given."))
+
+(defmethod fold-constant ((type mcl-type) &optional bindings)
+  (declare (ignore bindings))
+  type)
+
+(defmethod fold-constant ((ct custom-type) &optional bindings)
+  (make-custom-type
+   (id ct)
+   (loop for p in (params ct) collect (fold-constant p bindings))))
+
+(defmethod fold-constant ((at array-type) &optional bindings)
+  (with-slots (base-type sizes) at
+    (make-array-type (fold-constant base-type bindings)
+		     (loop for s in sizes collect (fold-constant s bindings)))))
+
+(defmethod fold-constant ((das decl-array-size) &optional bindings)
+  (with-slots (size decl) das
+    (make-decl-array-size (fold-constant size bindings)
+			  decl)))
+
+
+
+(defmethod fold-constant ((expr expr) &optional bindings)
+  (declare (ignore bindings))
+  (error "Need to implement fold-constants for ~a" expr))
+
+(defmethod fold-constant ((p pow) &optional bindings)
+  (do-binary #'expt #'make-pow p bindings))
+
+(defmethod fold-constant ((m mul) &optional bindings)
+  (do-binary #'* #'make-mul m bindings))
+
+(defmethod fold-constant ((a add) &optional bindings)
+  (do-binary #'+ #'make-add a bindings))
+
+(defmethod fold-constant ((d div) &optional bindings)
+  (with-slots (l r) d
+    (let ((l (fold-constant l bindings))
+	  (r (fold-constant r bindings)))
+      (if (and (typep l 'int-constant) (typep r 'int-constant))
+	  (let ((l-value (int-value l))
+		(r-value (int-value r)))
+	    (if (eql (mod l-value r-value) 0)
+		(make-int-constant (/ l-value r-value))
+		(make-div l r)))
+	  (make-div l r)))))
+
+(defmethod fold-constant ((ic int-constant) &optional bindings)
+  (declare (ignore bindings))
+  ic)
+
+(defmethod fold-constant ((ve var-expr) &optional bindings)
+  (aif (fold-constant (var ve) bindings)
+       (if (eq it ve)
+	   ve
+	   (fold-constant it bindings))
+       ve))
+
+(defmethod fold-constant ((nv normal-var) &optional bindings)
+  (fold-constant (basic-var nv) bindings))
+
+(defmethod fold-constant ((dv dot-var) &optional bindings)
+  (declare (ignore bindings))
+  (if (query-hdl-mcpl:hardware-description-var-p dv)
+      (query-hdl-mcpl:resolve-hardware-description-var dv)
+      dv))
+
+(defmethod fold-constant ((bv basic-var) &optional bindings)
+  (with-slots (id array-exprs) bv
+    (if array-exprs nil (resolve bv bindings))))
+
+(defgeneric resolve (var bindings))
+
+(defmethod resolve ((bv basic-var) bindings)
+  (resolve (basic-decl bv) bindings))
+
+(defmethod resolve ((bd basic-decl) bindings)
+    (aif (resolve (decl bd) bindings)
+	 it
+	 (if bindings (gethash (name (id bd)) bindings) nil)))
+
+(defmethod resolve ((nd normal-decl) bindings)
+  (declare (ignore bindings))
+  nil)
+
+(defmethod resolve ((ad assign-decl) bindings)
+  (fold-constant (expr ad) bindings))
+
+(defun do-binary (fold-func remake-func binary-expr bindings)
+  (with-slots (l r) binary-expr
+    (let ((l (fold-constant l bindings))
+	  (r (fold-constant r bindings)))
+      (if (and (typep l 'int-constant) (typep r 'int-constant))
+	  (make-int-constant (funcall fold-func (int-value l) (int-value r)))
+	  (funcall remake-func l r)))))
+#+end_src
+
+
+
+** Remove hardware variables
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/remove-hardware-vars/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :remove-hardware-vars
+  (:use :cl :logging :ast :ast-mcpl :query-hdl-mcpl :set-parents)
+  (:export :remove-hardware-vars))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":remove-hardware-vars"
+    :header-args+: :tangle "../system/micro-passes/remove-hardware-vars/remove-hardware-vars.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :remove-hardware-vars)
+#+end_src
+
+#+begin_src lisp
+(defun remove-hardware-vars (module)
+  (log-micro-pass "remove-hardware-vars" module)
+  (let ((hardware-variables
+	 (collect-all module #'(lambda (ast)
+				 (and (typep ast 'dot-var)
+				      (hardware-description-var-p ast))))))
+    (dolist (hv hardware-variables)
+      (let ((expr (parent hv)))
+	(assert (typep expr 'expr))
+	(replace-in-ast expr :with (resolve-hardware-description-var hv))))
+    (set-parents module)
+    module))
+#+end_src
+
+
+
+
+** Move dimension constants out foreach statements
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/move-dimension-constants/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :move-dimension-constants
+  (:use :cl :logging :ast :ast-mcpl :set-parents)
+  (:import-from :alexandria :appendf)
+  (:import-from :utility-directory :filter :fixed-point)
+  (:export :move-dimension-constants))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":move-dimension-constants"
+    :header-args+: :tangle "../system/micro-passes/move-dimension-constants/move-dimension-constants.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :move-dimension-constants)
+#+end_src
+
+#+begin_src lisp
+(defun move-dimension-constants (module)
+  (log-micro-pass "move-dimension-constants" module)
+  (dolist (fe (collect-all module #'top-level-foreach-p))
+    (move-dimension-constants-foreach fe)))
+
+(defun move-dimension-constants-foreach (foreach)
+  (let ((dimension-constants nil)
+	(foreachs (collect-all foreach #'(lambda (x)
+					    (and (typep x 'foreach-stat)
+						 (not (inner-foreach-p x)))))))
+    (loop for fe in foreachs
+	 do (appendf dimension-constants (remove-dimension-stats fe)))
+    (loop for dc in dimension-constants
+	 do (insert-before-ast foreach dc))))
+    
+
+(defun remove-dimension-stats (not-inner-foreach)
+  (let ((dimension-stats (filter #'dimension-stat-p
+				 (stats (code-block (stat not-inner-foreach))))))
+    (loop for stat in dimension-stats
+       collect (copy-ast stat)
+       do (remove-from-ast stat))))
+
+(defun dimension-stat-p (stat)  (and (typep stat 'decl-stat)
+       (typep (decl stat) 'assign-decl)
+       (typep (get-type-decl (decl stat)) 'int)))
+#+end_src
+
+
+** Move foreach to function
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/move-foreach-to-func/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :move-foreach-to-func
+  (:use :cl :logging :ast :ast-mcpl :callgraph :move-stats-to-func
+	:set-parents)
+  (:import-from :utility-directory :filter)
+  (:export :move-foreach-to-func :kernel-func-p :get-many-core-funcs-ordered))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":move-foreach-to-func"
+    :header-args+: :tangle "../system/micro-passes/move-foreach-to-func/move-foreach-to-func.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :move-foreach-to-func)
+#+end_src
+
+#+begin_src lisp
+(defun move-foreach-to-func (module)
+  (log-micro-pass "move-foreach-to-func" module)
+  (dolist (fe (collect-all module #'top-level-foreach-p))
+    (move-stats-to-func (list fe) "Kernel")))
+#+end_src
+
+After this pass, we define the term kernel function, which is a function that
+does nothing but running a kernel.
+
+#+begin_src lisp
+(defgeneric kernel-func-p (ast))
+
+(defmethod kernel-func-p ((f func))
+  (loop for stat in (stats (code-block f))
+     thereis (typep stat 'foreach-stat)))
+
+(defmethod kernel-func-p ((c call))
+  (and (not (builtin-func-p c)) (kernel-func-p (func c))))
+
+(defmethod kernel-func-p ((cs call-stat))
+  (kernel-func-p (call cs)))
+
+(defmethod kernel-func-p ((ast ast))
+  nil)
+#+end_src
+
+We can then also decide which functions are many-core functions and run on a
+many-core device.
+
+#+begin_src lisp
+(defun get-many-core-funcs-ordered (callgraph)
+  (let ((kernel-funcs (filter #'kernel-func-p (funcs-ordered callgraph))))
+    (get-funcs-subgraph-ordered callgraph kernel-funcs)))
+#+end_src
+
+
+** Move foreach to function for Cashmere
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/move-foreach-to-func-cashmere/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :move-foreach-to-func-cashmere
+  (:use :cl :logging :ast :ast-mcpl :callgraph :move-stats-to-func
+	:set-parents)
+  (:export :move-foreach-to-func-cashmere))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":move-foreach-to-func-cashmere"
+    :header-args+: :tangle "../system/micro-passes/move-foreach-to-func-cashmere/move-foreach-to-func-cashmere.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :move-foreach-to-func-cashmere)
+#+end_src
+
+#+begin_src lisp
+(defun move-foreach-to-func-cashmere (module)
+  (log-micro-pass "move-foreach-to-func-cashmere" module)
+  (dolist (fe (collect-all module #'top-level-foreach-p))
+    (move-stats-to-func (append (find-dimension-stats fe) (list fe)) "Kernel")))
+
+(defun find-dimension-stats (foreach)
+  (sort (collect (parent foreach) #'dimension-stat-p) #'ast<))
+
+(defun dimension-stat-p (stat)
+  (and (typep stat 'decl-stat)
+       (let ((decl (decl stat)))
+         (and (constant-p decl)
+              (ast= (get-type-decl decl) (make-int))))))
+#+end_src
+
+
+** Move stats to function
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/move-stats-to-func/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :move-stats-to-func
+  (:use :cl :simple-sets :ast :ast-mcpl :dependencies)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:import-from :utility-directory :filter :fixed-point)
+  (:export :move-stats-to-func))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":move-stats-to-func"
+    :header-args+: :tangle "../system/micro-passes/move-stats-to-func/move-stats-to-func.lisp"
+    :END:
+
+The following function is the top-level function that moves a list of
+statements to a new function.  It first retrieves all declarations from the
+statements.  Since declarations may have their own dependencies as well, for
+example from the types, we need to retrieve dependencies from these
+declarations as well.
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :move-stats-to-func)
+#+end_src
+
+#+begin_src lisp
+(defun move-stats-to-func (stats suffix)
+  (let* ((decls (get-dependent-decls (get-decls-from-stats stats)))
+  	 (original-func (get-func (first stats)))
+  	 (name (get-name original-func suffix)))
+    (create-called decls stats original-func name)
+    (create-caller decls stats name)
+    (dolist (s stats) (remove-from-ast s))))
+#+end_src
+
+Retrieving the declarations from statements:
+
+#+begin_src lisp
+(defun get-decls-from-stats (stats)
+  (let ((set (make-set)))
+    (loop for stat in stats
+       do (add-all-to-set (get-decls-from-stat stat) set))
+    (filter #'(lambda (x)
+		     (not-defined-in-stats x stats))
+		 (elements set))))
+#+end_src
+
+Getting the declarations from one stat:
+
+#+begin_src lisp
+(defun get-decls-from-stat (stat)
+  (let ((defs-before-uses (get-direct-defs-before-uses-ast stat))
+	(uses-after-defs (get-uses-after-defs-ast stat))
+	(defs-before-defs (get-defs-before-defs-ast stat))
+	(defs-after-defs (get-defs-after-defs-ast stat)))
+    (mapcar #'decl (concatenate
+		    'list defs-before-uses uses-after-defs defs-before-defs
+		    defs-after-defs))))
+#+end_src
+
+Retrieving the dependent declarations from a list of declarations:
+
+#+begin_src lisp
+(defun get-dependent-decls (decls)
+  (let ((set (make-set :elements decls)))
+    (loop for d in decls
+	 do (add-all-to-set (get-dependent-decls-decl d) set))
+    (mapcar #'transform-assign-decl
+	    (sort (elements set) #'ast<))))
+
+(defun get-dependent-decls-decl (decl)
+  (mapcar #'decl (get-direct-defs-before-uses-ast decl)))
+#+end_src
+
+Transforming an assignment declaration into a normal declaration:
+
+#+begin_src lisp
+(defun transform-assign-decl (decl)
+  (if (typep decl 'assign-decl)
+      (with-slots (modifiers basic-decl) decl
+	(make-normal-decl modifiers (list basic-decl)))
+      decl))
+#+end_src
+
+Whether an ast is defined in stats.
+
+#+begin_src lisp
+(defun not-defined-in-stats (ast stats)
+  (not (parent-in-asts-p ast stats)))
+#+end_src
+
+The following function determines the name and solves problems if a
+function-name already exists.
+
+#+begin_src lisp
+(defun get-name (original-func suffix)
+  (let ((new-name (concatenate 'string (name (id original-func)) suffix)))
+    (if (func-exists-p new-name original-func)
+	(get-name original-func (concatenate 'string suffix "0"))
+	new-name)))
+#+end_src
+
+Create the called function:
+
+#+begin_src lisp
+(defun create-called (decls stats original-func name)
+  (insert-before-ast
+   original-func
+   (make-func (make-id (name (hw-desc original-func)))
+	      (make-void)
+	      (make-id name)
+	      (mapcar #'copy-ast decls)
+	      (make-code-block (copy-ast stats)))))
+#+end_src
+
+Create the call that calls this function:
+
+#+begin_src lisp
+(defun create-caller (decls stats name)
+  (insert-before-ast
+   (first stats)
+   (make-call-stat (make-call
+		    (make-id name)
+		    (mapcar #'create-expr decls)))))
+
+(defun create-expr (decl)
+  (make-var-expr (make-normal-var (make-basic-var 
+				   (make-id (name (get-id decl))) nil))))
+#+end_src
+
+
+
+** Move stats out function
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/move-stats-out-func/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :move-stats-out-func
+  (:use :cl :ast :ast-mcpl :controlflow :dependencies
+	:set-parents :set-cfgraphs)
+  (:import-from :utility-directory :def-methods :fixed-point :filter)
+  (:export :move-stats-out-func))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":move-stats-out-func"
+    :header-args+: :tangle "../system/micro-passes/move-stats-out-func/move-stats-out-func.lisp"
+    :END:
+
+Moving statements out of the function cannot happen in one go.  Whether a
+statement can move out of a function depends on whether it is used before or
+afterwards.  Suppose we have statements A and B in that order.  Both use
+variable V.  Since A uses variable V, only B can be moved out of the function.
+However, now that B has moved there is no other statement A depends on, so it
+can move out of the function as well.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :move-stats-out-func)
+#+end_src
+
+#+begin_src lisp
+(defun move-stats-out-func (stats)
+  (let ((stats-to-move (copy-list stats)))
+    (fixed-point stats-to-move #'copy-list #'equals-list
+;;      (format t "iteration:~%~{~a~%~}~%~%" stats-to-move)
+      (unless (null stats-to-move)
+	(setf stats-to-move (move-stats-out-func-iteration stats-to-move))))))
+#+end_src
+
+In an iteration, we find the statements that are eligible for moving them
+before the call, and the statements for after the call.  After the statements
+have been moved, we remove the old statements from the function.  This means
+that we have to reset the funtion as discussed below.  Finally, the difference
+between ~stats~ and the moved stats is returned for another iteration.  A
+statement is eligible if it only depends on the parameters of the enclosing
+function of the statement.
+
+#+begin_src lisp
+(defun move-stats-out-func-iteration (stats)
+  (let ((stats-before (filter #'eligible-for-move-before-call-p stats))
+	(stats-after (filter #'eligible-for-move-after-call-p stats))
+	(func (get-func (first stats)))
+	(moved-stats nil))
+    (dolist (called-by (called-by func))
+      (move-stats-to-call called-by func stats-before #'insert-before-ast)
+      (move-stats-to-call called-by func stats-after #'insert-after-ast)
+      (dolist (s (union stats-before stats-after)) (pushnew s moved-stats)))
+    (let ((stats-to-do (set-difference stats moved-stats)))
+      (dolist (s moved-stats) (remove-from-ast s))
+      (reset-func func)
+      stats-to-do)))
+
+(defun move-stats-to-call (call func stats insert-func)
+  (dolist (stat stats)
+    (move-stat-to-call call func stat insert-func)))
+#+end_src
+
+The function ~move-stat-to-call~ inserts a new version of ~stat~ before or
+after the call ~call~, depending on ~insert-func~.  
+
+#+begin_src lisp
+(defun move-stat-to-call (call func stat insert-func)
+  (funcall insert-func (get-stat call) (create-new-stat stat func call)))
+#+end_src
+
+Creating a new statement means that the expressions in the statement have to be
+replaced by new expressions that match the scope of the call.  Since we
+require that the variables in the statement to move completely depend on the
+parameters of the function, we can easily replace the variable expressions with
+the expressions from the call.  *Note:* this pass does only simple substitution
+without type checking/conversion.
+
+Since the expressions and declarations come from parameters, existing code, we
+need to create fresh values for the AST.  This means that ~replace-exprs~ has
+to copy them at some point.
+
+#+begin_src lisp
+(defun create-new-stat (stat func call)
+  (let ((decls-func (params func))
+	(exprs-call (params call)))
+    (replace-exprs stat decls-func exprs-call)))
+#+end_src
+
+The function ~replace-exprs~ performs a mirrored visit (a visit on the old AST
+and a parallel visit on the copy of the AST) and replaces each variable
+expression with an expression from the call.
+
+The functions ~replace-expres-fw/bw~ have to copy ~decls~ and ~exprs~ at some
+point.  
+
+#+begin_src lisp
+(defun replace-exprs (ast decls exprs)
+  (let ((copy (set-parents (copy-ast ast))))
+    (mirrored-visit 
+     ast copy
+     #'(lambda (ro-x mod-x) (replace-exprs-fw ro-x mod-x decls exprs))
+     #'(lambda (ro-x mod-x) (replace-exprs-bw ro-x mod-x decls exprs)))
+    copy))
+
+(defgeneric replace-exprs-fw (ro-ast mod-x decls exprs))
+(defgeneric replace-exprs-bw (ro-ast mod-x decls exprs))
+
+(def-methods replace-exprs-fw ((ro-ast (ast string list number symbol))
+				  mod-ast decls exprs)
+  t)
+
+(def-methods replace-exprs-bw ((ro-ast (ast string list number symbol))
+				  mod-ast decl exprs)
+  nil)
+
+#+end_src
+
+Since the new replacement is based on ~exprs~, we have to create a copy to
+obtain a fresh AST-form.
+
+#+begin_src lisp
+(defmethod replace-exprs-bw ((ro-var-expr var-expr) (mod-var-expr var-expr) 
+			     decls exprs)
+  (let ((ro-var (var ro-var-expr)))
+    (replace-in-ast mod-var-expr :with
+		    (copy-ast (nth (get-index ro-var decls) exprs)))))
+
+(defun get-index (var decls)
+  (let ((result (position (decl (basic-decl (basic-var var))) decls)))
+    (assert (not (null result)))
+    result))
+#+end_src
+
+After statements within a function have been moved, the function needs to be
+reset.  This means that we have to set the parents again, set whether a
+variable is written, and we have to reset the controlflow graphs.
+
+#+begin_src lisp
+(defun reset-func (func)
+  (set-parents func)
+  (set-cfgraphs func))
+#+end_src
+
+
+
+
+
+
+
+
+
+#+begin_src lisp
+
+(defun only-depends-on-param-p (def-decl)
+  (with-slots (bb decl) def-decl
+    (and (typep bb  'bb-decl)
+	 (param-p decl))))
+#+end_src
+
+Only depends on a parameter and has no other uses before.
+    
+#+begin_src lisp
+(defun only-depends-on-params (stat)
+  (loop for d in (get-defs-before-uses-ast stat)
+     always (only-depends-on-param-p d)))
+
+(defun no-uses-before (stat)
+  (null (get-uses-before-uses-ast stat)))
+
+(defun eligible-for-move-before-call-p (stat)
+  (and (only-depends-on-params stat)
+       (no-uses-before stat)))
+
+(defun no-uses-after-uses (stat)
+  (null (get-uses-after-uses-ast stat)))
+
+(defun no-defs-after-uses (stat)
+  (null (get-defs-after-uses-ast stat)))
+
+(defun no-defs-after-defs (stat)
+  (null (get-defs-after-defs-ast stat)))
+
+(defun no-uses-after-defs (stat)
+  (null (get-uses-after-defs-ast stat)))
+
+(defun eligible-for-move-after-call-p (stat)
+  (and (no-uses-after-uses stat)
+       (no-defs-after-uses stat)
+       (no-uses-after-defs stat)
+       (no-defs-after-defs stat)))
+
+(defun equals-list (l1 l2)
+  (null (set-exclusive-or l1 l2)))
+
+  
+
+(defun get-stat (call)
+  (parent call))
+
+#+end_src
+
+
+** Specialize functions on memory-space
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/specialize-funcs-on-ms/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :specialize-funcs-on-memory-space
+  (:use :cl :ast :ast-mcpl :callgraph :set-parents
+        :resolve-types :resolve-vars)
+  (:import-from :alexandria :appendf :removef :compose)
+  (:import-from :anaphora :aif :it)
+  (:import-from :utility-directory :filter :cartesian-product)
+  (:export :specialize-funcs-on-memory-space))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":specialize-funcs-on-memory-space"
+    :header-args+: :tangle "../system/micro-passes/specialize-funcs-on-ms/specialize-funcs-on-ms.lisp"
+    :END:
+
+Specializing functions based on memory-spaces takes place in several steps.
+First we determine the specifications of a function based on the memory-spaces,
+which is the cartesian product of all the combinations of memory-spaces for
+each parameter of the function.  We then create new functions and insert them
+into the AST.  
+
+Unfortunately, the calls in the functions have not changed yet.  This poses
+several challenges:
+- to change the call, we need to know the memory spaces of the expressions in
+  the parameter list.  
+- Therefore, we need to perform a resolution of the variables in the newly
+  created functions.  
+- To do this, we need to resolve the types in the modules.  This needs an
+  overview of all the exports in the modules.  
+
+With this information resolved, we can modify all the calls.  After that, we
+can remove the old functions and we can update the exports of the modules.
+Based on the function-specifications, we can change the ~export~
+statement in each module and replace the old function with the new ones.  
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :specialize-funcs-on-memory-space)
+#+end_src
+
+#+begin_src lisp
+(defun specialize-funcs-on-memory-space (modules callgraph exports)
+  (let* ((funcs (funcs-ordered callgraph))
+	 (func-specifications (get-func-specifications funcs)))
+    (let ((new-funcs (create-new-funcs func-specifications))
+	  (non-transformed-funcs
+	   (set-difference funcs (mapcar #'first func-specifications))))
+      (prepare-for-changing-calls modules exports)
+      ;; (p "funcs" funcs)
+      ;; (p "new-funcs" new-funcs)
+      ;; (p "non-transformed-funcs" non-transformed-funcs)
+      ;; (p "wanted" (union new-funcs non-transformed-funcs))
+      (modify-calls func-specifications
+		    (union new-funcs non-transformed-funcs))
+      (remove-funcs func-specifications)
+      (modify-exports func-specifications))))
+
+(defun prepare-for-changing-calls (modules exports)
+  (resolve-all modules exports #'resolve-types)
+  (resolve-all modules exports #'resolve-vars))
+
+(defun resolve-all (modules exports func)
+  (loop for m in modules
+     do (funcall func m exports)))
+
+(defun p (type funcs)
+  (format t "~a:~%~{~a~%~}~%~%" type funcs))
+#+end_src
+
+
+The following functions deal with inserting new functions based on the
+specifications. 
+
+#+begin_src lisp
+(defun create-new-funcs (func-specifications)
+  (loop for fs in func-specifications append (create-new-funcs-from-func fs)))
+
+(defun create-new-funcs-from-func (func-specification)
+  (destructuring-bind (func . modifiers-spec) func-specification
+    (loop for spec in modifiers-spec collect (create-new-func func spec))))
+
+(defun create-new-func (func spec)
+  (let ((new-func (copy-ast func)))
+    (set-parents new-func)
+    (with-slots (id params) new-func
+      (let ((new-id (make-new-id id spec)))
+	(replace-in-ast id :with new-id))
+      (loop
+	 for param in params
+	 for mod-spec in spec
+	 unless (spec= mod-spec (get-modifiers-decl param))
+	 do (remove-modifiers-from-param param mod-spec)))
+    (insert-before-ast func new-func)
+    new-func))
+#+end_src
+
+The following functions change the export clauses in the modules.
+
+#+begin_src lisp
+(defun modify-exports (func-specifications)
+  (loop for fs in func-specifications do (modify-exports-from-func fs)))
+
+(defun modify-exports-from-func (func-specification)
+  (destructuring-bind (func . modifiers-spec) func-specification
+    (let ((module (get-module func))
+	  (id (id func)))
+      (when (member id (exports module) :test #'ast=)
+	(replace-export id modifiers-spec module)))))
+
+(defun replace-export (id modifiers-spec module)
+  (removef (exports module) id :test #'ast=)
+  (appendf (exports module) (mapcar #'(lambda (spec)
+					(make-new-id id spec))
+				    modifiers-spec)))
+#+end_src
+
+The following functions modify the calls conforming to the newly created
+functions. 
+
+#+begin_src lisp
+(defun modify-calls (func-specifications funcs)
+  (let ((calls (collect-all funcs #'(lambda (x) (typep x 'call)))))
+    (loop for call in calls
+       do (modify-call call func-specifications))))
+
+(defun modify-call (call func-specifications)
+;;  (format t "~%analyzing call ~a in func: ~a~%" call (get-func call))
+  (loop for fs in func-specifications do (modify-call-for-func call fs)))
+
+(defun modify-call-for-func (call func-spec)
+  (destructuring-bind (func . modifiers-spec) func-spec
+    (when (or (eq (func call) func)
+	      (and (null (func call)) (ast= (id func) (id call))))
+;;      (format t "  calls a function that we transformed~%")
+      (modify-call-to-specs call modifiers-spec))))
+
+(defun modify-call-to-specs (call modifiers-spec)
+  (loop for spec in modifiers-spec
+     do (modify-call-to-spec call spec)))
+
+(defun modify-call-to-spec (call spec)
+  (when (satisfies-spec call spec)
+    (with-slots (id) call
+      (let ((new-id (make-new-id id spec)))
+;;	(format t "  replacing it with ~a~%" new-id)
+	(replace-in-ast id :with new-id)))))
+
+;; (defun modify-calls-from-func (func-specification)
+;;   (destructuring-bind (func . modifiers-spec) func-specification
+;;     (loop for spec in modifiers-spec do (modify-calls-func func spec))))
+
+;; (defun modify-calls-func (func spec)
+;;   (loop for call in (called-by func)
+;;      do (format t "  checking call ~a in func: ~a~%" call (get-func call))
+;;        (when (satisfies-spec call spec)
+;; 	 )))
+#+end_src
+
+The following functions remove the transformed functions.
+
+#+begin_src lisp
+(defun remove-funcs (func-specifications)
+  (loop for fs in func-specifications do (remove-funcs-from-func fs)))
+
+(defun remove-funcs-from-func (func-specification)
+  (destructuring-bind (func . spec) func-specification
+    (declare (ignore spec))
+    (remove-from-ast func)))
+#+end_src
+
+The following functions are helper functions:
+
+#+begin_src lisp
+(defparameter *excluded-funcs* '("sincos"))
+
+(defun get-func-specifications (funcs)
+  (filter #'multiple-specs-p
+	  (loop for f in funcs
+	     unless (excluded f)
+	     collect (cons f (get-cartesian-product (get-modifiers-func f))))))
+
+(defun excluded (func)
+  (member (name (id func)) *excluded-funcs* :test #'string=))
+
+(defun multiple-specs-p (func-specification)
+  (destructuring-bind (func . modifiers-spec) func-specification
+    (declare (ignore func))
+    (>  (length modifiers-spec) 1)))
+
+(defun make-new-id (id spec)
+  (make-id (format nil "~a~a" (name id) (get-suffix-spec spec))))
+
+(defun satisfies-spec (call spec)
+  (spec= spec (get-modifiers-call call)))
+
+(defun remove-modifiers-from-param (param spec)
+  (loop for modifier in (modifiers param)
+     unless (typep modifier 'const)
+     do (when (not (member modifier spec :test #'ast=))
+	  (remove-from-ast modifier))))
+
+(defun spec= (spec1 spec2)
+  (and (eql (length spec1) (length spec2))
+       (loop for s1 in spec1 for s2 in spec2 always (spec-item= s1 s2))))
+
+(defun spec-item= (spec1 spec2)
+  (if (or (eq spec1 'no-mod) (eq spec2 'no-mod))
+      (eq spec1 spec2)
+      (ast= spec1 spec2)))
+
+(defun get-modifiers-func (func)
+  (mapcar #'get-modifiers-decl (params func)))
+
+(defun get-modifiers-decl (decl)
+  (if (memory-space-disallowed decl)
+      (list 'no-mod)
+      (aif (get-modifiers-decl2 decl)
+	   it
+	   (list 'no-mod))))
+
+(defun get-modifiers-decl2 (decl)
+  (aif  (filter #'(lambda (m)
+		    (typep m 'user-defined))
+		(modifiers decl))
+	it
+	(mapcar (compose #'make-user-defined #'make-id)
+		(query-hdl-mcpl:get-memory-spaces decl))))
+
+(defun get-modifiers-call (call)
+  (mapcar #'get-modifiers-expr (params call)))
+
+(defun get-modifiers-expr (expr)
+  (if (memory-space-disallowed expr)
+      (list 'no-mod)
+      (progn
+	(assert (typep expr 'var-expr))
+	(get-modifiers-decl (get-decl-var (var expr))))))
+
+(defun get-cartesian-product (modifiers-spec)
+  (mapcar #'(lambda (x) (mapcar #'list x)) (cartesian-product modifiers-spec)))
+
+(defun get-suffix-spec (modifiers-spec)
+  (format nil "~{~a~}" (mapcar (compose #'get-suffix-part #'first)
+			       modifiers-spec)))
+
+(defun get-suffix-part (mod-spec)
+  (if (eq mod-spec 'no-mod)
+      ""
+      (string-upcase (name (modifier mod-spec)) :end 1)))
+#+end_src
+
+
+
+
+*** Testing specializing functions on memory space
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-specialize-funcs-on-ms/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-specialize-funcs-on-memory-space
+  (:use :cl :test-mcl :fiveam :mcl-util :ast :ast-mcpl :parse-mcpl :set-parents
+	:resolve-calls :resolve-vars :set-callgraph :set-vars-written
+	:specialize-funcs-on-memory-space)
+  (:shadowing-import-from :fiveam :skip)
+  (:export :test-specialize-funcs-on-memory-space))
+#+end_src
+
+
+**** The tests for the specialization
+     :PROPERTIES:
+     :header-args+: :package ":test-specialize-funcs-on-memory-space"
+     :header-args+: :tangle "../system/tests/test-specialize-funcs-on-ms/test-specialize-funcs-on-ms.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-specialize-funcs-on-memory-space)
+#+end_src
+
+#+begin_src lisp
+(def-suite specialize-funcs-on-memory-space :in mcl-test-suite)
+(in-suite specialize-funcs-on-memory-space)
+
+(test specialize-funcs-on-memory-space
+  (is
+    (specialize-ok
+     :input '(("f")
+	      ("perfect void f(int l, reg main float[l] a)")
+	      ("f(l, a)"
+	       "f(l, b)"))
+     :output '(("fReg" "fMain")
+	       ("perfect void fReg(const int l, const reg float[l] a)"
+		"perfect void fMain(const int l, const main float[l] a)")
+	       ("fMain(l, a)"
+		"fReg(l, b)"))))
+  (is 
+   (specialize-ok
+    :input '(("f")
+	     ("perfect void f(int l, reg main float[l] a)")
+	     ("f(l, a)"
+	      "f(l, a)"))
+    :output '(("fReg" "fMain")
+	      ("perfect void fReg(const int l, const reg float[l] a)"
+	       "perfect void fMain(const int l, const main float[l] a)")
+	      ("fMain(l, a)"
+	       "fMain(l, a)")))))
+
+(defun specialize-ok (&key input output)
+  (ast= (specialize (build-module input))
+	(build-module output)))
+
+(defun specialize (module)
+  (let ((exports (make-hash-table :test 'equal)))
+    (set-parents module)
+    (resolve-calls module exports)
+    (let ((callgraph (set-callgraph (funcs (code module)))))
+      (resolve-vars module exports)
+      (set-cfgraphs:set-cfgraphs module)
+      (set-vars-written callgraph)
+      (specialize-funcs-on-memory-space (list module) callgraph exports)
+      module)))
+
+(defparameter *module*
+  (tostring
+   "package a;"
+   "module a;"
+   "export ~{~a~^, ~};"
+   "import perfect;"
+   ""
+   "~{~a~^~%~}"
+   ""
+   "perfect void start(const int l, const main float[l] a) {"
+   "  ~a;"
+   "  foreach (const int i in 1 threads) {"
+   "    const float[l] b;"
+   "    ~a;"
+   "  }"
+   "}"
+   ""))
+
+(defun build-module (funcs)
+  (destructuring-bind (exports func-headers func-calls) funcs
+    (parse-mcpl (apply #'format nil
+		       ,*module*
+		       exports
+		       (mapcar #'build-func func-headers)
+		       func-calls))))
+
+(defun build-func (func-header)
+  (format nil "~a {~%}" func-header))
+#+end_src
+
+** Transform tile expressions
+
+This pass transforms calls with arrays that are addressed as tiles into calls
+where the full pointer and an index is passed instead.  This is required for
+generating code with OpenCL since one cannot pass pointers to a place within a
+buffer to a kernel function.  
+
+This is a challenging problem since the tiles may have been created somewhere
+other than at the call.  Additionally, the partial pointers may be passed to
+other functions that then also need transformation.
+
+Finally, it may be needed to change arrays from different call sites.
+
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/transform-tile-expressions/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :transform-tile-expressions
+  (:use :cl :ast :ast-mcpl :controlflow :aliases)
+  (:import-from :alexandria :appendf :flatten)
+  (:import-from :anaphora :aif :it)
+  (:export :transform-tile-expressions))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":transform-tile-expressions"
+    :header-args+: :tangle "../system/micro-passes/transform-tile-expressions/transform-tile-expressions.lisp"
+    :END:
+
+The following text is just a note:
+
+A sketch of how the algorithm could be:
+
+- find the kernels
+- per kernel, check the calls for tiles, do this recursively up the call tree
+  and gather the funcs.  Per parameter indicate the parameter number and the
+  highest dimensionality of the parameters that need to be transformed.
+- Using this information we are going to change the calls and functions:
+
+Move to the bottom calls, analyze all calls for the bottom function, store the
+information about each call and function (which parameters are needed and
+added.  Then change the function.  Then move to a higher function and repeat.
+Basically, we need the information on the transformed functions for the higher
+functions.
+
+
+- Replace the calls that need replacement
+- Transform the functions themselves as well
+- Transform all the calls 
+
+--------------------------- End of note ----------------------
+
+
+**** The entry point
+
+We first analyze all kernel functions to determine per function whether it
+needs to be transformed and what parameters (in terms of their position) are
+triggering the transformation.  Per parameter we keep track of how many
+dimensions it needs.  This information is stored in ~to-be-transformed-funcs~.
+
+With this information, we transform the kernel functions and their callers.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :transform-tile-expressions)
+#+end_src
+
+#+begin_src lisp
+(defun transform-tile-expressions (module exports)
+  (let ((to-be-transformed-funcs (make-hash-table))
+	(kernel-funcs (collect-all module #'kernel-func-p)))
+    ;;(dolist (func kernel-funcs) (analyze-func func to-be-transformed-funcs))
+    (transform-funcs kernel-funcs to-be-transformed-funcs exports)))
+#+end_src
+
+
+**** Analyzing functions
+
+Analyzing a function involves analyzing all calls.
+
+#+begin_src lisp
+(defun analyze-func (func to-be-transformed)
+  (dolist (call (called-by func))
+    (analyze-call call to-be-transformed)))
+#+end_src
+
+The ~analyze-call~ function recursively calls ~analyze-func~ on the function
+that contains the call to arrive at the top of the callgraph.  This is
+necessary because information about whether a function should be transformed
+has an effect on the functions lower in the callgraph.  We then retrieve the
+tiled parameters of the call and add it to the ~to-be-transformed~ map.  
+
+If we find tiled-parameters of the call, then we add it to the map with a
+special function remembers the maximum of the number of dimensions.  If we do
+not find tiled parameters, it could still be possible that the parameters are
+actually tiled.  This is the case when the parent function (the function in
+which the call is listed), has tiled parameters that are passed on to this
+function.  *Actually*, this is also possible if we do find tiled parameters, so
+this function is buggy and should need a *test*.
+
+#+begin_src lisp
+(defun analyze-call (call to-be-transformed)
+  (let ((parent-func (get-func call)))
+    (analyze-func parent-func to-be-transformed)
+    (let ((tiled-parameters-call (find-tiled-parameters-call call)))
+      (cond (tiled-parameters-call
+	     (add-to-map (func call) tiled-parameters-call to-be-transformed))
+	    ((gethash parent-func to-be-transformed)
+	     (add-parent-tiles call parent-func to-be-transformed))))))
+#+end_src
+
+We find tiled parameters in a call by comparing the type of the variable
+expressions.  We collect the position in the parameter list and the number of
+dimensions of the expression.
+
+#+begin_src lisp
+(defun find-tiled-parameters-call (call)
+  (with-slots (params) call
+    (let ((result
+	   (loop
+	      for param in params
+	      for i below (length params)
+	      when (and (typep param 'var-expr)
+			(not (check-types::equals-type
+			      (eval-type param)
+			      (check-types::get-type
+			       (get-primary-decl param)))))
+	      collect (cons i (get-nr-dims-decl param)))))
+      (sort result #'parameter-spec<))))
+
+(defun parameter-spec< (parameter-spec1 parameter-spec2)
+  (< (car parameter-spec1) (car parameter-spec2)))
+#+end_src
+
+We retrieve the number of dimensions of expressions or declarations by
+retrieving it from the type.  If it is a primitive type or a custom type, then
+the number of dimensions is 0.
+
+#+begin_src lisp
+(defun get-nr-dims-expr (param)
+  (assert (typep param 'var-expr))
+  (get-nr-dims-type (eval-type param)))
+
+(defgeneric get-nr-dims-decl (param))
+
+(defmethod get-nr-dims-decl ((e expr))
+  (assert (typep e 'var-expr))
+  (get-nr-dims-decl (get-decl-from-expr e)))
+
+(defun get-decl-from-expr (e)
+  (if (typep (parent e) 'call)
+      (get-primary-decl e)
+      (get-decl-param e)))
+
+(defmethod get-nr-dims-decl ((d decl))
+  (get-nr-dims-type (check-types::get-type d)))
+
+(defun get-nr-dims-type (type)
+  (cond ((or (primitive-type-p type)
+	     (typep type 'custom-type))
+	 0)
+	((typep type 'array-type)
+	 (1+ (get-nr-dims-type (base-type type))))
+	(t
+	 (error "Type is neither a primitive, custom- or array-type"))))
+#+end_src
+
+We add tile information to the map in the following way: If the function is
+already available, we have to merge it with the already available information.
+Otherwise, we just add it.
+
+#+begin_src lisp
+(defun add-to-map (func tiled-parameters to-be-transformed)
+  (aif (gethash func to-be-transformed)
+       (setf (gethash func to-be-transformed)
+	     (merge-tiled-parameters it tiled-parameters))
+       (setf (gethash func to-be-transformed)
+	     tiled-parameters)))
+#+end_src
+
+Merging happens recursively, we take the maximum of the ~cdr~ (the number of
+dimensions at a position (~car~).
+
+#+begin_src lisp
+(defun merge-tiled-parameters (tps1 tps2)
+  (cond ((null tps1) tps2)
+	((null tps2) tps1)
+	(t (destructuring-bind (f1 &rest r1) tps1
+	     (destructuring-bind (f2 &rest r2) tps2
+	       (cond ((parameter-spec< f1 f2)
+		      (cons f1 (merge-tiled-parameters r1 tps2)))
+		     ((parameter-spec< f2 f1)
+		      (cons f2 (merge-tiled-parameters tps1 r2)))
+		     (t
+		      (cons (cons (car f1) (max (cdr f1) (cdr f2)))
+			    (merge-tiled-parameters r1 r2)))))))))
+#+end_src
+
+In the ~add-parent-tiles~ function, we create a new ~tiled-parameters-call~
+based on the parameters of the parent function.  We have to convert the
+position of the parent-func to the position in the call.  It is possible that a
+parameter of the function is not passed on to the call.  This is filtered away
+with the ~when~ statement in the loop.
+
+#+begin_src lisp
+(defun add-parent-tiles (call parent-func to-be-transformed)
+  (let* ((tiled-parameters-parent-func (gethash parent-func to-be-transformed))
+	 (tiled-parameters-call (loop for i in tiled-parameters-parent-func
+				   when (convert-position i parent-func call)
+				   collect it)))
+    (when tiled-parameters-call
+      (add-to-map (func call) tiled-parameters-call to-be-transformed))))
+
+(defun convert-position (parameter-spec parent-func call)
+  (let* ((position-parameter (car parameter-spec))
+	 (decl-parent-func (nth position-parameter (params parent-func))))
+    (cons
+     (position  decl-parent-func (mapcar #'get-decl-param (params call)))
+     (cdr parameter-spec))))
+#+end_src
+
+
+
+#+begin_src lisp :noexport :tangle no
+(defun find-tiled-parameters (func)
+  (with-slots (called-by) func
+    (let (tiled-parameters)
+      (reduce #'(lambda (result call)
+		  (union result (find-tiled-parameters-call call)))
+	      called-by
+	      :initial-value tiled-parameters))))
+
+
+
+(defgeneric has-index (var/expr))
+
+(defmethod has-index ((ve var-expr))
+  (has-index (var ve)))
+
+(defmethod has-index ((nv normal-var))
+  (has-index (basic-var nv)))
+
+(defmethod has-index ((bv basic-var))
+  (not (null (array-exprs bv))))
+#+end_src
+
+
+
+**** TODO Transforming functions
+
+We transform the functions and append it into a list of functions that have
+been transformed as to not transform function multiple times.
+
+#+begin_src lisp
+(defun transform-funcs (funcs func-info exports)
+  (loop for func in funcs
+     appending (transform-func func func-info funcs-done exports)
+     into funcs-done))
+#+end_src
+
+Transforming a function is done recursively again, to make sure we move first
+to the top of the callgraph.  We have to append it to the ~funcs-done~ list.
+We transform a function if it is listed in the map and is not done.  We first
+compute the names that we are going to use and with this information we do
+several transformations:
+- adding assignment declarations that index in such a way that all references
+  are similar to before transformation
+- transforming the parameters of the function, new names and new types
+- adding new indices after each transformed parameter
+- add dimension declarations that ensure that the types are going to be valid
+
+
+#+begin_src lisp
+(defun transform-func (func func-info funcs-done exports)
+  (appendf funcs-done (loop for call in (called-by func)
+			 when (let ((parent-func (get-func call)))
+				(transform-func
+				 parent-func func-info funcs-done exports))
+			 append it into funcs-done
+			 finally (return funcs-done)))
+  (let ((spec (get-spec func)
+	 ;;(gethash func func-info)
+	  ))
+    (when (and spec (not (member func funcs-done)))
+      (with-slots (params called-by) func
+	(let* ((params-to-transform (get-params-to-transform spec params))
+	       (names (get-names
+		       params-to-transform
+		       (compute-nr-dims params-to-transform spec)
+		       func)))
+	  ;; (format t "doing ~a~%" func)
+	  ;; (format t "  adding assign-decls:~%")
+	  (add-assign-decls params-to-transform names func)
+	  ;; (format t "  transform-params:~%")
+	  ;; (format t "    names: ~a~%" names)
+ 	  (transform-params params-to-transform names func spec)
+	  ;; (format t "  add indices:~%")
+	  (add-indices params-to-transform names)
+	  ;;(format t "~{~a~%~}" (mapcar #'print-pretty:pp called-by))
+	  ;;(format t "going to do the dimension-decls now~%")
+	  ;; (format t "  add dimension-decls:~%")
+	  (add-dimension-decls func spec)
+	  ;; (format t "  transform-calls:~%")
+	  ;; (format t "    spec: ~a~%" spec)
+	  (set-cfgraphs:set-cfgraphs func)
+	  (set-parents:set-parents func)
+	  (transform-calls called-by spec exports)
+	  ;; (format t "  resolve-vars:~%")
+	  (resolve-vars:resolve-vars func exports)
+	  ;; (format t "the func:~%~a~%" (print-pretty:pp func))
+	  (list func))))))
+
+(defun compute-nr-dims (params specs)
+  (mapcar #'(lambda (param spec)
+	      (- (cdr spec) (get-nr-dims-decl param)))
+	  params specs))
+#+end_src
+
+#+begin_src lisp
+(defun get-spec (func)
+  (let ((hashtable (make-hash-table)))
+    (analyze-func func hashtable)
+    (gethash func hashtable)))
+#+end_src
+
+We add the first assignment declaration before the first statement in the
+function, all others before the just inserted statement.
+
+#+begin_src lisp
+(defun add-assign-decls (params names func)
+  (loop for param in (reverse params)
+       for name in (reverse names)
+     for stat = (let ((first-stat (get-first-stat func)))
+		  (add-assign-decl param name first-stat)
+		  first-stat)
+     then (add-assign-decl param name stat)))
+#+end_src
+
+We create an assignment declaration using the modifiers from the original
+declarations.  We create a new expression with the ~from-caller~ name and the
+~index~.  
+
+#+begin_src lisp
+(defun add-assign-decl (param name stat)
+  (destructuring-bind (from-caller &rest indices) name
+    (with-slots (modifiers basic-decls) param
+      (let ((bd (first basic-decls)))
+	(with-slots (mcl-type id) bd
+	  (let ((ds (make-decl-stat
+		     (make-assign-decl
+		      modifiers
+		      (copy-ast bd)
+		      (create-expr from-caller indices)))))
+	    (insert-before-ast stat ds)
+	    (setf (parent ds) (parent stat))
+	    ds))))))
+#+end_src
+
+We add dimension declarations in front of the first parameters.  We first find
+all the dimension variables and remove the duplicates using ~union~.  
+
+#+begin_src lisp
+(defun add-dimension-decls (func spec)
+  (let ((dim-vars (get-all-dim-vars func spec)))
+    (loop for dv in dim-vars
+       do (insert-before-ast (first (params func))
+			     (create-dimension-decl dv)))))
+
+(defun create-dimension-decl (dim-var)
+  (make-normal-decl (list (make-const))
+		    (list (make-basic-decl (make-int)
+					   (make-id dim-var)))))
+(defun get-all-dim-vars (func spec)
+  (reduce #'(lambda (result s)
+	      (destructuring-bind (position . dims-needed) s
+		(union result
+		       (find-dim-vars
+			position func dims-needed)
+		       :test #'string=)))
+	  spec
+	  :initial-value nil))
+#+end_src
+
+We add the indices after each parameters:
+
+#+begin_src lisp
+(defun add-indices (params-to-transform names)
+  (loop
+     for param in params-to-transform
+     for (from-caller . indices) in names
+     do (insert-indices param indices)))
+
+(defun insert-indices (param indices)
+  (loop for index in (reverse indices)
+     do (insert-after-ast param (create-index-decl index))))
+
+(defun create-index-decl (name)
+  (make-normal-decl
+   (list (make-const))
+   (list (make-basic-decl (make-int) (make-id name)))))
+#+end_src
+
+We transform the parameters themselves by changing the type and changing the
+name:
+
+#+begin_src lisp
+(defun transform-params (params-to-transform names func spec)
+  (loop
+     for (position . dims-needed) in spec
+     for param in params-to-transform
+     for (from-caller . indices)  in names
+     ;; param and position have to be in congruence of course
+     do (let ((dim-vars (find-dim-vars position func dims-needed)))
+	  (replace-type param (compute-type param dims-needed dim-vars))
+	  (change-name-param param from-caller))))
+#+end_src
+
+Replacing the type:
+
+#+begin_src lisp
+(defgeneric replace-type (decl type))
+
+(defmethod replace-type ((d normal-decl) type)
+  (replace-type (first (basic-decls d)) type))
+
+(defmethod replace-type ((bd basic-decl) type)
+  (replace-in-ast (mcl-type bd) :with type))
+#+end_src
+
+Computing the new type:
+
+#+begin_src lisp
+(defun compute-type (param dims-needed dim-vars)
+  (let* ((old-type (check-types::get-type param))
+	 (nr-dims-type (get-nr-dims-decl param))
+	 (nr-dims-to-add (max 0 (- dims-needed nr-dims-type))))
+    (create-type old-type nr-dims-to-add dim-vars)))
+#+end_src
+
+Create a type is done recursively:
+
+#+begin_src lisp
+(defun create-type (type nr-dims-to-add dim-vars)
+  (if (eql nr-dims-to-add 0)
+      type
+      (create-type
+       (create-array-type type (first dim-vars))
+       (1- nr-dims-to-add)
+       (rest dim-vars))))
+
+(defun create-array-type (base-type name)
+  (make-array-type base-type (list (make-decl-array-size
+				    (make-var-expr
+				     (make-normal-var
+				      (make-basic-var (make-id name) nil)))
+				    nil))))
+#+end_src
+
+Changing the name of a parameter:
+
+#+begin_src lisp
+(defgeneric change-name-param (decl name))
+
+(defmethod change-name-param ((d normal-decl) name)
+  (change-name-param (first (basic-decls d)) name))
+
+(defmethod change-name-param ((bd basic-decl) name)
+  (change-name-param (id bd) name))
+
+(defmethod change-name-param ((id id) name)
+  (setf (name id) name))
+#+end_src
+
+
+We transform calls by first gathering information, we then:
+- add index expressions to the call,
+- we transform the expressions in the call, and
+- add the dimension expressions to the call.
+
+
+#+begin_src lisp
+(defun transform-calls (calls specs exports)
+  (dolist (call calls) (transform-call call specs))
+  (let ((parent-funcs (remove-duplicates (mapcar #'get-func calls))))
+    (dolist (func parent-funcs)
+      (resolve-vars:resolve-vars func exports)
+      (check-types:check-types func))))
+
+(defun transform-call (call specs)
+  (with-slots (params) call
+    (let ((params-to-transform (get-params-to-transform specs params))
+	  (info (get-transform-info params specs)))
+      ;; (format t "transforming call ~a~%" call)
+      ;; (format t "    info: ~a~%" info)
+      ;; (format t "    add-index-exprs~%")
+      (add-index-exprs
+       params-to-transform (mapcar #'second info))
+      ;; (format t "    transform-param-exprs~%")
+      (transform-param-exprs
+       params-to-transform
+       (mapcar #'first info) (mapcar #'fourth info))
+      ;; (format t "    add-dim-exprs~%")
+      (add-dim-exprs (first (params call))
+		     (compute-dim-exprs (mapcar #'third info)))
+      (set-parents:set-parents call))))
+
+(defun compute-dim-exprs (dim-exprs)
+  (flatten (remove-duplicates dim-exprs :test #'ast=)))
+#+end_src
+
+The transform information creates a list (for each parameter to transform one)
+of three types of information:
+- the variable expression without ~dims~ index expressions
+- ~dims~ index expressions
+- expressions that are required for the types
+
+#+begin_src lisp
+(defun get-transform-info (params specs)
+  (loop for (position . dims-type) in specs
+     collect (let* ((param (nth position params))
+		    (dims-expr (get-nr-dims-expr param))
+		    (dims (- dims-type dims-expr)))
+	       (multiple-value-bind (var-expr indices)
+		   (split-param param dims)
+		 ;; (format t "indices: ~a~%" indices)
+		 ;; (format t "dims: ~a, dims-type: ~a, dims-expr: ~a~%" dims dims-type dims-expr)
+		 ;; (format t "type-exprs: ~a~%" (find-type-exprs param dims))
+		 (if var-expr
+		     (list var-expr indices (find-type-exprs param dims))
+		     (list nil
+			   (append
+			    (loop for i below (- dims (length indices))
+			       collect (list (make-int-constant 0)))
+			    indices)
+			   (append
+			    (subseq (find-type-exprs param dims) (length indices))
+			    (loop for i below (- dims (length indices))
+			       collect (make-int-constant 1)))
+			   (- dims (length indices))))))))
+#+end_src
+
+The following functions retrieve the expressions that are necessary to fullfill
+the types:
+
+#+begin_src lisp
+(defun find-type-exprs (param dims)
+  (let* ((type (check-types::get-type (get-decl-from-expr param)))
+	 (type-exprs (find-type-exprs-type type)))
+    (reverse (mapcar #'size (subseq type-exprs 0 (min (length type-exprs) dims))))))
+
+(defun find-type-exprs-with-nr-dims (param dims wanted-nr-dims)
+  (let* ((type (check-types::get-type (get-decl-from-expr param)))
+	 (type-exprs (find-type-exprs-type type)))
+    (when  (eql (length type-exprs) wanted-nr-dims)
+      (reverse (mapcar #'size (subseq type-exprs 0 dims))))))
+
+(defun find-type-exprs-type (type)
+  (if (or (primitive-type-p type)
+	  (typep type 'custom-type))
+      nil
+      (with-slots (base-type sizes) type
+	(assert (eql (length sizes) 1))
+	(cons (first sizes) (find-type-exprs-type base-type)))))
+#+end_src
+
+The following function adds an index expression after each parameter that needs
+to be transformed.
+
+#+begin_src lisp
+;; (defun add-index-exprs (params indices dims)
+;;   (loop
+;;      for p in params
+;;      for i in indices
+;;      do (let ((indices (if (null i) (create-zero-indices dims) i)))
+;; 	  (insert-index-exprs p indices))))
+
+(defun add-index-exprs (params indices)
+  (loop
+     for p in params
+     for i in indices
+     do (insert-index-exprs p i)))
+
+(defun create-zero-indices (dims)
+  (loop for i below (length dims) collect (list (make-int-constant 0))))
+
+(defun insert-index-exprs (param indices)
+  (loop for index in (mapcar #'first (reverse indices))
+     do
+       (insert-after-ast param index)
+       (setf (parent index) (parent param))))
+#+end_src
+
+The following function transforms the parameters.  Basically, the parameters
+are replaced with parameters with less index expressions.
+
+#+begin_src lisp
+(defun transform-param-exprs (params-to-replace replacement-params counts)
+  (loop
+     for p-to-replace in params-to-replace
+     for replacement-p in replacement-params
+     for c in counts
+     do (if replacement-p
+	    (replace-in-ast p-to-replace :with replacement-p)
+	    (create-with-dim-expr p-to-replace c))))
+
+(defun create-with-dim-expr (param count)
+  (let* ((decl (get-decl-param param))
+	 (func (get-func param))
+	 (basic-decl (get-basic-decl-param param))
+	 (name (create-with-dim-name basic-decl func)))
+    (add-new-basic-decl decl basic-decl name count)
+    (replace-in-ast param :with (create-var-expr name nil))))
+
+(defun create-with-dim-name (basic-decl func)
+  (ensure-name (format nil "~aWithDim" (name (id basic-decl)))
+	       func 'basic-decl))
+
+(defgeneric add-new-basic-decl (decl old-basic-decl new-name count))
+  
+(defmethod add-new-basic-decl ((decl normal-decl) old-basic-decl new-name count)
+  (with-slots (basic-decls) decl
+    (appendf basic-decls
+	     (list (create-new-basic-decl old-basic-decl new-name count)))
+    (remove-duplicates basic-decls :test #'ast=)))
+
+(defun create-new-basic-decl (old-basic-decl new-name count)
+  (make-basic-decl (create-new-type old-basic-decl count) (make-id new-name)))
+
+(defun create-new-type (old-basic-decl count)
+  (if (eql count 0)
+      (copy-ast (mcl-type old-basic-decl))
+      (make-array-type
+       (create-new-type old-basic-decl (1- count)) 
+       (list (make-decl-array-size (make-int-constant 1) nil)))))
+#+end_src
+
+We add dimension expressions at the start.  These dimension expressions are
+necessary to express the dimensions of the types.
+
+#+begin_src lisp
+(defun add-dim-exprs (ast dim-exprs)
+  ;;(break)
+  (loop
+     for de in dim-exprs
+     for param = (let ((first-ast ast))
+		   (insert-before-ast first-ast de)
+		   (setf (parent de) (parent first-ast))
+		   de)
+     then (progn (insert-before-ast param de)
+		 (setf (parent de) (parent param))
+		 de)))
+#+end_src
+
+
+
+
+
+
+
+
+
+
+
+
+**** TODO Helper functions
+
+Retrieves the parameters that need to be transformed.
+
+#+begin_src lisp
+(defun get-params-to-transform (spec params)
+  (loop for (position . dims-needed) in spec collect (nth position params)))
+#+end_src
+
+Create a list of new names:
+
+#+begin_src lisp
+(defun get-names (params nr-indices func)
+  (loop for p in params
+       for index-count in nr-indices
+     collect (cons (get-name-from-caller p func)
+		   (get-names-indices p index-count func))))
+
+(defun get-names-indices (decl nr-indices func)
+  (if (eql nr-indices 1)
+      (list (get-name-index decl func ""))
+      (loop for i below nr-indices collect (get-name-index decl func i))))
+
+(defun get-name-index (decl ast count)
+  (get-name decl ast (format nil "Index~a" count)))
+
+(defun get-name-from-caller (decl ast)
+  (get-name decl ast "FromCaller"))
+
+(defun get-name (decl ast suffix)
+  (ensure-name
+   (format nil "~a~a" (name (id (get-basic-decl decl))) suffix)
+   ast 'basic-decl))
+#+end_src
+
+Create expressions:
+
+#+begin_src lisp
+(defun create-expr (from-caller indices)
+  (create-var-expr from-caller (mapcar #'(lambda (index)
+					   (list (create-var-expr index nil)))
+				       indices)))
+
+(defun create-var-expr (name array-exprs)
+  (make-var-expr
+   (make-normal-var
+    (make-basic-var (make-id name)
+		    array-exprs))))
+#+end_src
+
+Get the first stat from a function *Can move to a more generic place*:
+
+#+begin_src lisp
+(defun get-first-stat (func)
+  (first (stats (code-block func))))
+#+end_src
+
+Find the dimension variables from a func given a position.  We do this by
+looking in the calls and get inspiration from these names.
+
+#+begin_src lisp
+(defun find-dim-vars (position func dims-needed)
+  (with-slots (called-by) func
+    (let ((suggested-dim-vars
+	   (loop for call in called-by
+	      when (suggest-dim-vars position call dims-needed)
+	      collect it)))
+      (first suggested-dim-vars))))
+
+(defun suggest-dim-vars (position call dims-needed)
+  (with-slots (params) call
+    (let* ((param (nth position params))
+	   (dims-expr (get-nr-dims-expr param))
+	   (dims (- dims-needed dims-expr))
+	   (type-exprs (find-type-exprs-with-nr-dims param dims dims-needed)))
+      ;; (format t "dims-expr: ~a, dims: ~a, dims-needed: ~a~%"
+      ;; 	      dims-expr dims dims-needed)
+      ;; (format t "type-exprs: ~a~%" type-exprs)
+      (loop for type-expr in type-exprs
+	   when (typep type-expr 'var-expr)
+	   collect (name (get-id (get-decl-var (var type-expr))))))))
+#+end_src
+
+The following functions split a parameter and ~nr-indices~ of its index
+expressions:
+
+#+begin_src lisp
+(defgeneric split-param (param nr-indices))
+
+(defmethod split-param ((e var-expr) nr-indices)
+  (if (eql nr-indices 0)
+      (values e nil)
+      (multiple-value-bind (var indices) (split-param (var e) nr-indices)
+	(values (if (null var) nil (make-var-expr var)) indices))))
+
+(defmethod split-param ((v normal-var) nr-indices)
+  (if (eql nr-indices 0)
+      (values v nil)
+      (multiple-value-bind (bv indices) (split-param (basic-var v) nr-indices)
+	(values (if (null bv) nil (make-normal-var bv)) indices))))
+
+(defmethod split-param ((bv basic-var) nr-indices)
+  (if (eql nr-indices 0)
+      (values bv nil)
+      (with-slots (id array-exprs) bv
+	(let* ((nr-array-exprs (length array-exprs))
+	       (split-position (max (- nr-array-exprs nr-indices) 0))
+	       (new-array-exprs (subseq array-exprs split-position))
+	       (new-bv (make-basic-var id
+				       (subseq array-exprs 0 split-position)))
+	       (nr-new-array-exprs (length new-array-exprs)))
+	  (if (not (eql nr-new-array-exprs nr-indices))
+	      (multiple-value-bind (bv indices)
+		  (get-alias-indices bv (get-decl-var bv)
+				     (- nr-indices nr-new-array-exprs))
+		(values bv (append indices new-array-exprs)))
+	      (values new-bv new-array-exprs))))))
+
+(defun get-alias-indices (ast decl nr-indices)
+  (let ((aliases (get-aliases-ast ast)))
+    (loop for alias in aliases
+       when (eq (alias alias) decl)
+       do (multiple-value-bind (expr indices)
+	      (split-param (get-expr-alias alias) nr-indices)
+	    (return (values (basic-var (var expr)) indices))))))
+
+(defgeneric get-expr-alias (alias-bb-or-ast))
+
+(defmethod get-expr-alias ((alias alias))
+  (get-expr-alias (bb alias)))
+
+(defmethod get-expr-alias ((bb bb))
+  (get-expr-alias (get-ast-basic-block bb)))
+
+(defmethod get-expr-alias ((as assign-stat))
+  (expr as))
+
+(defmethod get-expr-alias ((ds decl-stat))
+  (get-expr-alias (decl ds)))
+
+(defmethod get-expr-alias ((d assign-decl))
+  (expr d))
+#+end_src
+
+Whether an AST form is a kernel function:
+
+#+begin_src lisp
+(defun kernel-func-p (ast)
+  (and (typep ast 'func)
+       (move-foreach-to-func:kernel-func-p ast)))
+#+end_src
+
+
+*The following functions should move to a better place*:
+
+#+begin_src lisp
+;; can move to a more generic place.
+(defun ensure-name (name ast parent-type)
+  (loop
+     for attempt = name then (find-name attempt ast parent-type)
+     until (string= attempt (find-name attempt ast parent-type))
+     finally (return attempt)))
+
+(defun find-name (name ast parent-type)
+  (aif (collect-all ast #'(lambda (x) (and (typep x 'id)
+				       (string= (name x) name)
+				       (typep (parent x) parent-type))))
+       (change-name (name (first it)))
+       name))
+
+(defun change-name (name)
+  (multiple-value-bind (name increment) (split-name name)
+    (if increment
+	(format nil "~a~a" name (1+ increment))
+	(format nil "~a0" name))))
+
+(defun split-name (name)
+  (multiple-value-bind (start-increment end-increment)
+      (cl-ppcre:scan "[0-9]+" name)
+    (if (and end-increment
+	     (at-end end-increment name))
+	(values (subseq name 0 start-increment)
+		(with-input-from-string (in (subseq name start-increment))
+		  (read in)))
+	name)))
+
+(defun at-end (index string)
+  (eql index (length string)))
+#+end_src
+
+
+
+*** Testing
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-transform-tile-expressions/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-transform-tile-expressions
+  (:use :cl :test-mcl :fiveam :ast :ast-mcpl :parse-mcpl :set-parents
+	:resolve-calls :set-callgraph :resolve-types :resolve-vars
+	:set-vars-written :set-cfgraphs :check-types
+	:transform-tile-expressions)
+  (:shadowing-import-from :fiveam :skip)
+  (:export :test-transform-tile-expressions))
+#+end_src
+
+**** The tests
+     :PROPERTIES:
+     :header-args+: :package ":test-transform-tile-expressions"
+     :header-args+: :tangle "../system/tests/test-transform-tile-expressions/test-transform-tile-expressions.lisp"
+     :END:
+
+#+begin_src lisp :exports none :tangle no
+;; these are temporary functions
+
+(defun pp (ast) (print-pretty:pp ast))
+
+(defun vis (func forward &optional cfgraph)
+  (let ((cfgraph (if cfgraph cfgraph *cfgraph*)))
+    (multiple-value-bind (out in) (funcall func cfgraph)
+      (visualize-dataflow-graph:visualize-dataflow-graph
+       cfgraph
+       (if forward in out)
+       (if forward out in)
+       "/home/pieter/dataflow.dot"))))
+
+(defun get-cfgraph-func (name module)
+  (cfgraph (first (filter #'(lambda (func) (string= (name (id func)) name))
+			  (funcs (code module))))))
+#+end_src
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-transform-tile-expressions)
+#+end_src
+
+#+begin_src lisp
+(def-suite transform-tile-expressions :in mcl-test-suite)
+(in-suite transform-tile-expressions)
+
+
+(test simple
+  (is
+   (transform-ok (transform
+		  "perfect void g(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output,
+     const float[h][w] input) {
+   g(w, output[2], input[2]);
+ }")
+		 "perfect void g(const int h, const int n, float[h][n] outputFromCaller, 
+     const int outputIndex, const float[h][n] inputFromCaller,
+     const int inputIndex) {
+   const float[n] input = inputFromCaller[inputIndex];
+   float[n] output = outputFromCaller[outputIndex];
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output, const float[h][w] input) {
+   g(h, w, output, 2, input, 2);
+ }"))
+  (is (transform-ok (transform
+"perfect void g(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < n; i++) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void f(const int h, const int w, float[h][w] output,
+     const float[h][w] input) {
+   g(w, output[2], input[2]);
+ }")
+		    "perfect void g(const int n, float[n] output, const float[n] input) {
+   for (int i = 0; i < n; i++) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output,
+     const float[h][w] input) {
+   g(w, output[2], input[2]);
+ }")))
+
+(test multiple-dimensions
+  (is
+    (transform-ok (transform
+"perfect void g(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int d, const int h, const int w, float[d][h][w] output,
+     const float[d][h][w] input) {
+   g(w, output[2][3], input[2][3]);
+ }")
+"perfect void g(const int d, const int h, const int n, float[d][h][n] outputFromCaller, const int outputIndex0, const int outputIndex1, const float[d][h][n] inputFromCaller, const int inputIndex0, const int inputIndex1) {
+    const float[n] input = inputFromCaller[inputIndex0][inputIndex1];
+    float[n] output = outputFromCaller[outputIndex0][outputIndex1];
+    foreach (const int i in n threads) {
+        output[i] = input[i];
+    }
+}
+
+perfect void f(const int d, const int h, const int w, float[d][h][w] output, const float[d][h][w] input) {
+    g(d, h, w, output, 2, 3, input, 2, 3);
+}")))
+
+(test indirect-tiling
+  (is
+    (transform-ok (transform
+"perfect void g(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output,
+     const float[h][w] input) {
+   float[w] output1d = output[2];
+   float[w] input1d = input[2];
+   g(w, output1d, input1d);
+ }")
+"perfect void g(const int h, const int n, float[h][n] outputFromCaller, 
+     const int outputIndex, const float[h][n] inputFromCaller,
+     const int inputIndex) {
+   const float[n] input = inputFromCaller[inputIndex];
+   float[n] output = outputFromCaller[outputIndex];
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output, const float[h][w] input) {
+   float[w] output1d = output[2];
+   const float[w] input1d = input[2];
+   g(h, w, output, 2, input, 2);
+ }"))
+  (is (transform-ok (transform
+"perfect void h(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int h, const int w, float[h][w] output,
+     const float[h][w] input) {
+   float[w] output1d = output[2];
+   float[w] input1d = input[2];
+   h(w, output1d, input1d);
+ }
+ 
+ perfect void f(const int d, const int h, const int w, float[d][h][w] output,
+     const float[d][h][w] input) {
+   float[h][w] output2d = output[1];
+   float[h][w] input2d = input[1];
+   g(h, w, output2d, input2d);
+ }")
+"perfect void h(const int d, const int h, const int n, 
+     float[d][h][n] outputFromCaller, const int outputIndex0, 
+     const int outputIndex1, const float[d][h][n] inputFromCaller, 
+     const int inputIndex0, const int inputIndex1) {
+   const float[n] input = inputFromCaller[inputIndex0][inputIndex1];
+   float[n] output = outputFromCaller[outputIndex0][outputIndex1];
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+perfect void g(const int d, const int h, const int w, float[d][h][w] outputFromCaller, const int outputIndex, const float[d][h][w] inputFromCaller, const int inputIndex) {
+    const float[h][w] input = inputFromCaller[inputIndex];
+    float[h][w] output = outputFromCaller[outputIndex];
+    float[w] output1d = output[2];
+    const float[w] input1d = input[2];
+    h(d, h, w, outputFromCaller, outputIndex, 2, inputFromCaller, inputIndex, 2);
+}
+
+perfect void f(const int d, const int h, const int w, float[d][h][w] output, const float[d][h][w] input) {
+    float[h][w] output2d = output[1];
+    const float[h][w] input2d = input[1];
+    g(d, h, w, output, 1, input, 1);
+}")))
+
+
+
+
+
+
+(test deep-calls
+  (is
+    (transform-ok (transform
+"perfect void h(const int n, float[n] output, float[n] input) {
+   foreach (int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void g(const int n, float[n] output, float[n] input) {
+   h(n, output, input);
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output, float[h][w] input) {
+   g(w, output[2], input[2]);
+ }")
+"perfect void h(const int h, const int n, float[h][n] outputFromCaller, 
+     const int outputIndex, const float[h][n] inputFromCaller, 
+     const int inputIndex) {
+   const float[n] input = inputFromCaller[inputIndex];
+   float[n] output = outputFromCaller[outputIndex];
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+
+ perfect void g(const int h, const int n, float[h][n] outputFromCaller,
+     const int outputIndex, const float[h][n] inputFromCaller, 
+     const int inputIndex) {
+   const float[n] input = inputFromCaller[inputIndex];
+   float[n] output = outputFromCaller[outputIndex];
+   h(h, n, outputFromCaller, outputIndex, inputFromCaller, inputIndex);
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output,
+     const float[h][w] input) {
+   g(h, w, output, 2, input, 2);
+ }"))
+  (is (transform-ok (transform
+"perfect void h(const int n, float[n] output, float[n] input1,
+     float[n] input2) {
+   foreach (int i in n threads) {
+     output[i] = input1[i] + input2[i];
+   }
+ }
+ 
+ perfect void g(const int n, float[n] output, float[n] input1) {
+   float[n] input2;
+   h(n, output, input2, input1);
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output, float[h][w] input) {
+   g(w, output[2], input[2]);
+ }")
+		    "perfect void h(const int h, const int n, float[h][n] outputFromCaller, const int outputIndex, const float[n] input1, const float[h][n] input2FromCaller, const int input2Index) {
+    const float[n] input2 = input2FromCaller[input2Index];
+    float[n] output = outputFromCaller[outputIndex];
+    foreach (const int i in n threads) {
+        output[i] = input1[i] + input2[i];
+    }
+}
+
+perfect void g(const int h, const int n, float[h][n] outputFromCaller, const int outputIndex, const float[h][n] input1FromCaller, const int input1Index) {
+    const float[n] input1 = input1FromCaller[input1Index];
+    float[n] output = outputFromCaller[outputIndex];
+    const float[n] input2;
+    h(h, n, outputFromCaller, outputIndex, input2, input1FromCaller, input1Index);
+}
+
+perfect void f(const int h, const int w, float[h][w] output, const float[h][w] input) {
+    g(h, w, output, 2, input, 2);
+}
+")))
+
+#+end_src
+
+#+begin_src lisp :export no :tangle no
+(test mixed-simple
+  (is
+    (transform-ok (transform
+"perfect void g(const int n, float[n] output, const float[n] input) {
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output2d, 
+     float[h][w] input2d, float[w] output1d, float[w] input1d) {
+   g(w, output2d[2], input2d[2]);
+   g(w, output1d, input1d);
+ }")
+"perfect void g(const int h, const int n, float[h][n] outputFromCaller, 
+     const int outputIndex, const float[h][n] inputFromCaller,
+     const int inputIndex) {
+   const float[n] input = inputFromCaller[inputIndex];
+   float[n] output = outputFromCaller[outputIndex];
+   foreach (const int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output2d, 
+     const float[h][w] input2d, float[w] output1d as float[1][w] output1dWithDim,
+     const float[w] input1d as float[1][w] input1dWithDim) {
+   g(h, w, output2d, 2, input2d, 2);
+   g(1, w, output1dWithDim, 0, input1dWithDim, 0);
+ }"))
+  (is (transform-ok (transform
+"perfect void g(const int n, float[n] output, float[n] input) {
+   foreach (int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, const int d, 
+     float[d][h][w] output3d, float[d][h][w] input3d,
+     float[w] output1d, float[w] input1d) {
+   g(w, output3d[2][3], input3d[2][3]);
+   g(w, output1d, input1d);
+ }")
+"perfect void g(const int d, const int h, const int n, 
+     float[d][h][n] outputFromCaller, const int outputIndex0, 
+     const int outputIndex1, 
+     const float[d][h][n] inputFromCaller, const int inputIndex0, 
+     const int inputIndex1) {
+    const float[n] input = inputFromCaller[inputIndex0][inputIndex1];
+    float[n] output = outputFromCaller[outputIndex0][outputIndex1];
+    foreach (const int i in n threads) {
+        output[i] = input[i];
+    }
+}
+
+perfect void f(const int h, const int w, const int d, float[d][h][w] output3d,
+     const float[d][h][w] input3d, float[w] output1d as 
+     float[1][1][w] output1dWithDim, const float[w] input1d as 
+     float[1][1][w] input1dWithDim) {
+    g(d, h, w, output3d, 2, 3, input3d, 2, 3);
+    g(1, 1, w, output1dWithDim, 0, 0, input1dWithDim, 0, 0);
+}"))
+  (is (transform-ok (transform
+"perfect void g(const int n, float[n] output, float[n] input) {
+   foreach (int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, const int d, 
+     float[d][h][w] output3d, float[d][h][w] input3d,
+     float[h][w] output2d, float[h][w] input2d) {
+   g(w, output3d[2][3], input3d[2][3]);
+   g(w, output2d[2], input2d[2]);
+ }")
+		    "perfect void g(const int d, const int h, const int n, float[d][h][n] outputFromCaller, const int outputIndex0, const int outputIndex1, const float[d][h][n] inputFromCaller, const int inputIndex0, const int inputIndex1) {
+    const float[n] input = inputFromCaller[inputIndex0][inputIndex1];
+    float[n] output = outputFromCaller[outputIndex0][outputIndex1];
+    foreach (const int i in n threads) {
+        output[i] = input[i];
+    }
+}
+
+perfect void f(const int h, const int w, const int d, float[d][h][w] output3d, const float[d][h][w] input3d, float[h][w] output2d as float[1][h][w] output2dWithDim, const float[h][w] input2d as float[1][h][w] input2dWithDim) {
+    g(d, h, w, output3d, 2, 3, input3d, 2, 3);
+    g(1, h, w, output2dWithDim, 0, 2, input2dWithDim, 0, 2);
+}"))
+  (is (transform-ok (transform
+"perfect void g(const int n, float[n] output, float[n] input) {
+   foreach (int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, const int d, 
+     float[d][h][w] output3d, float[d][h][w] input3d,
+     float[h][w] output2d, float[h][w] input2d,
+     float[w] output1d, float[w] input1d) {
+   g(w, output3d[2][3], input3d[2][3]);
+   g(w, output2d[2], input2d[2]);
+   g(w, output1d, input1d);
+ }")
+"perfect void g(const int h, const int n, float[h][n] outputFromCaller, 
+     const int outputIndex, float[h][n] inputFromCaller, const int inputIndex) {
+   float[n] output = outputFromCaller[outputIndex];
+   float[n] input = inputFromCaller[inputIndex];
+   foreach (int i in n threads) {
+     output[i] = input[i];
+   }
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output2d, 
+   float[h][w] input2d, float[1][w] output1d, float[1][w] input1d) {
+   g(h, w, output, 2, input, 2);
+   g(1, w, output, 0, input, 0);
+ }")))
+
+
+(test mixed-deep
+  (is
+    (transform-ok (transform
+"perfect void h(const int n, float[n] output, float[n] input1,
+     float[n] input2) {
+   foreach (int i in n threads) {
+     output[i] = input1[i] + input2[i];
+   }
+ }
+ 
+ perfect void g(const int n, float[n] output, float[n] input1) {
+   float[n] input2;
+   h(n, output, input2, input1);
+ }
+ 
+ perfect void f(const int h, const int w, float[h][w] output2d, 
+     float[h][w] input2d) {
+   float[w] output1d;
+   float[w] input1d;
+   g(w, output2d[2], input1d);
+   g(w, output1d, input2d[2]);
+ }")
+"perfect void h(const int h, consto int n, float[n] output, const float[n] input1, const float[h][n] input2FromCaller, const int input2Index) {
+    const float[n] input2 = input2FromCaller[input2Index];
+    foreach (const int i in n threads) {
+        output[i] = input1[i] + input2[i];
+    }
+}
+
+perfect void g(const int h, const int n, float[n] output, const float[h][n] input1FromCaller, const int input1Index) {
+    const float[n] input1 = input1FromCaller[input1Index];
+    const float[n] input2;
+    h(h, n, output, input2, input1FromCaller, input1Index);
+}
+
+perfect void f(const int h, const int w, const float[h][w] output2d, const float[h][w] input2d) {
+    float[w] output1d as float[1][w] output1dWithDim;
+    const float[w] input1d as float[1][w] input1dWithDim;
+    g(h, w, output2d, 2, input1dWithDim, 0);
+    g(1, w, output1dWithDim, 0, input2d, 2);
+}
+")))
+#+end_src
+
+**** Helper functions
+     :PROPERTIES:
+     :header-args+: :package ":test-transform-tile-expressions"
+     :header-args+: :tangle "../system/tests/test-transform-tile-expressions/test-transform-tile-expressions.lisp"
+     :END:
+
+
+#+begin_src lisp
+(defun transform (input-string)
+  (let* ((module (string->ast input-string))
+	 (exports (make-hash-table :test 'equal)))
+    (set-parents module)
+    (resolve-calls module exports)
+    (let ((callgraph (set-callgraph (funcs (code module)))))
+      (resolve-types module exports)
+      (resolve-vars module exports)
+      (check-types module)
+      (set-cfgraphs module)
+      (set-vars-written callgraph)
+      (transform-tile-expressions module exports)
+      module)))
+
+(defun transform-ok (transformed-ast input-string-result-ast)
+  (ast= transformed-ast (string->ast input-string-result-ast)))
+
+
+(defparameter *module-template*
+"package a;
+ module a;
+ import perfect;
+
+ ~a
+")
+
+(defun string->ast (input-string)
+  (parse-mcpl (format nil *module-template* input-string)))
+#+end_src
+
+** simplify expressions
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/simplify-expressions/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :simplify-expressions
+  (:use :cl :ast :ast-mcpl :print-pretty :parse-mcpl)
+  (:export :simplify))
+#+end_src
+
+*** Simplifying expressions
+    :PROPERTIES:
+    :header-args+: :package ":simplify-expressions"
+    :header-args+: :tangle "../system/micro-passes/simplify-expressions/simplify-expressions.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :simplify-expressions)
+#+end_src
+
+#+begin_src lisp
+(defgeneric simplify (ast)
+  (:documentation "Simplify an AST form."))
+
+(defun maxima-simplify (expr-string)
+  (maxima::$printf nil "~a"
+		   (maxima::simplify (maxima::$parse_string expr-string))))
+
+(defun maxima-equal-expr-p (expr-string-1 expr-string-2)
+  (let ((result (maxima::$eval_string
+		 (format nil "is (equal (~a, ~a))" expr-string-1 expr-string-2))))
+    ;; The result can be t, maxima::unknown or nil
+    ;; For example, whether x^2 and 2*x are equal depends on the value of x
+    ;; In case the result is unknown, we consider it to be false
+    (if (eq result t)
+	t
+	nil)))
+
+(defmethod simplify ((expr expr))
+  (parse-mcpl-expr (format nil "~a" (maxima-simplify (pp expr)))))
+
+(defmethod simplify ((type mcl-type))
+  type)
+
+(defmethod simplify ((ct custom-type))
+  (with-slots (id params) ct
+    (make-custom-type id (loop for p in params collect (simplify p)))))
+
+(defmethod simplify ((at array-type))
+  (with-slots (base-type sizes) at
+    (make-array-type (simplify base-type) (loop for s in sizes collect (simplify s)))))
+
+(defmethod simplify ((das decl-array-size))
+  (with-slots (size decl) das
+    (make-decl-array-size (simplify size) decl)))
+#+end_src
+
+*** Testing the expressions library
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-simplify-expressions/packages.lisp"
+    :END:
+
+#+header: :mkdirp yes
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-simplify-expressions
+  (:use :cl :test-mcl :fiveam :simplify-expressions :print-pretty :parse-mcpl)
+  (:export :test-simplify-expressions))
+#+end_src
+
+**** The test functions
+     :PROPERTIES:
+     :header-args+: :package ":test-simplify-expressions"
+     :header-args+: :tangle "../system/tests/test-simplify-expressions/test-simplify-expressions.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-simplify-expressions)
+#+end_src
+
+#+begin_src lisp
+(def-suite simplify-expressions :in mcl-test-suite)
+(in-suite simplify-expressions)
+
+(test simplify-expressions
+  (is (expr= "a + 0" "a")))
+#+end_src
+
+**** Utility functions
+     :PROPERTIES:
+     :header-args+: :package ":test-simplify-expressions"
+     :header-args+: :tangle "../system/tests/test-simplify-expressions/test-simplify-expressions.lisp"
+     :END:
+
+#+begin_src lisp
+(defun expr= (expr simplified-expr)
+  (string= (pp (simplify (parse-mcpl-expr expr))) simplified-expr))
+#+end_src
+

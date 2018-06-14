@@ -1,0 +1,900 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Dataflow-values
+
+This section discusses several micro-passes that gather initial dataflow-values
+that can be used later in the actual dataflow passes.
+
+#+toc: headlines 1 local
+
+
+** Use variables
+
+This pass determines for each basic block in the controlfow graph the variables
+that are used in the block.
+
+*** Package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/use-variables/packages.lisp"
+    :END:
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :use-variables
+  (:use :cl :cl-graph :simple-sets :ast :controlflow :dataflow :ast-mcpl)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :use-variables))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":use-variables"
+    :header-args+: :tangle "../system/micro-passes/use-variables/use-variables.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :use-variables)
+#+end_src
+
+#+begin_src lisp
+;;; blocks
+(defgeneric get-use-vars-from-bb (bb set)
+  (:documentation "fill the set with use-var instances from bb."))
+
+(defmethod get-use-vars-from-bb ((bb bb) set)
+  nil)
+
+(defmethod get-use-vars-from-bb ((bb bb-decl-generic) set)
+  (get-use-vars-from-ast (decl bb) bb set))
+
+(defmethod get-use-vars-from-bb ((bb bb-stat-generic) set)
+  (get-use-vars-from-ast (stat bb) bb set))
+
+(defmethod get-use-vars-from-bb ((bb bb-expr-generic) set)
+  (get-use-vars-from-ast (expr bb) bb set))
+
+(defmethod get-use-vars-from-bb ((bb bb-inc-generic) set)
+  (get-use-vars-from-ast (inc bb) bb set))
+
+;;; ast
+(let (set bb)
+
+  (defgeneric get-use-vars-fw (ast))
+  (defgeneric get-use-vars-bw (ast))
+  
+  (defun get-use-vars-from-ast (ast bb2 set2)
+    (setf set set2)
+    (setf bb bb2)
+    (visit ast #'get-use-vars-fw #'get-use-vars-bw))
+
+  (defun add-use-var (var)
+    (add-to-set (make-dataflow-variable (get-decl-var var)) set))
+
+  (defvisitor get-use-vars-fw ast (ast list string symbol number)
+    t)
+
+  (defvisitor get-use-vars-bw ast (ast list string symbol number)
+    nil)
+
+  (defvisitor get-use-vars-fw v (var)
+    (typecase (parent v)
+      (assign-stat nil)
+      (as-stat nil)
+      (dot-var nil)
+      (swap-stat nil)
+      (otherwise (add-use-var v)))
+    t))
+	  
+(defun use-variables (cfgraph)
+  (let ((bbs (mapcar #'element (vertexes cfgraph)))
+	(map (make-hash-table)))
+    (dolist (bb bbs)
+      (let ((use-vars (make-set :test #'dataflow-element=)))
+	(get-use-vars-from-bb bb use-vars)
+	(setf (gethash bb map) use-vars)))
+    map))
+#+end_src
+
+
+** Def variables
+
+This pass determines for each basic block in the controlfow graph the variables
+that are defined in the block.
+
+*** Package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/def-variables/packages.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :def-variables
+  (:use :cl :cl-graph :simple-sets :ast :controlflow :dataflow :ast-mcpl)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :def-variables))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":def-variables"
+    :header-args+: :tangle "../system/micro-passes/def-variables/def-variables.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :def-variables)
+#+end_src
+
+#+begin_src lisp
+(defgeneric get-def-vars-from-bb (bb set)
+  (:documentation "fill the set with def-var instances from bb."))
+
+;; a bb-decl, a parameter is always a define
+(defmethod get-def-vars-from-bb ((bb bb-decl) set)
+  (add-to-set (make-dataflow-variable (decl bb)) set))
+
+;; all other blocks are not interesting
+(defmethod get-def-vars-from-bb ((bb bb) set) set)
+
+;; all other bb-decl-generic instances need to investigate
+(defmethod get-def-vars-from-bb ((bb bb-decl-generic) set)
+  (get-def-vars-from-ast (decl bb) bb set))
+
+(defmethod get-def-vars-from-bb ((bb bb-stat-generic) set)
+  (get-def-vars-from-ast (stat bb) bb set))
+
+(defmethod get-def-vars-from-bb ((bb bb-expr-generic) set)
+  (get-def-vars-from-ast (expr bb) bb set))
+
+(defmethod get-def-vars-from-bb ((bb bb-inc-generic) set)
+  (get-def-vars-from-ast (inc bb) bb set))
+
+
+
+;;; ast
+(let (set bb)
+
+  (defgeneric get-def-vars-fw (ast))
+  (defgeneric get-def-vars-bw (ast))
+  
+  (defun get-def-vars-from-ast (ast bb2 set2)
+    (setf set set2)
+    (setf bb bb2)
+    (visit ast #'get-def-vars-fw #'get-def-vars-bw))
+
+  (defun add (var)
+    (add-to-set (make-dataflow-variable (get-decl-var var)) set))
+
+  (defvisitor get-def-vars-fw ast (ast list string symbol number)
+    t)
+
+  (defvisitor get-def-vars-bw ast (ast list string symbol number)
+    nil)
+
+  (defvisitor get-def-vars-bw c (call)
+    (dolist (e (params c))
+      (if (param-written-p e)
+	  (add (var e)))))
+
+  (defvisitor get-def-vars-bw i (increment assign-stat)
+    (add (var i)))
+
+  (defvisitor get-def-vars-bw ss (swap-stat)
+    (with-slots (var-left var-right) ss
+      (add var-left)
+      (add var-right)))
+
+  (defvisitor get-def-vars-bw d (normal-decl)
+    (add-to-set (make-dataflow-variable d) set))
+  (defvisitor get-def-vars-bw d (assign-decl)
+    (add-to-set (make-dataflow-variable d) set)))
+
+(defun def-variables (cfgraph)
+  (let ((bbs (mapcar #'element (vertexes cfgraph)))
+	(map (make-hash-table)))
+    (dolist (bb bbs)
+      (let ((set (make-dataflow-set)))
+	 (get-def-vars-from-bb bb set)
+	 (setf (gethash bb map) set)))
+    map))
+#+end_src
+
+** On-device variables
+
+This pass defines per basic block, which variables are defined/used on the
+host/device.
+
+*** Package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/on-device-variables/packages.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :on-device-variables
+  (:use :cl :cl-graph :simple-sets :ast :controlflow :dataflow :ast-mcpl
+	:use-variables :def-variables :print-dataflow)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:import-from :utility-directory :filter)
+  (:export :def-on-device-variables-in :def-on-device-variables-out
+	   :use-on-device-variables-in :use-on-device-variables-out
+	   :def-on-host-variables-in :def-on-host-variables-out
+	   :use-on-host-variables-in :use-on-host-variables-out
+
+	   :on-device-variable :on-host-variable
+	   :def-on-device-variable :use-on-device-variable
+	   :def-on-host-variable :use-on-host-variable))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":on-device-variables"
+    :header-args+: :tangle "../system/micro-passes/on-device-variables/on-device-variables.lisp"
+    :END:
+
+**** The exported functions
+
+The following functions define the definitions, uses for the IN and OUT set of
+a block for both device and host variables.  To find the IN and OUT sets of
+calls, we use the slots ~entry-~ and ~exit-on-device-variables~ in the AST form
+~func~.  
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :on-device-variables)
+#+end_src
+
+#+begin_src lisp
+(defun def-on-device-variables-in (cfgraph)
+  (def-on-device-variables-in/out cfgraph 'entry-on-device-variables))
+
+(defun def-on-device-variables-out (cfgraph)
+  (def-on-device-variables-in/out cfgraph 'exit-on-device-variables))
+
+(defun use-on-device-variables-in (cfgraph)
+  (use-on-device-variables-in/out cfgraph 'entry-on-device-variables))
+
+(defun use-on-device-variables-out (cfgraph)
+  (use-on-device-variables-in/out cfgraph 'exit-on-device-variables))
+
+(defun def-on-host-variables-in (cfgraph)
+  (def-on-host-variables-in/out cfgraph 'entry-on-device-variables))
+
+(defun def-on-host-variables-out (cfgraph)
+  (def-on-host-variables-in/out cfgraph 'exit-on-device-variables))
+
+(defun use-on-host-variables-in (cfgraph)
+  (use-on-host-variables-in/out cfgraph 'entry-on-device-variables))
+
+(defun use-on-host-variables-out (cfgraph)
+  (use-on-host-variables-in/out cfgraph 'exit-on-device-variables))
+#+end_src
+
+**** The exported classes
+
+The following classes distinguish between the various types of
+dataflow-variables:
+
+#+begin_src lisp
+(defclass on-device-variable (dataflow-variable) ())
+(defclass on-host-variable (dataflow-variable) ())
+(defclass def-on-device-variable (on-device-variable) ())
+(defclass use-on-device-variable (on-device-variable) ())
+(defclass def-on-host-variable (on-host-variable) ())
+(defclass use-on-host-variable (on-host-variable) ())
+#+end_src
+
+The following definitions define whether the dataflow variables are equal:
+
+#+begin_src lisp
+(defmacro dataflow-unequal (type1 type2)
+  `(progn
+     (defmethod dataflow-element= and ((de1 ,type1) (de2 ,type2))
+       nil)
+     (defmethod dataflow-element= and ((de1 ,type2) (de2 ,type1))
+       nil)))
+
+(dataflow-unequal on-device-variable on-host-variable)
+(dataflow-unequal def-on-device-variable use-on-device-variable)
+(dataflow-unequal def-on-host-variable use-on-host-variable)
+#+end_src
+
+The following methods are used for printing the dataflow graph:
+
+#+begin_src lisp
+(defmethod print-dataflow-element ((d def-on-device-variable))
+  (format nil "<def, ~a>" (call-next-method)))
+
+(defmethod print-dataflow-element ((d use-on-device-variable))
+  (format nil "<use, ~a>" (call-next-method)))
+#+end_src
+
+**** The generic functions
+
+The following functions parameterize on whether we need to find
+dataflow-variables based on definitions or uses, whether it are on-device
+variables or on-host variables and which slot we use for calls.
+
+#+begin_src lisp
+(defun def-on-device-variables-in/out (cfgraph on-device-call-slot)
+  (def/use-device/host-variables
+      cfgraph #'def-variables 'def-on-device-variable
+      (on-device-func on-device-call-slot 'def-on-device-variable)))
+
+(defun use-on-device-variables-in/out (cfgraph on-device-call-slot)
+  (def/use-device/host-variables
+      cfgraph #'use-variables 'use-on-device-variable
+      (on-device-func on-device-call-slot 'use-on-device-variable)))
+
+(defun def-on-host-variables-in/out (cfgraph on-device-call-slot)
+  (def/use-device/host-variables
+      cfgraph #'def-variables 'def-on-host-variable
+      (on-host-func on-device-call-slot 'def-on-host-variable)))
+
+(defun use-on-host-variables-in/out (cfgraph on-device-call-slot)
+  (def/use-device/host-variables
+      cfgraph #'use-variables 'use-on-host-variable
+      (on-host-func on-device-call-slot 'use-on-host-variable)))
+
+(defun def/use-device/host-variables (cfgraph source-func class-symbol pred)
+  (let ((source-map (funcall source-func cfgraph))
+	(result-map (make-hash-table)))
+    (dolist (bb (basic-blocks cfgraph))
+      (add-to-map bb source-map result-map class-symbol pred))
+    result-map))
+#+end_src
+
+
+**** Predicate functions
+
+The following two functions return a predicate function that based on a
+slot-value for calls and type can tell whether it is a device or host variable:
+
+#+begin_src lisp
+(defun on-device-func (on-device-call-slot type)
+  #'(lambda (bb dataflow-variable)
+      (on-device-variable-p bb dataflow-variable on-device-call-slot type)))
+
+(defun on-host-func (on-device-call-slot type)
+  #'(lambda (bb dataflow-variable)
+      (on-host-variable-p bb dataflow-variable on-device-call-slot type)))
+#+end_src
+
+
+A dataflow-variable in a basic block bb is an on-device-variable if it is
+within a foreach statement, or it is on a device in a call.  Besides those, it
+has to be written and a primitive type or it has to be a non-primitive type.
+Whether it is written does not matter at that point.  Finally, the declaration
+of the variable should not be within a foreach statement.
+
+#+begin_src lisp	       
+(defun on-device-variable-p (bb dataflow-var on-device-call-slot type)
+  (and (or (bb-in-foreach-p bb)
+	   (on-device/host-in-call bb dataflow-var on-device-call-slot type))
+       (or (written (decl dataflow-var))
+	   (not (primitive-type-p (get-type-decl (decl dataflow-var)))))
+       (not (in-foreach-p (decl dataflow-var)))))
+#+end_src
+
+Whether a basic block is in a foreach statement:
+
+#+begin_src lisp
+(defgeneric bb-in-foreach-p (bb))
+
+(defmethod bb-in-foreach-p ((bb bb))
+  (in-foreach-p (get-ast-basic-block bb)))
+
+(defmethod bb-in-foreach-p ((bb bb-foreach))
+  t)
+#+end_src
+
+Whether a dataflow-variable in a basic block is a host variable is defined to
+be that it is on the device or host based on the type in a call and it should
+not be an on-device use or definition or the basic block should not be a swap
+statements.  Swap statements swap two pointers and are excluded to be uses or
+definitions.
+
+#+begin_src lisp
+(defun on-host-variable-p (bb dataflow-var on-device-call-slot type)
+  (or (on-device/host-in-call bb dataflow-var on-device-call-slot type)
+      (not (or (on-device-variable-p
+		bb dataflow-var on-device-call-slot 'def-on-device-variable)
+	       (on-device-variable-p
+		bb dataflow-var on-device-call-slot 'use-on-device-variable)
+	       (swap-p bb)))))
+#+end_src
+
+Whether a basic block is a swap statement:
+
+#+begin_src lisp
+(defgeneric swap-p (bb/stat))
+
+(defmethod swap-p ((bb bb))
+  (and (typep bb 'bb-stat)
+       (swap-p (stat bb))))
+
+(defmethod swap-p ((s stat))
+  (typep s 'swap-stat))
+#+end_src
+
+Whether a dataflow-variable in basic block bb is on the device or host (based
+on the type) within a call means that the basic block has to be a call
+statement and the declaration of the dataflow-variable has to be a parameter
+that is on the device within the called function:
+
+#+begin_src lisp
+(defun on-device/host-in-call (bb dataflow-var on-device-call-slot type)
+  (with-slots (decl) dataflow-var
+    (and (typep bb 'bb-stat)
+	 (typep (stat bb) 'call-stat)
+	 (not (builtin-func-p (call (stat bb))))
+	 (param-on-device/host-p
+	  decl (call (stat bb)) on-device-call-slot type))))
+
+(defun param-on-device/host-p (decl-calling-func call on-device-call-slot type)
+  (and (decl-calling-func-in-called-func-p decl-calling-func call)
+       (let ((decl-called-func
+	      (decl-calling-func->called-func decl-calling-func call))
+	     (on-device-variables-func (slot-value (func call)
+						   on-device-call-slot)))
+	 (loop for on-device-var in on-device-variables-func
+	    thereis (and (eq decl-called-func (decl on-device-var))
+			 (eq (type-of on-device-var) type))))))
+#+end_src
+
+
+
+**** Helper functions
+
+#+begin_src lisp
+(defun add-to-map (bb source-map result-map class-symbol pred)
+  (let ((source-elements (elements (gethash bb source-map)))
+	(result-set (make-dataflow-set)))
+    (unless (typep bb 'bb-decl)
+      (add-all-to-set (mapcar #'(lambda (x) (change-class x class-symbol))
+			      (filter #'(lambda (x) (funcall pred bb x))
+				      source-elements))
+		      result-set))
+    (setf (gethash bb result-map) result-set)))
+#+end_src
+
+*** Testing on-device variables
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-on-device-variables/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :test-on-device-variables
+  (:use :cl :test-mcl :fiveam :simple-sets :ast :ast-mcpl :dataflow :controlflow
+	:parse-mcpl :set-parents :resolve-vars :set-cfgraphs :resolve-calls
+	:set-callgraph :set-vars-written :set-entry-exit-on-device-variables
+	:test-dataflow-library :build-ast
+	:on-device-variables)
+  (:shadowing-import-from :fiveam :skip)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:import-from :utility-directory :filter)
+  (:export :test-on-device-variables))
+#+end_src
+
+**** The tests
+     :PROPERTIES:
+     :header-args+: :package ":test-on-device-variables"
+     :header-args+: :tangle "../system/tests/test-on-device-variables/test-on-device-variables.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-on-device-variables)
+#+end_src
+
+#+begin_src lisp
+(def-suite on-device-variables :in mcl-test-suite)
+(in-suite on-device-variables)
+
+(test simple
+  (let* ((input "package m;
+                  module a ;
+                  
+                  perfect void f(int n, float[n] a) {
+                    foreach (int i in n threads) {
+                      a[i] = 0;
+                    }
+                  }")
+	 (cfgraph (get-cfgraph input))
+	 (decl (build-decl "a" '(("n"))))
+	 (stat (build-assign-stat (build-var "a" '(("i"))) 0))
+	 (wanted (empty-dataflow-map cfgraph))
+	 (result (map->compare-set
+		  (def-on-device-variables-in cfgraph) cfgraph)))
+
+    (add-to-map wanted stat (build-on-device-definition decl))
+    (is (set= (map->compare-set wanted cfgraph) result))))
+
+(defun build-on-device-definition (decl)
+  (make-instance 'def-on-device-variable :decl decl))
+
+(defgeneric add-to-map (map stat dataflow-variable))
+
+(defmethod add-to-map (map (stat stat) dataflow-variable)
+  (loop for bb being the hash-keys in map
+     do (when (and (typep bb 'bb-stat)
+		   (ast= stat (stat bb)))
+	  (add-to-set dataflow-variable (gethash bb map)))))
+
+(test calls
+  (let* ((input "package m;
+                  module a ;
+                  
+                  perfect void g(int n, float[n] a, const float[n] b) {
+                    a[0] = 0;
+                    foreach (int i in n threads) {
+                      a[i] = b[i];
+                    }
+                  }
+                  perfect void f(int n, float[n] a, const float[n] b) {
+                    g(n, a, b);
+                  }")
+	 (ast (get-ast input))
+	 (cfgraph (get-cfgraph-for-func "f" ast))
+	 (decl-a (build-decl "a" '(("n"))))
+	 (decl-b (build-decl "b" '(("n")) t))
+	 (call-stat (build-call-stat "g" "n" "a" "b")))
+    (is (and
+	 (correct (def-on-device-variables-out cfgraph)
+		  (make-instance 'def-on-device-variable :decl decl-a)
+		  cfgraph call-stat)
+	 (correct (def-on-host-variables-in cfgraph)
+		  (make-instance 'def-on-host-variable :decl decl-a)
+		  cfgraph call-stat)
+	 (correct (use-on-device-variables-out cfgraph)
+		  (make-instance 'use-on-device-variable :decl decl-b)
+		  cfgraph call-stat)
+	 (correct (use-on-device-variables-in cfgraph)
+		  (make-instance 'use-on-device-variable :decl decl-b)
+		  cfgraph call-stat)))))
+
+
+(defun build-on-host-definition (decl)
+  (make-instance 'def-on-host-variable :decl decl))
+
+(defun build-on-device-use (decl)
+  (make-instance 'use-on-host-variable :decl decl))
+
+(defun correct (result-map dataflow-variable cfgraph call-stat)
+  (let ((wanted (empty-dataflow-map cfgraph)))
+    (add-to-map wanted call-stat dataflow-variable)
+    (set= (map->compare-set result-map cfgraph)
+	  (map->compare-set wanted cfgraph))))
+#+end_src
+
+#+begin_src lisp
+(defun get-ast (string)
+  (let ((ast (parse-mcpl string)))
+    (set-parents ast)
+    (resolve-calls ast nil)
+    (let ((callgraph (set-callgraph (funcs (code ast)))))
+      (resolve-vars ast nil)
+      (set-cfgraphs ast t t)
+      (set-vars-written callgraph)
+      (set-entry-exit-on-device-variables callgraph)
+      ast)))
+    
+(defun get-cfgraph-for-func (func-name ast)
+  (cfgraph (first (filter #'(lambda (f)
+		       (string= (name (id f)) func-name))
+		   (funcs (code ast))))))
+#+end_src
+
+
+** Definitions
+
+This pass records for each basic block which variables it defines.  A
+definition is a dataflow-variable associated with a basic block.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/definitions/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :definitions
+  (:use :cl :simple-sets :ast :controlflow :dataflow :ast-mcpl :def-variables)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :definitions))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":definitions"
+    :header-args+: :tangle "../system/micro-passes/definitions/definitions.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :definitions)
+#+end_src
+
+#+begin_src lisp
+(defun definitions (cfgraph)
+  (let ((map (def-variables cfgraph)))
+    (loop for bb being the hash-keys in map
+       do (create-definitions bb (gethash bb map)))
+    map))
+
+(defun create-definitions (bb def-variable-set)
+  (loop for def-var in (elements def-variable-set)
+     do (change-class def-var 'definition :bb bb)))
+#+end_src
+
+*** Testing definitions
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-definitions/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-definitions
+  (:use :cl :test-mcl :fiveam :simple-sets :ast :ast-mcpl :controlflow
+	:definitions :build-ast :test-dataflow-library)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :test-definitions))
+#+end_src
+
+**** The tests
+     :PROPERTIES:
+     :header-args+: :package ":test-definitions"
+     :header-args+: :tangle "../system/tests/test-definitions/test-definitions.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-definitions)
+#+end_src
+
+#+begin_src lisp
+(def-suite definitions :in mcl-test-suite)
+(in-suite definitions)
+
+(test parameter-def
+  (let* ((input "package m;
+                  module a ;
+                  perfect void f(int a) {
+		  }")
+	 (cfgraph (get-cfgraph input))
+	 (decl (build-decl "a"))
+	 (wanted-result (build-compare-set
+			 (build-definition decl decl)))
+	 (result (map->compare-set (definitions cfgraph) cfgraph)))
+    (is (set= wanted-result result))))
+
+(test more-defs
+  (let* ((input "package m;
+                  module a;
+                  perfect void f(int a) {
+                      int b = 1;
+                  }")
+	 (a-decl (build-decl "a"))
+	 (decl-stat (build-decl-stat "b" nil nil 1))
+	 (cfgraph (get-cfgraph input))
+	 (wanted-result (build-compare-set
+			 (build-definition a-decl a-decl)
+			 (build-definition (decl decl-stat) decl-stat)))
+	 (result (map->compare-set (definitions cfgraph) cfgraph)))
+    (is (set= wanted-result result))))
+#+end_src
+
+
+** Uses
+
+This pass records for each basic block which variables it uses.  A
+use is a dataflow-variable associated with a basic block.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/uses/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :uses
+  (:use :cl :simple-sets :ast :controlflow :dataflow :ast-mcpl :use-variables)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :uses))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":uses"
+    :header-args+: :tangle "../system/micro-passes/uses/uses.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :uses)
+#+end_src
+
+#+begin_src lisp
+(defun uses (cfgraph)
+  (let ((map (use-variables cfgraph)))
+    (loop for bb being the hash-keys in map
+       do (create-uses bb (gethash bb map)))
+    map))
+
+(defun create-uses (bb use-variable-set)
+  (loop for use-var in (elements use-variable-set)
+     do (change-class use-var 'use :bb bb)))
+#+end_src
+
+
+** Entry/exit on-device variables
+
+This pass determines the on-device variables at the entry and exit points of
+functions.  It is required that the controlflow graph is an optimistic one.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/set-entry-exit-on-device-variables/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :set-entry-exit-on-device-variables
+  (:use :cl :simple-sets :ast :ast-mcpl :callgraph :controlflow :dataflow
+	:on-device-variables :dataflow-on-device-variables)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :set-entry-exit-on-device-variables
+	   :entry-on-device-variables-cfgraph
+	   :exit-on-device-variables-cfgraph))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":set-entry-exit-on-device-variables"
+    :header-args+: :tangle "../system/micro-passes/set-entry-exit-on-device-variables/set-entry-exit-on-device-variables.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :set-entry-exit-on-device-variables)
+#+end_src
+
+#+begin_src lisp
+(defun set-entry-exit-on-device-variables (callgraph)
+  (dolist (func (reverse (funcs-ordered callgraph)))
+    (with-slots (entry-on-device-variables exit-on-device-variables cfgraph)
+	func
+      (setf exit-on-device-variables
+	    (tolist (exit-on-device-variables-cfgraph cfgraph)
+                    #'exit cfgraph))
+      (setf entry-on-device-variables
+	    (tolist (entry-on-device-variables-cfgraph cfgraph)
+                    #'entry cfgraph)))))
+
+(defun tolist (map exit cfgraph)
+  (elements (gethash (funcall exit cfgraph) map)))
+
+(defun entry-on-device-variables-cfgraph (cfgraph)
+  (entry/exit-on-device-variables cfgraph #'get-entry-on-device-variables))
+
+(defun exit-on-device-variables-cfgraph (cfgraph)
+  (entry/exit-on-device-variables cfgraph #'get-exit-on-device-variables))
+
+(defun entry/exit-on-device-variables (cfgraph exit-on-device-variables)
+  (filter-dataflow-map #'(lambda (dv) (param-p (decl dv)))
+		       (funcall exit-on-device-variables cfgraph)))
+
+(defun get-exit-on-device-variables (cfgraph)
+  (get-entry/exit-on-device-variables cfgraph #'available-on-device-variables
+				  #'available-on-host-variables #'exit))
+
+(defun get-entry-on-device-variables (cfgraph)
+  (get-entry/exit-on-device-variables cfgraph #'anticipated-on-device-variables
+				  #'anticipated-on-host-variables #'entry))
+
+(defun get-entry/exit-on-device-variables
+    (cfgraph available-on-device-variables available-on-host-variables exit)
+  (let ((available-on-device (funcall available-on-device-variables cfgraph))
+	(available-on-host (funcall available-on-host-variables cfgraph))
+	(result (empty-dataflow-map cfgraph))
+	(exit-bb (funcall exit cfgraph)))
+    (setf (gethash exit-bb result)
+	  (union (gethash exit-bb available-on-device)
+		     (gethash exit-bb available-on-host)))
+    result))
+
+
+
+#+end_src
+
+

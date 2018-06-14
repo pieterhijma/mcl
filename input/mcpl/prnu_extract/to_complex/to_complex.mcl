@@ -1,0 +1,19 @@
+package prnu_extract.to_complex;
+
+module toComplex;
+
+export toComplex;
+
+import perfect;
+
+import lib.math.complex;
+
+perfect void toComplex(int h, int w, Complex[h][w] output, float[h][w] input) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    output[i][j].real = input[i][j] * input[i][j];
+	    output[i][j].imag = 0.0;
+	}
+    }
+}
+

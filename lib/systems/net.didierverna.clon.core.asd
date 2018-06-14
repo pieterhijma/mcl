@@ -1,0 +1,1 @@
+../clon/core/net.didierverna.clon.core.asd

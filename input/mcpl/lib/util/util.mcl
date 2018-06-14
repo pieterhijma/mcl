@@ -1,0 +1,21 @@
+package lib.util;
+
+module util;
+
+export square, sum;
+
+perfect void square(int h, int w, float[h][w] output, const float[h][w] input) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    output[i][j] = input[i][j] * input[i][j];
+	}
+    }
+}
+
+
+perfect void sum(int n, float sum, const float[n] array) {
+    for (int i = 0; i < n; i++) {
+	sum += array[i];
+    }
+}
+

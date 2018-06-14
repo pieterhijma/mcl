@@ -1,0 +1,54 @@
+package prnu_extract.peak_to_correlation_energy;
+
+module maxLocFloats;
+
+import gpu;
+
+import lib.math.common;
+
+
+gpu void maxLocFloats(int n, float peak, int indexPeak, float[n] peaks, 
+	int[n] indicesPeak) {
+    
+    const int nrThreads = 256;
+    const int nrBlocks = 1;
+    
+    foreach (int bi in nrBlocks blocks) {
+	local float[nrThreads] reduceMem;
+	local int[nrThreads] indexMem;
+	foreach (int ti in nrThreads threads) {
+	    float max = -1.0;
+	    int index = -1;
+
+	    for (int i = ti; i < n;i += nrThreads) {
+		float val = fabs(peaks[i]);
+		if (val > max) {
+		    max = val;
+		    index = indicesPeak[i];
+		}
+	    }
+
+	    reduceMem[ti] = max;
+	    indexMem[ti] = index;
+	    barrier(local);
+
+	    for (int i = nrThreads/2; i > 0; i >>= 1) {
+		if (ti < i) {
+		    float v1 = reduceMem[ti];
+		    float v2 = reduceMem[ti + i];
+
+		    if (v2 > v1) {
+			reduceMem[ti] = v2;
+			indexMem[ti] = indexMem[ti + i];
+		    }
+		}
+		barrier(local);
+	    }
+
+	    if (ti == 0) {
+		peak = reduceMem[0];
+		indexPeak = indexMem[0];
+	    }
+	}
+    }
+}

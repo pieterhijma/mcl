@@ -1,0 +1,22 @@
+package prnu_extract.grayscale;
+
+module grayscale;
+
+import perfect;
+
+type Color {
+    byte r;
+    byte g;
+    byte b;
+}
+
+
+perfect void grayscale(int n, float[n] output, Color[n] input) {
+    foreach (int i in n threads) {
+	float r = toFloat(input[i].r);
+	float g = toFloat(input[i].g);
+	float b = toFloat(input[i].b);
+
+	output[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+    }
+}

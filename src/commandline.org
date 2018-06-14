@@ -1,0 +1,277 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Commandline
+
+This section describes the commandline interface to ~mcl~.  
+
+** The package
+   :PROPERTIES:
+   :header-args+: :package ":cl-user"
+   :header-args+: :tangle "system/commandline/packages.lisp"
+   :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :mcl-commandline
+  (:use :cl :clon :clon-completion :mcl :errors)
+  (:import-from :cl-fad :list-directory :pathname-as-directory)
+  (:export :main))
+#+end_src
+
+** Defining the commandline arguments
+   :PROPERTIES:
+   :header-args+: :package ":mcl-commandline"
+   :header-args+: :tangle "system/commandline/commandline.lisp"
+   :END:
+
+*** Defining the commands and flags
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :mcl-commandline)
+#+end_src
+
+#+begin_src lisp
+(defcommand "list-targets"
+    (clon:defsynopsis (:make-default nil)
+      (text :contents "List the compilation targets.")
+      (flag :short-name "h"
+            :description "Print this help and exit.")))
+
+(defcommand "list-hwd"
+    (clon:defsynopsis (:make-default nil)
+      (text :contents "List the available hardware descriptions.")
+      (flag :short-name "h"
+            :description "Print this help and exit.")))
+
+;; (defcommand "gen-cpp"
+;;   (clon:defsynopsis (:make-default nil :postfix "FILE") 
+;;       (text :contents "Generate C++ code.")
+;;       (flag :short-name "h" :long-name "help"
+;; 	    :description "Print this help and exit.")
+      
+;;       (stropt :short-name "t" :long-name "target"
+;;                       :argument-name "TARGET" 
+;;                       :description "Create C++ code for target TARGET.")
+;;       (comma-sep-list :short-name "e" :long-name "entry-funcs"
+;;                       :argument-name "ENTRY-FUNCS"
+;;                       :description
+;;                       "Create C++ code with entry functions ENTRY-FUNCS.")))
+
+(defcommand "gen-cashmere"
+    (clon:defsynopsis (:make-default nil :postfix "MCL-FILE...") 
+        (text :contents "Generate Cashmere code.")
+      (flag :short-name "h"
+	    :description "Print this help and exit.")
+      (strlist :short-name "t"
+               :argument-name "TARGETS" :argument-type :required
+               :description "Create Cashmere code for targets TARGETS.")
+      (stropt :short-name "o"
+              :argument-name "OUTPUT-DIR" :env-var "MCL_OUTPUT_DIR"
+              :description "The directory where the files be created.")))
+
+(defcommand "translate"
+    (clon:defsynopsis (:make-default nil :postfix "MCL-FILE")
+      (text :contents "Translate to a lower-level hardware description.")
+      (flag :short-name "h"
+            :description "Print this help and exit")
+      (stropt :short-name "hwd"
+               :argument-name "HARDWARE-DESCRIPTION" :argument-type :required
+               :description (format nil "~a~a" "Translate to hardware "
+                                    "description HARDWARE-DESCRIPTION"))))
+#+end_src
+
+*** Defining the main synopsis
+
+#+begin_src lisp
+(def-main-synopsis
+  (flag :short-name "h"
+	:description "Print this help and exit.")
+  (lispobj :short-name "l" :argument-name "LOG-LEVEL"
+           :argument-type :required :typespec 'integer
+           :description "Set the log-level to LOG-LEVEL" :default-value 0))
+#+end_src
+
+*** Defining the completions
+
+#+begin_src lisp
+(def-main-completions
+  ("-l" "0 1 2 3"))
+
+(def-command-completions "translate"
+  ("-hwd" "$(mcl list-hwd)"))
+#+end_src
+
+
+*** Defining the functions for the commands
+
+The command ~list-targets~ shows a list of targets separated by a space.  The
+targets are extracted from the ~codegen~ directory.
+
+#+begin_src lisp
+(def-command-func "list-targets"
+  (cond ((clon:getopt :short-name "h")
+         (clon:help))
+        (t
+         (format t "~{~a~^ ~}~%" (get-targets)))))
+
+(defun get-targets ()
+  (get-filenames-directory "input/codegen/"))
+#+end_src
+
+The command ~list-hwd~ shows a list of hardware-descriptions.  The
+hardware-descriptions are extracted from the ~hdl~ directory.
+
+#+begin_src lisp
+(def-command-func "list-hwd"
+  (cond ((clon:getopt :short-name "h")
+         (clon:help))
+        (t
+         (format t "~{~a~^ ~}~%" (get-hardware-descriptions)))))
+
+(defun get-hardware-descriptions ()
+  (get-filenames-directory "input/hdl/"))
+#+end_src
+
+#+begin_src lisp
+;; (def-command-func "gen-cpp" 
+;;   (cond ((clon:getopt :short-name "h")
+;;          (clon:help))
+;;         (t
+;;          (let ((target (clon:getopt :short-name "t"))
+;;                (entry-funcs (clon:getopt :short-name "e"))
+;;                (file (clon:remainder)))
+;;            (unless target
+;;              (exit-with "Need to specify a target."))
+;;            (unless entry-funcs
+;;              (exit-with "Need to specify one or more entry functions."))
+;;            (unless (and file (eql (length file) 1))
+;;              (exit-with "Need to specify an MCL file"))
+;;            (let ((file (first file)))
+;;              (format t "Generating C++ code from file ~a for target ~a for "
+;;                      file target)
+;;              (format t "entry functions ~{~a~^, ~}~%" entry-funcs))))))
+#+end_src
+
+
+#+begin_src lisp
+(def-command-func "gen-cashmere"
+  (cond ((clon:getopt :short-name "h")
+         (clon:help))
+        (t
+         (let ((targets (clon:getopt :short-name "t"))
+               (output-dir (clon:getopt :short-name "o"))
+               (input-files (clon:remainder)))
+           (unless targets
+             (exit-with "Need to specify one or more target."))
+           (unless input-files
+             (exit-with "Need to specify one or more files."))
+           (unless output-dir
+             (exit-with "Need to specify an output directory."))
+           (generate-cashmere-code input-files targets output-dir)))))
+#+end_src
+
+
+#+begin_src lisp
+(def-command-func "translate"
+  (cond ((clon:getopt :short-name "h")
+         (clon:help))
+        (t
+         (let ((hwd (clon:getopt :short-name "hwd"))
+               (input-file (clon:remainder)))
+           (unless hwd
+             (exit-with "Need to specify a hardware description."))
+           (if (= (length input-file) 1)
+               (format t "~a~%" (translate (first input-file) hwd))
+               (exit-with "Need to specify an MCL file."))))))
+#+end_src
+
+
+#+begin_src lisp
+(defun main ()
+  "Entry point for the standalone application."
+  (clon:make-context)
+  (handler-case
+      (progn 
+        (logging:initialize-logging)
+        (logging:set-level (clon:getopt :short-name "l"))
+        (cond ((clon:getopt :short-name "h")
+               (clon:help))
+              (t
+               (unless (clon:remainder)
+                 (exit-with "Missing command."))
+               (dispatch)))
+        (clon:exit))
+    (mcl-error (e) (report-mcl-error e))
+    ;; TODO nicely capture parse errors
+    ;; (mismatched-token (e) (report-mcl-error e))
+    ))
+
+(defgeneric report-mcl-error (error))
+
+(defmethod report-mcl-error ((e mcl-error))
+  (with-slots (loc text) e
+    (when loc (print-mcl-loc loc))
+    (format t "~a~%" text)
+    (clon:exit 1)))
+
+;; (defmethod report-mcl-error ((e mismatched-token))
+;;   (with-slots (found expected) e
+;;     (destructuring-bind (type value line column filename) found
+;;       (print-loc filename line column)
+;;       (format t "expected token ~a, but found token ~a with value ~sx~%"
+;;               expected type value)
+;;       (clon:exit 1))))
+
+(defun print-mcl-loc (loc)
+  (destructuring-bind ((line . column) filename) loc
+    ;; (let ((filename
+    ;;        (namestring (subtract-pathname pathname (pathname-exists-p
+    ;;        "."))))))
+    (print-loc filename line column)))
+    
+(defun print-loc (filename line column)
+  (format t "In ~a, line ~a,~a:~%" filename line column))
+
+;;(write-completion-file "mcl")
+#+end_src
+
+*** Utility functions
+
+#+begin_src lisp
+(defun get-filenames-directory (directory)
+  (mapcar #'pathname-name
+          (list-directory
+           (merge-pathnames
+            directory
+            (pathname-as-directory (sb-posix:getenv "MCL_ROOT_DIR"))))))
+#+end_src
+
+
+

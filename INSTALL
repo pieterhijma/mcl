@@ -1,0 +1,118 @@
+			    ________________
+
+			     INSTALLING MCL
+			    ________________
+
+
+
+
+
+1 Introduction
+==============
+
+  Most of MCL's source is contained in literal programming Org-mode
+  files with extension ".org".  This document only describes the initial
+  part of extracting the actual sources from the literate programming
+  files, a process that is called 'tangling'.  From there we generate
+  HTML pages with the full instructions.
+
+
+2 Prerequisites
+===============
+
+  We need the following software: `git', `emacs' version 25 or higher,
+  and a sufficiently compatible shell such as `bash'.  In addition, we
+  need the package `org-build-tools' that we retrieve with `git'.
+
+
+3 Obtaining org-build-tools
+===========================
+
+  The package `org-build-tools' is needed by MCL, but is in principle
+  independent of `MCL'.  It is therefore possible to place it in a
+  non-intrusive way, for example in `$HOME/.mcl_util/'.  For the rest of
+  this document we assume that this is the directory to store the
+  utilities.
+
+  We can retrieve org-build-tools with:
+
+  ,----
+  | mkdir ~/.mcl_util
+  | cd ~/.mcl_util
+  | git clone https://github.com/JungleComputing/org-build-tools.git
+  `----
+
+  We need to create the environment variable `ORG_BUILD_TOOLS' for
+  installing MCL, so in your shell initialization script (for example
+  `.bashrc') add:
+
+  ,----
+  | export ORG_BUILD_TOOLS=$HOME/.mcl_util/org-build-tools
+  `----
+
+  Restart the shell our perform:
+
+  ,----
+  | source ~/.bashrc
+  `----
+
+
+4 Obtaining MCL
+===============
+
+  We can retrieve MCL with:
+
+  ,----
+  | git clone https://github.com/JungleComputing/mcl.git
+  `----
+
+  We can now retrieve all the submodules:
+
+  ,----
+  | cd mcl
+  | 
+  | git submodule init
+  | git submodule update
+  `----
+
+  To be able to create the documentation for MCL, the scripts need to
+  know the location of the root directory of MCL.  We can set this
+  variable by adding the following to the shell initialization script
+  (for example `/.bashrc'):
+
+  ,----
+  | export MCL_ROOT_DIR=/path/to/mcl
+  `----
+
+  Then load the initialization script:
+
+  ,----
+  | source ~/.bashrc
+  `----
+
+
+5 Tangling MCL
+==============
+
+  From the MCL root directory we can tangle all the `.org' files.  These
+  scripts make use of `org-build-tools'.
+
+  ,----
+  | ./scripts/tangle-mcl
+  `----
+
+
+6 Generate the documentation
+============================
+
+  The overall installation documentation is described in
+  `doc/installing_mcl.org' which is an ASCII file and is legible with
+  any editor.  However, it is also possible to create documentation in
+  the form of HTML pages with the command:
+
+  ,----
+  | ./scripts/export-to-html-mcl
+  `----
+
+  The file `doc/index.html' will refer you to the full installation
+  process.

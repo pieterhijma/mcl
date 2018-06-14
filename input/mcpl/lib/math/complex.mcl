@@ -1,0 +1,51 @@
+package lib.math;
+
+module complex;
+
+export Complex, assign, mul;
+
+type Complex {
+    float real;
+    float imag;
+}
+
+perfect void assign(reg main Complex a, const reg main Complex b) {
+    a.real = b.real;
+    a.imag = b.imag;
+}
+
+perfect void mul(reg main Complex a, const reg main Complex b) {
+    Complex temp;
+	
+    assign(temp, a);
+		
+    a.real = temp.real * b.real - temp.imag * b.imag;
+    a.imag = temp.real * b.imag + temp.imag * b.real;
+}
+
+/*
+perfect void copy1D(int n, Complex[n] output, const Complex[n] input) {
+    foreach (int i in n threads) {
+	assign(output[i], input[i]);
+    }
+}
+
+perfect void copy2D(int h, int w, Complex[h][w] output,
+	const Complex[h][w] input) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    assign(output[i][j], input[i][j]);
+	}
+    }
+}
+
+
+perfect void transpose(int h, int w, Complex[h][w] transposed,
+	const Complex[w][h] input) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    assign(transposed[i][j], input[j][i]);
+	}
+    }
+}
+*/

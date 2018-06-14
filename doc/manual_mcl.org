@@ -1,0 +1,115 @@
+#+title: Many-Core Levels Manual
+
+* Introduction
+
+This document gives an overview of the ~mcl~ program.
+
+* Options and commands
+
+The ~mcl~ program supports several options and subcommands.  The options are
+only short options (with only one ~-~) and each command and the main command
+supports ~-h~ for help:
+
+#+begin_src sh
+mcl -h
+#+end_src
+
+** Options
+
+Options can take several forms.  For example, the option ~-l~ defines the
+logging level for the main command, which can be set to the values ~0~, ~1~,
+~2~, or ~3~.  It can be set as ~-l2~ or ~-l 2~ with a space.  
+
+Some options take only one argument, but it may be possible that the option
+takes multiple arguments.  These options are then separated by spaces, for
+example:
+
+#+begin_src sh
+mcl gen-cashmere -t fermi xeon_phi -- file1.mcl file2.mcl
+#+end_src
+
+In this case, the ~-t~ option specifies a list of target architectures.  Since
+the program has to know where the list of target architectures stops and where
+the list of files begins, the options are separated from the /Postfix/ (see
+next section) by means of the double dash: ~--~.
+
+The help may indicate that an option can also be defined in an environment
+variable:
+
+#+begin_src sh
+mcl gen-cashmere -h
+Generate Cashmere code.
+  -oOUTPUT-DIR                The directory where the files be created.
+                              Environment: MCL_OUTPUT_DIR
+#+end_src
+
+In the case above, when the environment variable ~MCL_OUTPUT_DIR~ is found, it
+is not necessary to use the ~-o~ option.
+
+** Postfix
+
+The postfix is the last part of the commandline and should not contain any
+options.  For example, in the case above when requesting help for
+~gen-cashmere~:
+
+#+begin_src sh
+mcl gen-cashmere -h
+Usage: gen-cashmere [-h] [OPTIONS] MCL-FILE...
+#+end_src
+
+The help indicates that the postfix is ~MCL-FILE...~ and expects one or more
+MCL file.
+
+** Commands
+
+At this stage, MCL supports the following commands:
+
+| Command      | Explanation                             |
+|--------------+-----------------------------------------|
+| list-hwd     | List the availabe hardware descriptions |
+| list-target  | List the possible compilation targets   |
+| translate    | Translate an MCL file to a lower-level  |
+| gen-cashmere | Generate Cashmere code                  |
+
+The hardware descriptions are defined in a hierarchy, and each
+hardware-description in the hierarchy will be in this list.  Hardware
+descriptions are defined in ~$MCL_ROOT_DIR/input/hdl~ in files with extension
+~.hdl~.
+
+A target is typically a leaf of the hardware description hierarchy.  A target
+is defined in files in ~$MCL_ROOT_DIR/input/codegen~ and define how constructs
+in the hardware-description are mapped to OpenCL features.
+
+
+* Example
+
+As an example, we will generate Cashmere code for the ~vectoradd~ program.
+First, we want to find out which targets are available:
+
+#+begin_src sh
+mcl list-targets
+fermi
+#+end_src
+
+At this moment, only ~fermi~ is available.  We then move to the
+~$MCL_ROOT_DIR/input/mcpl~ and would like to see how
+~vectoradd.mcl~ translates to ~fermi~:
+
+#+begin_src sh
+mcl translate -hwd fermi vectoradd/vectoradd.mcl
+#+end_src
+
+We have to note here that in ~vectoradd.mcl~ the ~package~ is defined to be
+~vectoradd~, which means that ~mcl~ is going to assume that the file can be
+looked up in directory ~vectoradd~.  If ~mcl~ cannot find directory ~vectoradd~
+with file ~vectoradd.mcl~ (for example, because the current working directory
+is ~vectoradd~ itself), it will complain.
+
+To generate code for Cashmere, we can do the following:
+
+#+begin_src sh
+mcl gen-cashmere -t fermi -o $HOME/mcl_output vectoradd/vectoradd.mcl
+#+end_src
+
+MCL will create the output directory, and the files ~MCL.java~ and
+~vectoradd.cl~.  If these files already exist, they will be overwritten.

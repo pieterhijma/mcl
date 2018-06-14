@@ -1,0 +1,18 @@
+[submodule "lib/code-emitter"]
+	path = lib/code-emitter
+	url = https://github.com/JungleComputing/code-emitter.git
+[submodule "lib/clon-completion"]
+	path = lib/clon-completion
+	url = https://github.com/JungleComputing/clon-completion.git
+[submodule "lib/clon"]
+	path = lib/clon
+	url = https://github.com/JungleComputing/clon.git
+[submodule "lib/utility-directory"]
+	path = lib/utility-directory
+	url = https://github.com/JungleComputing/utility-directory.git
+[submodule "lib/simple-sets"]
+	path = lib/simple-sets
+	url = https://github.com/JungleComputing/simple-sets.git
+[submodule "lib/cl-graph-extension"]
+	path = lib/cl-graph-extension
+	url = https://github.com/JungleComputing/cl-graph-extension.git

@@ -1,0 +1,284 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+title: Many-Core Levels
+#+options: num:4 h:4 toc:nil
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+#+toc: headlines 1
+
+* Introduction
+
+Many-Core Levels is a programming system that supports the methodology
+"Stepwise-refinement for performance".  The system allows one to write
+computational kernels for different kinds of many-core hardware. It consists of
+two languages: a hardware description language HDL and a programming language
+MCPL. HDL allows one to define hardware with different levels of detail, which
+results in different abstraction levels. MCL defines a hierarchy of hardware
+descriptions, starting with hardware description perfect. Each lower-level
+hardware description defines many-core hardware in more detail. MCPL allows one
+to write computational kernels that are mapped to hardware by specifying which
+hardware description is targeted and by using constructs that define a mapping
+between algorithm and hardware.  For more details, refer to [1].
+
+This document discusses the code that is written in a literate-programming
+style with [[https://orgmode.org][Org-mode]] files.  The code exports to this documentation and to the
+source code itself.
+
+MCL has been released under license GPL version 3.
+
+[1] Pieter Hijma, Rob V. van Nieuwpoort, Ceriel J.H. Jacobs, and Henri E. Bal:
+Stepwise-refinement for Performance: a methodology for many-core programming
+Concurrency and Computation: Practice and Experience, 27: 4515–4554. DOI:
+[[https://doi.org/10.1002/cpe.3416][10.1002/cpe.3416]].
+
+#+include: "system-definition.org" :minlevel 1
+#+include: "library.org" :minlevel 1
+#+include: "hardware_description_language.org" :minlevel 1
+#+include: "mcpl.org" :minlevel 1
+#+include: "passes.org" :minlevel 1
+
+* Micro-passes
+
+This section contains many small categorized micro-passes that perform a single
+pass over the AST.
+
+#+toc: headlines 1 local
+
+#+include: "micro-passes/resolution.org"
+#+include: "micro-passes/checking.org"
+#+include: "micro-passes/transformations.org"
+#+include: "micro-passes/translate.org"
+#+include: "micro-passes/generate-code.org"
+#+include: "micro-passes/dataflow-values.org"
+#+include: "micro-passes/dataflow.org"
+#+include: "micro-passes/printing.org"
+#+include: "micro-passes/visualization.org"
+#+include: "micro-passes/transfers.org"
+
+#+include: "commandline.org" :minlevel 1
+
+* The main module
+
+** The MCL package
+   :PROPERTIES:
+   :header-args+: :package ":cl-user"
+   :header-args+: :tangle "system/packages.lisp"
+   :END:
+
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :mcl
+  (:use :cl :pass-library :passes)
+  (:import-from :utility-directory :def-standard-class)
+  (:export :semantic-analysis :sa
+	   :print-pretty :pp
+	   :generate-code :gen
+           :generate-cashmere-code
+	   :translate))
+#+end_src
+
+
+** The main file
+   :PROPERTIES:
+   :header-args+: :package ":mcl"
+   :header-args+: :tangle "system/main.lisp"
+   :END:
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :mcl)
+#+end_src
+
+#+begin_src lisp
+(defun semantic-analysis (mcl-file-name)
+  (run-pass 'semantic-analysis (list (cons 'semantic-analysis mcl-file-name))))
+
+(defun sa ()
+  (semantic-analysis "input/mcpl/prnu_extract/prnu_extract.mcl"))
+#+end_src
+
+#+begin_src lisp
+(defun print-pretty (mcl-file-name)
+  ;; (enable-pass 'print-pretty 'remove-hardware-vars)
+  ;; (enable-pass 'print-pretty 'translate)
+  ;; (enable-pass 'print-pretty 'move-dimension-constants-out-foreach)
+  (enable-pass 'print-pretty 'flatten-types)
+  ;; (enable-pass 'print-pretty 'move-foreach-to-func)
+  ;; (enable-pass 'print-pretty 'optimize-transfers)
+  ;;(enable-pass 'print-pretty 'generate-transfers)
+  (run-pass 'print-pretty (list (cons 'print-pretty mcl-file-name)
+				(cons 'translate "gpu")
+				(cons 'semantic-analysis mcl-file-name))))
+
+(defun pp ()
+  (print-pretty "input/mcpl/lib/fft/fft.mcl"))
+#+end_src
+
+
+#+begin_src lisp
+(defun translate (mcl-file-name target)
+  (enable-pass 'print-pretty 'translate)
+  (run-pass 'print-pretty (list (cons 'semantic-analysis mcl-file-name)
+				(cons 'translate target)
+				(cons 'print-pretty mcl-file-name))))
+#+end_src
+
+#+begin_src lisp
+(defun flatten (mcl-file-name target)
+  (enable-pass 'print-pretty 'translate)
+  (enable-pass 'print-pretty 'flatten-types)
+  (run-pass 'print-pretty (list (cons 'semantic-analysis mcl-file-name)
+				(cons 'translate target)
+				(cons 'print-pretty mcl-file-name))))
+#+end_src
+
+#+begin_src lisp
+(defun generate-code (mcl-file-name target entry-funcs output-dir)
+  (run-pass 'generate-code (list (cons 'semantic-analysis mcl-file-name)
+				 (cons 'translate target)
+				 (cons 'generate-code
+				       (list "cpp" target entry-funcs
+                                             output-dir)))))
+
+(defun gen ()
+  (generate-code "input/mcpl/matrixmultiplication/matrixmultiplication.mcl" "fermi" (list "matmul")
+                 (mcl-util:getenv "MCL_OUTPUT_DIR")))
+#+end_src
+
+*** Generating Cashmere code
+
+We store all the information about Cashmere code in the following
+data-structure:
+
+#+begin_src lisp
+(def-standard-class cashmere-info ()
+  (target call-code from-target java-code module))
+#+end_src
+
+We define here what hardware we target:
+
+#+begin_src lisp
+(defun create-cashmere-info (target messages module)
+  (destructuring-bind (from-target parameters java-code) messages
+    (make-instance 'cashmere-info
+                   :target target
+                   :call-code (format nil "kl.launch(~a)" parameters)
+                   :from-target from-target
+                   :java-code java-code
+                   :module module)))
+#+end_src
+
+
+#+begin_src lisp
+(defun cashmere ()
+  (generate-cashmere-code
+   (list
+    ;; grayscale
+    "input/mcpl/prnu_extract/grayscale/grayscale.mcl" 
+    ;; fastnoise
+    "input/mcpl/prnu_extract/fastnoise/fastnoise1.mcl" 
+    "input/mcpl/prnu_extract/fastnoise/fastnoise2.mcl" 
+    ;; zeromean
+    "input/mcpl/prnu_extract/zeromean/zeromean.mcl" 
+    "input/mcpl/lib/util/transpose.mcl" 
+    ;; wiener
+    "input/mcpl/lib/math/toComplex.mcl" 
+    "input/mcpl/prnu_extract/wiener/computeSquaredMagnitudes.mcl"
+    "input/mcpl/prnu_extract/wiener/computeVarianceEstimates.mcl"
+    "input/mcpl/prnu_extract/wiener/varianceZeroMean.mcl"
+    "input/mcpl/prnu_extract/wiener/scaleWithVariances.mcl"
+    "input/mcpl/lib/math/toReal.mcl" 
+    ;; peak to correlation energy
+    "input/mcpl/prnu_extract/peak_to_correlation_energy/toComplexAndFlip.mcl"
+    "input/mcpl/prnu_extract/peak_to_correlation_energy/crossCorrelate.mcl"
+    "input/mcpl/prnu_extract/peak_to_correlation_energy/findPeak.mcl"
+    "input/mcpl/prnu_extract/peak_to_correlation_energy/maxLocFloats.mcl"
+    "input/mcpl/prnu_extract/peak_to_correlation_energy/computeEnergy.mcl"
+    "input/mcpl/prnu_extract/peak_to_correlation_energy/sumDoubles.mcl"
+    )
+   (list "fermi")
+   (mcl-util:getenv "MCL_OUTPUT_DIR")))
+
+#+end_src
+
+** Testing MCL
+
+*** The package for testing
+
+#+header: :tangle "system/tests/packages.lisp"
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+header: :tangle "system/tests/packages.lisp"
+#+begin_src lisp
+(defpackage :test-mcl
+  (:use :cl :cl-log :mcl :fiveam)
+  (:export :mcl-test-suite :test-mcl))
+#+end_src
+
+*** The main test file
+    :PROPERTIES:
+    :header-args+: :package ":test-mcl"
+    :header-args+: :tangle "system/tests/test-mcl.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-mcl)
+#+end_src
+
+#+begin_src lisp
+(def-suite mcl-test-suite)
+
+(defun test-mcl ()
+  (with-logging-disabled
+    (run! 'mcl-test-suite)))
+#+end_src
+
+
+* Copying <<copying>>
+
+A system for programming many-cores on multiple levels of abstraction.
+Copyright (C) 2018 Pieter Hijma
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see [[https://www.gnu.org/licenses/]].

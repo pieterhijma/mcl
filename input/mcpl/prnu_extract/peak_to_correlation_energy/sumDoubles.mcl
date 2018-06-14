@@ -1,0 +1,39 @@
+package prnu_extract.peak_to_correlation_energy;
+
+module sumDoubles;
+
+import gpu;
+
+gpu void sumDoubles(int n, double result, double[n] input) {
+    
+    const int nrBlocks = 1;
+    const int nrThreads = 256;
+
+    foreach (int b in nrBlocks blocks) {
+	local double[nrThreads] reduceMem;
+	foreach (int ti in nrThreads threads) {
+	    if (ti < n) {
+
+		double sum = 0.0;
+
+		for (int i = ti; i < n;i += nrThreads) {
+		    sum += input[i];
+		}
+
+		reduceMem[ti] = sum;
+		barrier(local);
+
+		for (int i = nrThreads/2; i > 0; i >>= 1) {
+		    if (ti < i) {
+			reduceMem[ti] += reduceMem[ti + i];
+		    }
+		    barrier(local);
+		}
+
+		if (ti == 0) {
+		    result = reduceMem[0];
+		}
+	    }
+	}
+    }
+}

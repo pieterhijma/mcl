@@ -1,0 +1,37 @@
+package prnu_extract.wiener;
+
+module varianceZeroMean;
+
+import gpu;
+
+
+gpu void varianceZeroMean(int n, float variance, float[n] input) {
+    const int nrBlocks = 1;
+    const int nrThreads = 1024;
+    foreach (int b in nrBlocks blocks) {
+	local float[nrThreads] reduceMem;
+	foreach (int ti in nrThreads threads) {
+	    if (ti < n) {
+		float sum = 0.0;
+
+		for (int i = ti; i < n;i += nrThreads) {
+		    sum += input[i] * input[i];
+		}
+
+		reduceMem[ti] = sum;
+		barrier(local);
+
+		for (int i = nrThreads/2; i > 0; i >>= 1) {
+		    if (ti < i) {
+			reduceMem[ti] += reduceMem[ti + i];
+		    }
+		    barrier(local);
+		}
+
+		if (ti == 0) {
+		    variance = reduceMem[0] * n / (n - 1);
+		}
+	    }
+	}
+    }
+}

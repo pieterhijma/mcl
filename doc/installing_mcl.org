@@ -1,0 +1,393 @@
+#+title: Installing MCL
+
+* Introduction
+
+This document describes the full procedure for installing MCL.  Most of MCL's
+source is contained in literal programming [[https://orgmode.org][Org-mode]] files with extension
+".org".  The ~INSTALL~ file in the root directory of the MCL project only
+describes the initial part of extracting the actual sources from the literate
+programming files, a process that is called 'tangling'.  From there this
+document was created from ~doc/installing_mcl.org~.  For completeness, we
+describe the full process, including what was mentioned in ~INSTALL~.  It is
+indicated at the start of a section if it does not contain new information
+compared to what was mentioned in ~INSTALL~.
+
+
+* Prerequisites
+
+To install MCL we need the following software packages: git; Emacs version 25
+or higher; a sufficiently compatible shell such as ~bash~; the package
+~org-build-tools~ for tangling .org files, Steel Bank Common Lisp or SBCL, an
+implementation of Common Lisp; curl, for downloading files from the internet;
+GnuPG, for verifying sources; Quicklisp, a library manager for Common Lisp
+libraries; and GCC for using MCL as a commandline application.
+
+In Arch Linux the following software is in the following packages:
+
+| Software | Package | Version requirement |
+|----------+---------+---------------------|
+| git      | git     |                     |
+| Emacs    | emacs   | >= 25               |
+| SBCL     | sbcl    |                     |
+| curl     | curl    |                     |
+| GnuPG    | gnupg   |                     |
+| GCC      | gcc     |                     |
+
+On macOS, recent versions of SBCL, Emacs and GnuPG are available from homebrew.
+
+* Setting up the environment variables
+
+MCL makes use of several libraries that are in principle independent of MCL.
+It is therefore possible to place them in a non-intrusive directory, for
+example in ~$HOME/.mcl_util/~.  For the rest of the document we are going to
+assume that this directory is used for the independent libraries.  In this
+section we will set up several environment variables that ensure that scripts
+and libraries know where to look for other software.  We recommend to place
+these environment variables in a shell initialization script, for example
+~$HOME/.bashrc~.
+
+Tangling MCL is done with the scripts in ~org-build-tools~.  To use this
+package we create the following environment variable:
+
+#+begin_src sh
+export ORG_BUILD_TOOLS=$HOME/.mcl_util/org-build-tools
+#+end_src
+
+Quicklisp is a library manager for Common Lisp.  MCL needs the following
+environment variable to make use of it:
+
+#+begin_src sh
+export QUICKLISP_DIR=$HOME/.mcl_util/quicklisp
+#+end_src
+
+The following environment variables need to be set for MCL itself:
+
+#+begin_src sh
+export MCL_ROOT_DIR=/path/to/place_mcl/mcl
+export HDL_DIR=$MCL_ROOT_DIR/input/hdl
+#+end_src
+
+For direct access to the ~mcl~ program the directory ~bin~ can be added to your
+path:
+
+#+begin_src sh
+export PATH=$MCL_ROOT_DIR/bin:$PATH
+#+end_src
+
+To control where MCL places the output files, MCL uses the following
+environment variable: 
+
+#+begin_src sh
+export MCL_OUTPUT_DIR=/path/of/your/choice
+#+end_src
+
+The newly introduced environment variables can be loaded into the current shell
+with:
+
+#+begin_src sh
+source ~/.bashrc
+#+end_src
+
+
+* Obtaining org-build-tools
+
+This section may already describe what was in ~INSTALL~.  We can retrieve
+org-build-tools with:
+
+#+begin_src sh
+mkdir -p $ORG_BUILD_TOOLS
+git clone https://github.com/JungleComputing/org-build-tools.git $ORG_BUILD_TOOLS
+#+end_src
+
+* Obtaining MCL
+
+This section describes what was already in ~INSTALL~.  We can retrieve MCL
+with:
+
+#+begin_src sh
+git clone https://github.com/JungleComputing/mcl.git $MCL_ROOT_DIR
+#+end_src
+
+We can now retrieve all the submodules:
+
+#+begin_src sh
+cd $MCL_ROOT_DIR
+
+git submodule init
+git submodule update
+#+end_src
+
+* Tangling MCL
+
+This section describes what was already in ~INSTALL~.  We can tangle
+all the .org files with the following command:
+
+#+begin_src sh
+./scripts/tangle-mcl
+#+end_src
+
+* Setting up Quicklisp
+
+MCL needs to have access to several existing libraries.  [[https://www.quicklisp.org][Quicklisp]] is a library
+manager for Common Lisp.  The script ~scripts/install-quicklisp~ downloads
+Quicklisp, verifies the integrity of the file, and adds it to the SBCL
+initialization file ~$HOME/.sbclrc~.
+
+#+begin_src sh
+cd $MCL_ROOT_DIR
+./scripts/install-quicklisp
+#+end_src
+
+#+header: :comments link :eval no
+#+header: :shebang "#!/bin/sh" :exports none
+#+begin_src sh :tangle "../scripts/install-quicklisp"
+
+if [ -z $QUICKLISP_DIR ]
+then
+    echo "Environment variable QUICKLISP_DIR has not been set"
+    exit 1
+fi
+
+
+check_env_dir QUICKLISP_DIR
+
+DIR=$(mktemp -d)
+cd $DIR
+curl -O https://beta.quicklisp.org/quicklisp.lisp
+curl -O https://beta.quicklisp.org/release-key.txt
+gpg --import release-key.txt
+curl -O https://beta.quicklisp.org/quicklisp.lisp.asc
+gpg --verify quicklisp.lisp.asc quicklisp.lisp
+
+sbcl --load quicklisp.lisp \
+     --eval "(quicklisp-quickstart:install :path \"$QUICKLISP_DIR\")" \
+     --eval "(ql:add-to-init-file)" \
+     --quit
+rm -rf $DIR
+#+end_src
+
+
+* Setting up SBCL
+
+Besides setting up Quicklisp, SBCL needs additional setup for MCL.  The script
+~scripts/setup-sbcl~ creates a directory for "systems" that will contain
+symbolic links to ~.asd~ files.  A /system/ is a collection of files that can be
+loaded by Common Lisp.  A ~.asd~ file describes the dependencies of those files
+with other files or systems.  The ~setup-sbcl~ script will add a symbolic link
+to ~mcl.asd~, the file that describes all the dependencies to load MCL.
+
+The script will then add some code to ~$HOME/.sbclrc~ to inform SBCL where to
+look for systems.  In addition, we set the environment variable ~CC~ to ~gcc~
+for SBCL to ensure that one of the libraries can generate native code to find
+out the capabilities of a terminal.
+
+#+begin_src sh
+./scripts/setup-sbcl
+#+end_src
+
+#+header: :comments link :eval no
+#+header: :shebang "#!/bin/sh" :exports none
+#+begin_src sh :tangle "../scripts/setup-sbcl"
+
+function check_env_dir() {
+    local name_env_dir=$1
+    if [ -z ${!name_env_dir} ]
+    then
+	echo "Environment variable $name_env_dir has not been set"
+	exit 1
+    fi
+
+    if [ ! -d ${!name_env_dir} ]
+    then
+	echo "Environment variable $name_env_dir does not represent a directory"
+	exit 1
+    fi
+}
+
+check_env_dir MCL_ROOT_DIR
+
+mkdir -p $HOME/.sbcl/systems
+ln -s $MCL_ROOT_DIR/src/system/mcl.asd $HOME/.sbcl/systems
+
+cat <<EOT >> $HOME/.sbclrc
+;; inserted by $MCL_ROOT_DIR/scripts/setup-sbcl
+(setf asdf:*central-registry*
+    (list* '*default-pathname-defaults*
+           #p"$HOME/.sbcl/systems/"
+           asdf:*central-registry*))
+
+(require :sb-posix)
+(sb-posix:setenv "CC" "gcc" 1)
+;; end inserted by $MCL_ROOT_DIR/scripts/setup-sbcl
+EOT
+#+end_src
+
+* Installing Maxima
+
+[[http://maxima.sourceforge.net/][Maxima]] is a Computer Algebra System written in Common Lisp that we use to
+simplify expressions.  We can install it with:
+
+#+begin_src sh
+./scripts/install-maxima
+#+end_src
+
+#+header: :comments link :eval no
+#+header: :shebang "#!/bin/sh" :exports none
+#+begin_src sh :tangle "../scripts/install-maxima"
+
+function check_env_dir() {
+    local name_env_dir=$1
+    if [ -z ${!name_env_dir} ]
+    then
+	echo "Environment variable $name_env_dir has not been set"
+	exit 1
+    fi
+
+    if [ ! -d ${!name_env_dir} ]
+    then
+	echo "Environment variable $name_env_dir does not represent a directory"
+	exit 1
+    fi
+}
+
+check_env_dir MCL_ROOT_DIR
+
+MCL_LIB_DIR=$MCL_ROOT_DIR/lib
+MAXIMA_VERSION=5.41.0
+MAXIMA_PKG=maxima-$MAXIMA_VERSION
+MAXIMA_TAR_FILE=$MAXIMA_PKG.tar.gz
+MAXIMA_TAR_PATH=$MCL_LIB_DIR/$MAXIMA_TAR_FILE
+MAXIMA_PATH=$MCL_LIB_DIR/$MAXIMA_PKG
+
+MAXIMA_URL=https://kent.dl.sourceforge.net/project/maxima/Maxima-source/$MAXIMA_VERSION-source/$MAXIMA_TAR_FILE
+
+if [ ! -f $MAXIMA_TAR_PATH ]
+then
+    echo $MAXIMA_URL
+    curl -o $MAXIMA_TAR_PATH $MAXIMA_URL
+fi
+
+if [ ! -d $MAXIMA_PATH ]
+then
+    tar xvzf $MAXIMA_TAR_PATH -C $MCL_LIB_DIR
+fi
+
+pushd $MAXIMA_PATH
+sbcl --load configure.lisp --eval "(configure :interactive nil)" --quit
+popd
+
+pushd $MAXIMA_PATH/src
+sbcl --load maxima-build.lisp --eval "(maxima-compile)" --quit
+popd
+#+end_src
+
+* Retrieving all quicklisp libraries for MCL
+
+We can automatically retrieve all libraries for quicklisp by loading MCL with
+quicklisp.  We do that by using the following script:
+
+#+begin_src sh
+./scripts/fetch-quicklisp-libs
+#+end_src
+
+#+header: :comments link :eval no
+#+header: :shebang "#!/bin/sh" :exports none
+#+begin_src sh :tangle "../scripts/fetch-quicklisp-libs"
+
+function check_env_dir() {
+    local name_env_dir=$1
+    if [ -z ${!name_env_dir} ]
+    then
+	echo "Environment variable $name_env_dir has not been set"
+	exit 1
+    fi
+
+    if [ ! -d ${!name_env_dir} ]
+    then
+	echo "Environment variable $name_env_dir does not represent a directory"
+	exit 1
+    fi
+}
+
+check_env_dir MCL_ROOT_DIR
+
+sbcl --load $MCL_ROOT_DIR/scripts/fetch-quicklisp-libs.lisp --quit
+#+end_src
+
+#+begin_src lisp :tangle ../scripts/fetch-quicklisp-libs.lisp :exports none
+(handler-bind ((asdf:load-system-definition-error
+                #'(lambda (c)
+                    (declare (ignore c))
+                    (invoke-restart 'abort)))
+	       (asdf:missing-component
+		#'(lambda (c)
+		    (format t "~a~%" c)
+		    (format t "Please ignore the \"Component not found\" message and rerun this script~%")
+		    (invoke-restart 'exit))))
+  (ql:quickload :mcl)
+  (ql:quickload :mcl/tests))
+#+end_src
+
+* Testing MCL
+
+With the following script we can test MCL.  If a test does not pass, the script
+will return with an error-code.
+
+#+begin_src sh
+./scripts/test-mcl
+#+end_src
+
+#+header: :comments link :eval no
+#+header: :shebang "#!/bin/sh" :exports none
+#+begin_src sh :tangle "../scripts/test-mcl"
+#!/bin/sh
+
+sbcl --eval "(asdf:load-system :mcl/tests)" \
+     --eval "(unless (test-mcl:test-mcl) (sb-ext:exit :code 1))" \
+     --quit
+#+end_src
+
+* Make a commandline utility of MCL
+
+The following script creates the commandline utility ~mcl~ and puts it in
+~bin~. 
+
+#+begin_src sh
+./scripts/make-mcl
+#+end_src
+
+The installation of MCL is now complete.  The following sections lists the
+files and directories outside of the MCL repository.  A possible next step is
+the [[file:manual_mcl.html][manual]].
+
+* Installation files outside of the MCL repository
+
+This section lists the files and directories that are installed but are not
+part of the ~$MCL_ROOT_DIR~.  For a complete removal of MCL, the following files
+and directories can be removed:
+
+- ~$HOME/.sbclrc~
+- ~$HOME/.sbcl~
+- ~$HOME/.mcl_util~
+- ~$HOME/.emacs.d~
+
+The installation needs several environment variables that can be
+removed/modified when uninstalling MCL:
+
+- ~ORG_BUILD_TOOLS~
+- ~QUICKLISP_DIR~
+- ~MCL_ROOT_DIR~
+- ~HDL_DIR~
+- ~PATH~
+- ~MCL_OUTPUT_DIR~
+
+** SBCL
+
+The installation process created the file ~.sbclrc~ that initializes SBCL and
+the directory ~$HOME/.sbcl~ that contains the directory ~systems~ with symbolic
+links to the system description files with extension ~.asd~.  
+
+** Other
+
+In ~.mcl_util~ we installed ~org-build-tools~ and the Quicklisp distribution.
+Emacs added a directory to ~.emacs.d~ to generate colorized HTML output.

@@ -1,0 +1,1128 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Checking
+
+This section has several micro-passes that do some form of checking.
+
+#+toc: headlines 1 local
+
+
+** Checking types
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/check-types/packages.lisp"
+    :END:
+
+#+header: :mkdirp yes
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :check-types
+  (:use :cl :logging :ast-mcpl :ast :errors
+        :flatten-types :print-pretty :fold-constants :simplify-expressions)
+  (:import-from :string-case :string-case)
+  (:import-from :utility-directory :def-methods)
+  (:import-from :anaphora :awhen :it)
+  (:export :check-types :get-type :primitive-p))
+#+end_src
+
+*** Walking the AST
+    :PROPERTIES:
+    :header-args+: :package ":check-types"
+    :header-args+: :tangle "../system/micro-passes/check-types/check-types.lisp"
+    :END:
+
+
+The following code shows the code to walk the AST for checking types.  This is
+done in bottom-up fashion to make sure that an expression knows the types of
+their sub-expressions.  The following function is the main entry function that
+takes as input a module and returns the modified module with a list of messages
+with type errors.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-types)
+#+end_src
+
+#+begin_src lisp
+;; (defun check-types (module)
+;;   "Check the types of a module."
+;;   (let (messages)
+;;     (flet ((add-to-messages (c)
+;; 	     (push c messages)
+;; 	     (invoke-restart 'add-to-messages)))
+;;       (handler-bind ((mcpl-type-error #'add-to-messages)
+;; 		     (numeric-type-error #'add-to-messages))
+;; 	(restart-case (visit module #'check-fw #'check-bw)
+
+;; 	  (add-to-messages nil ()))
+;; 	(values module (nreverse messages))))))
+
+(defun check-types (ast)
+  "Check the types of the AST form."
+  (log-micro-pass "check-types" ast)
+  (visit ast #'check-fw #'check-bw)
+  ast)
+#+end_src
+
+The visitor functions are listed below.  Unknown AST forms, strings, lists,
+numbers, and symbols are ignored.
+
+#+begin_src lisp
+(defgeneric check-fw (ast))
+(defgeneric check-bw (ast))
+
+(defvisitor check-fw ast (ast string list number symbol)
+  t)
+
+(defvisitor check-bw ast (ast string list number symbol)
+  nil)
+#+end_src
+
+Constant expressions simply get their type.
+
+#+begin_src lisp
+(defvisitor check-bw ic (int-constant)
+  (set-type ic (make-int)))
+
+(defvisitor check-bw fc (float-constant)
+  (set-type fc (make-flt)))
+
+(defvisitor check-bw bc (bool-constant)
+  (set-type bc (make-bool)))
+#+end_src
+
+Below are the expressions listed with numeric types.
+
+#+begin_src lisp
+(defvisitor check-bw m (minus)
+  (let ((expr (e m)))
+    (check-numeric-type expr)
+    (set-type m (eval-type expr))))
+
+(defvisitor check-bw n (neg)
+  (let ((expr (e n)))
+    (with-slots (eval-type) expr
+      (expect (location n) (make-bool) eval-type)
+      (set-type n eval-type))))
+
+(defvisitor check-bw b (mul add sub div bitand bitor bitshl bitshr)
+  (with-slots (l r) b
+    (set-type b (compute-type-numeric-op l r))))
+
+(defmethod check-bw ((p pow))
+  (with-slots (l r) p
+    (check-numeric-type l)
+    (check-numeric-type r)
+    (let ((int-type (make-int)))
+      (if (and (ast= (eval-type l) int-type)
+	       (ast= (eval-type r) int-type))
+	  (set-type p int-type)
+	  (set-type p (make-flt))))))
+
+(defvisitor check-bw e (equ lt gt le ge)
+  (with-slots (l r) e
+    (check-numeric-type l)
+    (check-numeric-type r)
+    (set-type e (make-bool))))
+
+(defvisitor check-bw e (log-and log-or)
+  (let ((expected-type (make-bool)))
+    (with-slots (l r) e
+      (expect (location l) expected-type (eval-type l))
+      (expect (location r) expected-type (eval-type r))
+      (set-type e expected-type))))
+#+end_src
+
+Variables:
+
+#+begin_src lisp
+(defvisitor check-bw ve (var-expr)
+  (set-type ve (get-type (var ve))))
+#+end_src
+
+Assignments:
+
+#+begin_src lisp
+(defvisitor check-bw as (assign-stat)
+  (with-slots (var expr) as
+    (check-assignment var expr (location expr))))
+#+end_src
+
+#+begin_src lisp
+(defvisitor check-bw ad (assign-decl)
+  (with-slots (basic-decl expr) ad
+    (check-assignment basic-decl expr (location expr))))
+#+end_src
+
+#+begin_src lisp
+(defvisitor check-bw ss (swap-stat)
+  (with-slots (var-left var-right) ss
+    (check-assignment var-left var-right (location var-right))))
+#+end_src
+
+As forms:
+
+#+begin_src lisp
+(defvisitor check-bw nd (normal-decl)
+  (with-slots (basic-decls) nd
+    (destructuring-bind (primary &rest direct-as-basic-decls) basic-decls
+      (check-equivalence 
+       (location primary) (mcl-type primary) direct-as-basic-decls)
+      (check-equivalence
+       (location primary) (mcl-type primary) (as-basic-decls nd)))))
+#+end_src
+
+Statements:
+
+#+begin_src lisp
+(defvisitor check-bw ds (decl-stat call-stat block-stat inc-stat)
+  nil)
+
+(defmethod check-bw ((is if-stat))
+  (with-slots (cond-expr location) is
+    (with-slots (eval-type) cond-expr
+      (let ((expected-type (make-bool)))
+	(expect location expected-type eval-type)))))
+
+(defmethod check-bw ((fe foreach-stat))
+  (let ((expected-type (make-int)))
+    (with-slots (decl nr-iters) fe
+      (with-slots (location eval-type) nr-iters
+	(expect (location decl) expected-type (get-type decl))
+	(expect location expected-type eval-type)))))
+
+(defmethod check-bw ((fs for-stat))
+  (let ((expected-type (make-bool)))
+    (with-slots (cond-expr) fs
+      (with-slots (location eval-type) cond-expr
+	(expect location expected-type eval-type)))))
+
+(defmethod check-bw ((is inc-step))
+  (with-slots (var expr) is
+    (check-numeric-type var)
+    (check-numeric-type expr)
+    (check-assignment var expr (location expr))))
+
+(defmethod check-bw ((i inc))
+  (check-numeric-type (var i)))
+
+(defmethod check-bw ((as as-stat))
+  (with-slots (var basic-decls location) as
+    (check-equivalence location (get-type var) basic-decls)))
+
+(defmethod check-bw ((bs barrier-stat)))
+#+end_src
+
+Calls:
+
+#+begin_src lisp
+(defmethod check-bw ((call-expr call-expr))
+  (set-type call-expr (get-type (call call-expr))))
+  
+
+(defvisitor check-bw call (call)
+  (if (builtin-func-p call)
+      (check-builtin-call call)
+      (check-call call)))
+
+(defun check-builtin-call (call)
+  (with-slots (id params) call
+    (with-slots (name) id
+      (string-case (name)
+	("mcl_builtin_read" nil)
+	("mcl_builtin_write" nil)
+	("toFloat" (let* ((param (first params))
+                          (type (eval-type param)))
+		     (expect-equivalent (location (first params))
+                                        (make-int) type)))
+        ("toDouble" (let* ((param (first params))
+                           (type (eval-type param)))
+                      (expect-equivalent (location (first params))
+                                        (make-int) type)))
+	("mcl_builtin_allocate_on_device" nil)
+	("mcl_builtin_deallocate_on_device" nil)
+	("mcl_builtin_transfer_to_device" nil)
+	("mcl_builtin_transfer_from_device" nil)
+        ("min" (expect-l-r params (make-int)))
+        ("max" (expect-l-r params (make-flt)))
+        ("divide_up" (expect-l-r params (make-int)))))))
+
+(defun expect-l-r (exprs type)
+  (destructuring-bind (l r) exprs
+    (expect (location l) type (eval-type l))
+    (expect (location l) type (eval-type r))))
+
+(defun check-call (call)
+  (with-slots (func id (params-call params)) call
+    (with-slots ((params-func params)) func
+      (with-slots (location name) id
+	(if (not (eql (length params-call) (length params-func)))
+	    (unequal-nr-params-error
+	     location
+	     "Call ~a does not have the right amount of parameters"
+	     name)
+	    (let ((bindings (make-bindings)))
+	      (loop for i from 0 below (length params-call)
+		 do (check-parameter (nth i params-call)
+				     (nth i params-func)
+				     bindings))))))))
+
+(defun check-parameter (actual-parameter formal-parameter bindings)
+  (add-binding bindings formal-parameter actual-parameter)
+  (with-slots ((type-actual-parameter eval-type) location) actual-parameter
+    (let ((type-formal-parameter (get-type formal-parameter)))
+      
+      (when (not (can-assign-to type-actual-parameter
+				(replace-exprs type-formal-parameter bindings)))
+	(error-incompatible-types
+	 location type-formal-parameter type-actual-parameter)))))
+
+(defun replace-exprs (ast bindings)
+  (let ((copy (copy-ast ast)))
+    (set-parents:set-parents copy)
+    (visit copy
+	   #'(lambda (ast)
+	       (replace-exprs-fw ast bindings))
+	   #'(lambda (ast)
+	       (replace-exprs-bw ast bindings)))
+    copy))
+
+(defgeneric replace-exprs-fw (ast bindings))
+(defgeneric replace-exprs-bw (ast bindings))
+
+(def-methods replace-exprs-fw ((ast (ast string list symbol number))
+				  bindings)
+  t)
+
+(def-methods replace-exprs-bw ((ast (ast string list symbol number))
+				  bindings)
+  nil)
+
+(defmethod replace-exprs-bw ((ve var-expr) bindings)
+  (when (typep (var ve) 'normal-var)
+    (let ((name-var (name (id (basic-var (var ve))))))
+      (awhen (gethash name-var bindings)
+	(replace-in-ast ve :with it)))))
+
+#+end_src
+
+AST forms that should be checked:
+
+#+begin_src lisp
+(defvisitor check-bw ast (stat expr decl increment)
+  (error "~a should be type-checked" ast))
+#+end_src
+
+*** Helper functions
+    :PROPERTIES:
+    :header-args+: :package ":check-types"
+    :header-args+: :tangle "../system/micro-passes/check-types/check-types.lisp"
+    :END:
+
+#+begin_src lisp
+(defgeneric set-type (expr type))
+
+(defmethod set-type ((expr expr) type)
+  (setf (eval-type expr) type))
+
+(defun expect (location expected-type found-type)
+  (when (not (ast= expected-type found-type))
+    (error-incompatible-types location expected-type found-type)))
+
+(defun expect-equivalent (location expected-type found-type)
+  (when (not (can-assign-to found-type expected-type))
+    (error-incompatible-types location expected-type found-type)))
+
+(defun make-bindings ()
+  (make-hash-table :test 'equal))
+
+(defgeneric add-binding (bindings decl expr))
+
+(defmethod add-binding (bindings (decl decl) expr)
+  (loop for bd in (get-basic-decls decl)
+     do (add-binding bindings bd expr)))
+
+(defmethod add-binding (bindings (bd basic-decl) expr)
+  (setf (gethash (name (id bd)) bindings) expr))
+
+(defun equals-type (type1 type2 &optional bindings)
+  (let ((type1 (simplify (fold-constant type1 bindings)))
+	(type2 (simplify (fold-constant type2 bindings))))
+    (ast= type1 type2)))
+#+end_src
+
+
+
+
+*** Numeric types
+    :PROPERTIES:
+    :header-args+: :package ":check-types"
+    :header-args+: :tangle "../system/micro-passes/check-types/numeric-types.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-types)
+#+end_src
+
+#+begin_src lisp
+(defgeneric check-numeric-type (type))
+
+(defparameter *numeric-types* (list (make-int) (make-flt) (make-double)))
+
+(defmethod check-numeric-type ((expr expr))
+  (when (not (find (eval-type expr) *numeric-types* :test #'ast=))
+    (error 'numeric-type-error
+	   :text (format nil "Expression ~a does not have a numeric type."
+			 (pp expr))
+	   :loc (location expr))))
+
+(defmethod check-numeric-type ((var var))
+  (when (not (find (get-type var) *numeric-types* :test #'ast=))
+    (error 'numeric-type-error
+	   :text (format nil "Variable ~a does not have a numeric type."
+			 (pp var))
+	   :loc (location var))))
+
+
+
+(defgeneric compute-type-numeric-op (left right))
+
+(defmethod compute-type-numeric-op ((l expr) (r expr))
+  (with-slots ((type-l eval-type)) l
+    (with-slots ((type-r eval-type) location) r
+      (check-numeric-type l)
+      (check-numeric-type r)
+      (cond ((can-assign-to type-r type-l)
+	     type-l)
+	    ((can-assign-to type-l type-r)
+	     type-r)
+	    (t
+	     (error-incompatible-types location type-l type-r))))))
+#+end_src
+
+
+
+*** Assignment rules
+    :PROPERTIES:
+    :header-args+: :package ":check-types"
+    :header-args+: :tangle "../system/micro-passes/check-types/assignment-rules.lisp"
+    :END:
+
+The following table shows what can be assigned to what.  For example, the first
+rule states that an int can be assigned to float.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-types)
+#+end_src
+
+#+begin_src lisp
+(defparameter *assign-table*
+  (list (cons (make-int) (list (make-flt) (make-double)))
+        (cons (make-flt) (list (make-double)))
+        (cons (make-mcl-byte) (list (make-flt) (make-int)))))
+#+end_src
+
+The following code shows how an assignment is checked:
+
+#+begin_src lisp
+(defgeneric check-assignment (var-type-lhs var-type-expr-rhs location))
+
+(defmethod check-assignment ((lhs mcl-type) (rhs mcl-type) location)
+  (when (not (can-assign-to rhs lhs))
+    (error-incompatible-types location lhs rhs)))
+
+(defmethod check-assignment ((lhs var) (rhs expr) location)
+  (check-assignment (get-type lhs) (eval-type rhs) location))
+
+(defmethod check-assignment ((lhs var) (rhs var) location)
+  (check-assignment (get-type lhs) (get-type lhs) location))
+
+(defmethod check-assignment ((lhs basic-decl) (rhs expr) location)
+  (check-assignment (mcl-type lhs) (eval-type rhs) location))
+
+(defun can-assign-to (rhs lhs &optional bindings)
+  (or (equals-type lhs rhs bindings)
+      (find lhs (assoc rhs *assign-table* :test #'ast=) :test #'ast=)))
+#+end_src
+
+*** Type equivalence
+    :PROPERTIES:
+    :header-args+: :package ":check-types"
+    :header-args+: :tangle "../system/micro-passes/check-types/type-equivalence.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-types)
+#+end_src
+
+#+begin_src lisp
+(defun check-equivalence (loc type basic-decls)
+  (let ((type-flattened (flatten-type (fold-constant type))))
+    (dolist (bd basic-decls)
+      (when (not (ast= type-flattened (flatten-type (fold-constant (mcl-type bd)))))
+	(error-inequivalent-types loc type (mcl-type bd))))))
+#+end_src
+
+
+*** Computing types
+    :PROPERTIES:
+    :header-args+: :package ":check-types"
+    :header-args+: :tangle "../system/micro-passes/check-types/compute-types.lisp"
+    :END:
+
+The function ~get-type~ is not in the package ~:ast-mcpl~ since it is not just
+an accessor function, but it needs computing types which can result in errors.
+Therefore, it fits better in the ~:micro-passes~ package.  Instead in
+~:ast-mcpl~ there is the function ~get-type-decl~ that retrieves the type of a
+(basic-)decl.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-types)
+#+end_src
+
+#+begin_src lisp
+(defgeneric get-type (ast))
+
+(defmethod get-type ((v normal-var))
+  (get-type (basic-var v)))
+
+(defmethod get-type ((bv basic-var))
+  (compute-type (id bv) (array-exprs bv) (mcl-type (get-basic-decl bv))))
+
+(defmethod get-type ((dv dot-var))
+  (if (query-hdl-mcpl:hardware-description-var-p dv)
+      (make-int)
+      (with-slots (basic-var var) dv
+	(if (typep (get-type basic-var) 'custom-type)
+	    (get-type var)
+	    (undefined-type-error
+	     (location basic-var)
+	     "~a does not have a custom type" (name (id basic-var)))))))
+
+(defmethod get-type ((c call))
+  (if (builtin-func-p c)
+      (get-type-builtin-func (name (id c)))
+      (mcl-type (func c))))
+
+(defmethod get-type ((d decl))
+  (get-type-decl d))
+
+(defmethod get-type ((bd basic-decl))
+  (get-type-decl bd))
+#+end_src
+
+Computing types is done recursively and deals with several cases:
+
+#+begin_src lisp
+(defun compute-type (id array-exprs type)
+  (cond ((null array-exprs)
+	 type)
+	((not (typep type 'array-type))
+	 (error-too-many-array-exprs id))
+	((not (eql (length (sizes type)) (length (first array-exprs))))
+	 (error-unequal-nr-array-exprs id))
+	((eql (length array-exprs) 1)
+	 (compute-type-fine (first array-exprs)
+			    (make-array-type (base-type type) (sizes type))))
+	(t
+	 (compute-type id (rest array-exprs) (base-type type)))))
+#+end_src
+
+Computing types for the one-dimensional case is done recursively as well.
+
+#+begin_src lisp
+(defun compute-type-fine (array-exprs type)
+  (if (null array-exprs)
+      (base-type type)
+      (progn
+	(setf (sizes type) (rest (sizes type)))
+	(compute-type-fine (rest array-exprs) type))))
+#+end_src
+
+Whether ast-forms are primitve:
+
+#+begin_src lisp
+(defgeneric primitive-p (ast))
+
+(defmethod primitive-p ((d decl))
+  (primitive-decl-p d))
+
+(defmethod primitive-p ((type mcl-type))
+  (primitive-type-p type))
+
+(defmethod primitive-p ((v var))
+  (primitive-p (get-type v)))
+#+end_src
+
+*** Type errors
+    :PROPERTIES:
+    :header-args+: :package ":check-types"
+    :header-args+: :tangle "../system/micro-passes/check-types/type-errors.lisp"
+    :END:
+
+Several convenience function for type errors:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-types)
+#+end_src
+
+#+begin_src lisp
+(defun error-incompatible-types (loc expected-type received-type)
+  (incompatible-type-error loc "Expected type ~a, but got ~a."
+			   (pp expected-type) (pp received-type)))
+
+(defun error-inequivalent-types (loc expected-type received-type)
+  (inequivalent-type-error loc "Type ~a is not equivalent with type ~a."
+		      (pp expected-type) (pp received-type)))
+
+(defun error-too-many-array-exprs (id)
+  (too-many-array-exprs-error
+   (location id)
+   "Variable ~a has too many-array-expressions." (name id)))
+
+(defun error-unequal-nr-array-exprs (id)
+  (unequal-nr-array-exprs-error
+   (location id)
+   "Variable ~a does not have a matching number of array expressions."
+   (name id)))
+#+end_src
+
+*** Testing
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-check-types/packages.lisp"
+    :END:
+
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-check-types
+  (:use :cl :ast :ast-mcpl :test-mcl :fiveam
+	:errors :parse-mcpl :set-parents :resolve-calls :resolve-vars
+	:set-callgraph :set-vars-written	:check-types)
+  (:shadowing-import-from :fiveam :skip)
+  (:export :test-check-types))
+#+end_src
+
+**** Testing the type checker
+     :PROPERTIES:
+     :header-args+: :package ":test-check-types"
+     :header-args+: :tangle "../system/tests/test-check-types/test-check-types.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-check-types)
+#+end_src
+
+#+begin_src lisp
+(def-suite check-types :in mcl-test-suite)
+(in-suite check-types)
+
+(test check-simple-types
+  (is-typed (make-int) (make-int-constant 2))
+  (is-typed (make-int) (make-minus (make-int-constant 2)))
+  (is-type-error (make-minus (make-bool-constant t)) numeric-type-error)
+  (is-module-typed (build-module '("float a = 2.0 / 2;")))
+  (is-module-typed (build-module '("int a;" "int b = a;")))
+  (is-module-typed (build-module '("int[2] a;" "int b = a[0];")))
+  (module-has-type-error (build-module '("float a;" "int b = a;"))))
+
+(test check-arrays
+  (is-module-typed (build-module-for-calls '("int n" "float[n] a")
+					   '("int h;" 
+					     "int w;"
+					     "int n = h * w;"
+					     "float[h * w] a;"
+					     "g(n, a);")))
+  (is-module-typed (build-module-for-calls '("int n" "float[n] a")
+					   '("int h;" 
+					     "int w;"
+					     "int n = w * h;"
+					     "float[h * w] a;"
+					     "g(n, a);"))))
+
+
+(test check-simple-calls
+  (is-module-typed (build-module-for-calls (list "int a") 
+					   (list "g(2);")))
+  (is-module-typed (build-module-for-calls (list "int a") 
+					   (list "int a = 2;" "g(a);")))
+  (is-module-typed (build-module-for-calls (list "int a") 
+					   (list "int b = 2;" "g(b);"))))
+
+(test check-array-calls
+  (is-module-typed
+   (build-module-for-calls (list "int[2] a") (list "int[2] b;" "g(b);")))
+  (is-module-typed
+   (build-module-for-calls (list "int[2*2] a") (list "int[4] b;" "g(b);")))
+  (is-module-typed
+   (build-module-for-calls (list "int n" "int[n] a")
+			   (list "int n = 2;" "int[n] b;" "g(n, b);")))
+  (is-module-typed
+   (build-module-for-calls (list "int n" "int[n] a")
+			   (list "int m = 2;" "int[m] b;" "g(m, b);")))
+  (is-module-typed
+   (build-module-for-calls '("int h" "int w" "float[h][w] a")
+			   '("int w;"
+			     "int h;"
+			     "float[w][h] a;"
+			     "g(w, h, a);"))))
+
+#+end_src
+
+**** Helper macros
+     :PROPERTIES:
+     :header-args+: :package ":check-types"
+     :header-args+: :tangle "../system/tests/test-check-types/macros.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-check-types)
+#+end_src
+
+#+begin_src lisp
+(defmacro is-type-error (ast error-symbol)
+  `(signals ,error-symbol (check-types ,ast)))
+
+(defmacro is-typed (type ast)
+  `(is (ast= ,type (eval-type (check-types ,ast)))))
+
+(defmacro is-module-typed (module)
+  `(is (check-types ,module)))
+
+(defmacro module-has-type-error (module)
+  `(signals mcpl-type-error (check-types ,module)))
+#+end_src
+
+**** Helper functions
+     :PROPERTIES:
+     :header-args+: :package ":test-check-types"
+     :header-args+: :tangle "../system/tests/test-check-types/test-check-types.lisp"
+     :END:
+
+#+begin_src lisp
+(defun build-module (stats)
+  (resolve-vars 
+   (parse-mcpl 
+    (format 
+     nil
+     "package m; module a;~%perfect void f() {~%~{~a~^~}~%}" stats))
+   nil))
+
+(defun build-module-for-calls (params stats-f)
+  (let* ((string (format
+		  nil
+		  "package p; module m;
+type Complex {
+   float k;
+   float l;
+}
+perfect void g(~{~a~^, ~}) {
+}
+
+perfect void f() {
+  ~{~a~^~%~}
+}" params stats-f))
+	 (module (parse-mcpl string)))
+    (set-parents module)
+    (resolve-calls module nil)
+    (resolve-vars module nil)
+    ;; (let ((callgraph (set-callgraph (funcs (code module)))))
+    ;;   (set-vars-written callgraph)
+    ;;   module)
+    module))
+#+end_src
+
+
+** Checking memory spaces
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/check-memory-spaces/packages.lisp"
+    :END:
+
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :check-memory-spaces
+  (:use :cl :string-case :logging :ast-mcpl :ast :callgraph :errors
+	:query-hdl-mcpl)
+  (:export :check-memory-spaces))
+#+end_src
+
+*** Checking the memory spaces
+    :PROPERTIES:
+    :header-args+: :package ":check-memory-spaces"
+    :header-args+: :tangle "../system/micro-passes/check-memory-spaces/check-memory-spaces.lisp"
+    :END:
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-memory-spaces)
+#+end_src
+
+#+begin_src lisp
+(defun check-memory-spaces (callgraph)
+  "Check the memory-spaces of functions/calls."
+  (log-micro-pass "check-memory-spaces" callgraph)
+  (let ((funcs (funcs-ordered callgraph)))
+    (loop for f in funcs do (check-memory-spaces-func f))))
+
+(defun check-memory-spaces-func (func)
+  (let ((calls (called-by func)))
+    (loop for call in calls
+       do (check-memory-spaces-func-call func call))))
+
+(defun check-memory-spaces-func-call (func call)
+  (let ((params-func (params func))
+	(params-call (params call)))
+    (loop
+       for pf in params-func
+       for pc in params-call
+       do (check-equivalence-memory-space pf pc pc))))
+
+#+end_src
+
+If the memory-space of a function is disallowed, then it doesn't matter what
+the call has as memory-space.  If it is a variable with a memory-space, it will
+be transformed to just a constant.
+    
+#+begin_src lisp
+(defgeneric check-equivalence-memory-space (param-func param-call
+    original-param-call))
+
+(defmethod check-equivalence-memory-space ((d decl) (e expr) (original expr))
+  (let ((ms-disallowed-func (memory-space-disallowed d))
+	(ms-disallowed-call (memory-space-disallowed e)))
+    (cond (ms-disallowed-func
+	   t)
+	  ((and (not ms-disallowed-func) (not ms-disallowed-call))
+	   (assert (typep e 'var-expr))
+	   (check-equivalence-memory-space d (var e) original))
+	  (t
+	   (mcpl-memory-space-error
+	    (location original)
+	    "Variable ~a does not match in whether a memory-space is needed"
+	    original)))))
+
+(defmethod check-equivalence-memory-space ((d decl) (v var) (e expr))
+  (check-equivalence-memory-space d (get-decl-var v) e))
+
+
+(defmethod check-equivalence-memory-space ((d-func decl) (d-call decl) (e expr))
+  (let ((mss-d-func (get-memory-spaces d-func))
+	(mss-d-call (get-memory-spaces d-call)))
+    (if (intersection mss-d-func mss-d-call :test #'string=)
+	t
+	(mcpl-memory-space-error
+	 (location e)
+	 "Memory-space of variable ~a does not match with the function definition:
+function definition memory-space(s): ~{~a~^, ~}
+variable memory-space(s): ~{~a~^, ~}"
+	 (print-pretty:pp e) mss-d-func mss-d-call))))
+#+end_src
+
+*** Testing
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-check-memory-spaces/packages.lisp"
+    :END:
+
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-check-memory-spaces
+  (:use :cl :ast :ast-mcpl :test-mcl :fiveam
+	:errors :parse-mcpl :set-parents :resolve-calls :resolve-vars
+	:set-callgraph :set-cfgraphs :set-vars-written :check-memory-spaces)
+  (:shadowing-import-from :fiveam :skip)
+  (:export :test-check-memory-spaces))
+#+end_src
+
+**** Testing checking of memory-spaces
+     :PROPERTIES:
+     :header-args+: :package ":test-check-memory-spaces"
+     :header-args+: :tangle "../system/tests/test-check-memory-spaces/test-check-memory-spaces.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-check-memory-spaces)
+#+end_src
+
+#+begin_src lisp
+(def-suite check-memory-spaces :in mcl-test-suite)
+(in-suite check-memory-spaces)
+
+(test check-memory-spaces
+  (is (memory-spaces-ok "perfect void g(int l, float[l] a)"
+			"perfect void f() {
+                           float[2] a;
+                           g(2, a);
+                         }"))
+  (is (memory-spaces-ok "perfect void g(int l, float[l] a)"
+			"perfect void f() {
+                            foreach (int i in 2 threads) {
+                              float[2] a;
+                              g(2, a);
+                            }
+                          }")))
+#+end_src
+
+
+***** Helper functions
+     
+#+begin_src lisp
+(defun memory-spaces-ok (function-header-called calling-function)
+  (analyze function-header-called calling-function t))
+
+(defun memory-spaces-error (function-header-called calling-function)
+  (analyze function-header-called calling-function nil))
+
+(defun analyze (function-header-called calling-function result-ok)
+  (handler-case (progn
+		  (analyze2 function-header-called calling-function)
+		  result-ok)
+    (mcpl-memory-space-error nil (not result-ok))))
+
+(defun analyze2 (function-header-called calling-function)
+  (let ((module (create-module function-header-called calling-function))
+	(exports (make-hash-table :test 'equal)))
+    (set-parents module)
+    (resolve-calls module exports)
+    (resolve-vars module exports)
+    (load-hardware-descriptions:load-hardware-description "perfect")
+    (let ((callgraph (set-callgraph (funcs (code module)))))
+      (set-cfgraphs module)
+      (set-vars-written callgraph)
+      (check-memory-spaces callgraph))))
+
+(defun tostring (&rest lines)
+  (format nil "~{~a~^~%~}" lines))
+
+(defparameter *module-template*
+  (tostring
+   "package a;"
+   "module a;"
+   "import perfect;"
+   ""
+   "~a {"
+   " a[0] = 1.0;"
+   "}"
+   ""
+   "~a"
+   ""))
+
+(defun create-module (function-header-called calling-function)
+  (parse-mcpl (build-module function-header-called calling-function)))
+
+(defun build-module (function-header-called calling-function)
+  (format nil *module-template* function-header-called calling-function))
+#+end_src
+
+
+
+** check package
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/check-package/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :check-package
+  (:use :cl :ast :ast-mcpl :errors)
+  (:export :check-package))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":check-package"
+    :header-args+: :tangle "../system/micro-passes/check-package/check-package.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-package)
+#+end_src
+
+#+begin_src lisp
+(defun check-package (module name-mcpl-file)
+  "Checks whether a module is in the right directory.  It returns the root
+directory from where the module can be found."
+  (let ((pathname (pathname name-mcpl-file)))
+    (make-pathname
+     :directory (reverse
+		 (check-directory
+		  module
+		  (reverse (pathname-directory pathname))
+		  (pkg module)))
+     :name nil
+     :type nil)))
+
+(defgeneric check-directory (module directory-list package))
+
+(defmethod check-directory (module directory-list (pkg-id id))
+  (with-slots (name location) pkg-id
+    (check-directory-with-loc module directory-list name location)))
+
+(defun check-directory-with-loc (module directory-list pkg-name location)
+  (let ((directory (first directory-list)))
+    (if (not (string= directory pkg-name))
+	(pkg-error
+	 location 
+	 (format nil "~a~a"
+		 "Expecting module ~a to be in directory ~a, "
+		 "but was found in directory ~a")
+	 (name (id module))
+	 pkg-name
+	 directory)
+	(rest directory-list))))
+
+(defmethod check-directory (module directory-list (compound-id compound-id))
+  (with-slots (name compound location) compound-id
+    (let ((rest-directory-list (check-directory module directory-list compound)))
+      (check-directory-with-loc module rest-directory-list name location))))
+#+end_src
+
+
+** check exports
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/check-exports/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :check-exports
+  (:use :cl :simple-sets :logging :ast :ast-mcpl :errors)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:import-from :utility-directory :filter)
+  (:export :check-exports))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":check-exports"
+    :header-args+: :tangle "../system/micro-passes/check-exports/check-exports.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-exports)
+#+end_src
+
+#+begin_src lisp
+(defun check-exports (module)
+  "Checks whether the exports are existing functions, types, and constants.
+Returns a mapping between these identifiers and what they refer to."
+  (log-micro-pass "check-exports" module)
+  (let ((export-mapping (make-relation :test #'ast=)))
+    (dolist (e (exports module))
+      (add-to-rel e (check-export e module) export-mapping))
+    export-mapping))
+
+(defun check-export (export module)
+  (cond ((func-id-p export) (check-func export module))
+	((type-id-p export) (check-typedef export module))
+	((const-id-p export) (check-const export module))
+	(t (error "unknown identifier"))))
+
+(defun check-func (export module)
+  (dolist (f (funcs (code module)))
+    (when (ast= export (id f))
+      (return-from check-func f)))
+  (undefined-func-error (location export) "Unkown function ~a" (name export)))
+
+(defun check-typedef (export module)
+  (do-check export module 'typedef "type"))
+
+(defun check-const (export module)
+  (do-check export module 'const-decl "constant"))
+
+(defun do-check (export module type message )
+  (let ((top-decls (filter #'(lambda (td) (typep td type))
+		       (top-decls (code module)))))
+    (dolist (td top-decls)
+      (when (ast= export (get-id td))
+	(return-from do-check td)))
+    (define-resolve-error
+	(location export) "Unknown ~a ~a" message (name export))))
+#+end_src
+
+

@@ -1,0 +1,1654 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* Resolution
+
+This section shows several micro-passes that do some form of resolution, for
+example resolving variables and calls.
+
+#+toc: headlines 1 local
+
+** Resolve exports
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/resolve-exports/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :resolve-exports
+  (:use :cl)
+  (:export :resolve-exports))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":resolve-exports"
+    :header-args+: :tangle "../system/micro-passes/resolve-exports/resolve-exports.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :resolve-exports)
+#+end_src
+
+#+begin_src lisp
+(defun resolve-exports (imports-module id exports)
+  (pass-library:resolve-exports imports-module id exports))
+#+end_src
+
+
+
+** set vars written
+
+This pass determines whether variables are written or not.  It depends on a
+callgraph being defined and on alias analysis.  It also relies on a matching
+number of arguments in calls and in functions.  This is checked in the
+~resolve-calls~ micro-pass.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/set-vars-written/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :set-vars-written
+  (:use :cl :string-case :cl-graph :logging :errors :ast :ast-mcpl :callgraph
+	:aliases)
+  (:export :set-vars-written))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":set-vars-written"
+    :header-args+: :tangle "../system/micro-passes/set-vars-written/set-vars-written.lisp"
+    :END:
+
+The function ~set-vars-written~ visits all functions from leave functions to
+the top.  It then sets all variables that are written as being written.  A
+subsequent pass sets all declarations that are not written as being constant.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :set-vars-written)
+#+end_src
+
+#+begin_src lisp
+(defun set-vars-written (callgraph)
+  (log-micro-pass "set-vars-written" callgraph)
+  (let ((funcs (reverse (funcs-ordered callgraph))))
+    (visit funcs #'set-vars-written-fw #'set-vars-written-bw)
+    (visit funcs #'set-vars-read-fw #'set-vars-read-bw)
+    (visit funcs #'set-decl-constant-fw #'set-decl-constant-bw)
+    callgraph))
+#+end_src
+
+**** Setting vars written
+
+The forward pass ~set-vars-written-fw~ visits all AST forms that can write to a
+variable.  The backward pass does nothing.
+
+#+begin_src lisp
+(defgeneric set-vars-written-fw (ast))
+
+(defvisitor set-vars-written-fw ast (ast list string symbol number)
+  t)
+#+end_src
+
+A parameter of a call may be written.  Several builtin functions write to a
+variable.  If a parameter of a called function is written, we try to set it
+written:
+
+#+begin_src lisp
+(defvisitor set-vars-written-fw c (call)
+  (if (builtin-func-p c)
+      (set-vars-written-builtin c)
+      (dolist (e (params c))
+	(when (param-written-p e)
+	  (try-set-written (var e)))))
+  t)
+
+(defun set-vars-written-builtin (call)
+  (string-case ((name (id call)))
+    ("mcl_builtin_read" nil)
+    ("mcl_builtin_write" (set-vars-written-builtin-write call))
+    ("toFloat" nil)
+    ("toDouble" nil)
+    ("mcl_builtin_allocate_on_device" nil)
+    ("mcl_builtin_deallocate_on_device" nil)
+    ("mcl_builtin_transfer_to_device" nil)
+    ("mcl_builtin_transfer_from_device" (set-vars-written-builtin-write call))
+    ("min" nil)
+    ("max" nil)
+    ("divide_up" nil)))
+
+(defun set-vars-written-builtin-write (call)
+  (with-slots (id params) call
+    (with-slots (name location) id
+      (dolist (e params)
+	(if (typep e 'var-expr)
+	    (try-set-written (var e))
+	    (non-var-written-error
+	     location
+	     "Expecting variables as arguments for special form ~a"
+	     name))))))
+#+end_src
+
+The following AST-forms also write to a variable:
+
+#+begin_src lisp
+(defvisitor set-vars-written-fw ast (inc inc-step assign-stat)
+  (try-set-written (var ast))
+  t)
+#+end_src
+
+A swap stat is defined to be written for both variables:
+
+#+begin_src lisp
+(defmethod set-vars-written-fw ((ss swap-stat))
+  (with-slots (var-left var-right) ss
+    (try-set-written var-left)
+    (try-set-written var-right)
+    t))
+#+end_src
+
+The following function tries to set a variable as written.  If the declaration
+is constant, an error is thrown.  Each alias is set written.
+
+#+begin_src lisp
+(defun try-set-written (var)
+  (let ((alias-decls (cons (get-decl-var var) (get-decls-aliased-to-var var))))
+    (dolist (d alias-decls)
+      (try-set-written-decl var d))))
+
+(defun try-set-written-decl (var decl)
+  (let ((id-var (get-id var))
+	(id-decl (get-id decl)))
+    (if (constant-p decl)
+	(with-slots (location name) id-var
+	  (constant-var-written-error
+	   location
+	   "variable ~a is written while being constant~a"
+	   name
+	   (alias-message id-var id-decl)))
+	(setf (written decl) t))))
+
+(defun alias-message (id-var id-decl)
+  (if (ast= id-var id-decl)
+      ""
+      (format nil " (through alias ~a)" (name id-decl))))
+#+end_src
+
+
+
+
+The backward pass that does nothing:
+
+#+begin_src lisp
+(defgeneric set-vars-written-bw (ast))
+
+(defvisitor set-vars-written-bw ast (ast list string symbol number)
+  nil)
+#+end_src
+
+
+
+
+
+
+
+**** Setting vars read
+
+The forward pass ~set-vars-read-fw~ visits all AST forms that can write to a
+variable.  The backward pass does nothing.
+
+#+begin_src lisp
+(defgeneric set-vars-read-fw (ast))
+
+(defvisitor set-vars-read-fw ast (ast list string symbol number)
+  t)
+#+end_src
+
+
+#+begin_src lisp
+(defvisitor set-vars-read-fw f (func)
+  (let ((vars (collect-all f #'(lambda (ast) (typep ast 'var)))))
+    (loop for var in vars
+       do (check-var var))))
+
+
+(defun check-var (var)
+  (cond
+    ((typep (parent var) 'var-expr)
+     (check-var-expr (parent var) var))
+    ((typep (parent var) 'assign-stat)
+     nil)
+    ((typep (parent var) 'dot-var)
+     nil)
+    ((typep (parent var) 'inc)
+     (set-read var))
+    ((typep (parent var) 'inc-step)
+     (set-read var))
+    ((typep (parent var) 'swap-stat)
+     (set-read var))
+    (t
+     (error "case that has to be handled"))))
+
+(defun check-var-expr (var-expr var)
+  (if (typep (parent var-expr) 'call)
+      (check-reads-call (parent var-expr) var-expr var)
+      (set-read var)))
+
+(defun check-reads-call (call var-expr var)
+  (if (builtin-func-p call)
+      (set-read-vars-builtin call var)
+      (let ((func (func call)))
+        (when (loaded (nth (position var-expr (params call)) (params func)))
+          (set-read var)))))
+
+(defun set-read-vars-builtin (call var)
+  (string-case ((name (id call)))
+    ("mcl_builtin_read" (set-read var))
+    ("mcl_builtin_write" nil)
+    ("toFloat" (set-read var))
+    ("toDouble" (set-read var))
+    ("mcl_builtin_allocate_on_device" nil)
+    ("mcl_builtin_transfer_to_device" (set-read var))
+    ("mcl_builtin_transfer_from_device" nil)
+    ("mcl_builtin_deallocate_on_device" nil)
+    ("min" (set-read var))
+    ("max" (set-read var))
+    ("divide_up" (set-read var))))
+
+(defun set-read (var)
+  (let ((alias-decls (cons (get-decl-var var) (get-decls-aliased-to-var
+                                                var))))
+    (dolist (d alias-decls)
+      (setf (loaded d) t))))
+#+end_src
+
+
+
+
+The backward pass that does nothing:
+
+#+begin_src lisp
+(defgeneric set-vars-read-bw (ast))
+
+(defvisitor set-vars-read-bw ast (ast list string symbol number)
+  nil)
+#+end_src
+
+
+
+
+
+
+
+
+**** Setting declarations constant
+
+The forward pass finds declarations that are not written and adds a ~const~
+modifier:
+
+#+begin_src lisp
+(defgeneric set-decl-constant-fw (ast))
+
+(defvisitor set-decl-constant-fw ast (ast list string symbol number)
+  t)
+
+(defvisitor set-decl-constant-fw decl (decl)
+  (when (not (written decl))
+    (let ((const (make-const)))
+      (setf (parent const) decl)
+      (pushnew const (modifiers decl) :test #'ast=)))
+  t)
+#+end_src
+
+The backward pass does nothing:
+
+#+begin_src lisp
+(defgeneric set-decl-constant-bw (ast))
+(defvisitor set-decl-constant-bw ast (ast list string symbol number)
+  nil)
+#+end_src
+    
+
+*** The tests
+
+**** The package
+     :PROPERTIES:
+     :header-args+: :package ":cl-user"
+     :header-args+: :tangle "../system/tests/test-set-vars-written/packages.lisp"
+     :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-set-vars-written
+  (:use :cl :cl-graph :test-mcl :fiveam
+	:ast :ast-mcpl :controlflow :callgraph
+	:parse-mcpl
+	:set-parents :resolve-calls :resolve-vars :set-callgraph :set-cfgraphs
+	:set-vars-written)
+  (:shadow :get-module :skip)
+  (:export :test-set-vars-written))
+#+end_src
+
+**** The functionality
+     :PROPERTIES:
+     :header-args+: :package ":test-set-vars-written"
+     :header-args+: :tangle "../system/tests/test-set-vars-written/test-set-vars-written.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-set-vars-written)
+#+end_src
+
+#+begin_src lisp
+(def-suite set-vars-written :in mcl-test-suite)
+(in-suite set-vars-written)
+
+(test simple
+  (let* ((input "package m;
+                  module a;
+                  
+                  perfect void f(int a) {
+                      a = 0;
+                  }
+
+                  perfect void g(int b, int c) {
+                      f(b);
+                  }")
+	 
+	 (module (get-module input))
+	 (funcs (funcs (code module)))
+	 (g (second funcs)))
+    (set-vars-written (set-callgraph funcs))
+    (is (and (written (first (params g)))
+	     (constant-p (second (params g)))))))
+
+(defun get-module (input)
+  (let ((module (parse-mcpl input)))
+    (set-parents module)
+    (resolve-calls module nil)
+    (resolve-vars module nil)
+    (set-cfgraphs module)
+    module))
+
+(test aliases
+  (let* ((input "package m;
+                   module a;
+                   
+                   perfect void f(int n, float[n] a) {
+                     float[n] b = a;
+                     b[0] = 0.0;
+                   }")
+	 (module (get-module input))
+	 (funcs (funcs (code module)))
+	 (f (first funcs)))
+    (set-vars-written (set-callgraph funcs))
+    (is (and (constant-p (first (params f)))
+	     (written (second (params f)))))))
+#+end_src
+
+
+** set callgraph
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/set-callgraph/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :set-callgraph
+  (:use :cl :cl-graph :logging :ast :ast-mcpl :callgraph)
+  (:export :set-callgraph))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":set-callgraph"
+    :header-args+: :tangle "../system/micro-passes/set-callgraph/set-callgraph.lisp"
+    :END:
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :set-callgraph)
+#+end_src
+
+#+begin_src lisp
+(defun add-edges (callgraph func calls)
+  (dolist (c calls)
+    (let ((calling-func (get-func c)))
+      (add-edge-between-vertexes callgraph calling-func func))))
+
+(defun set-callgraph (funcs)
+  (log-micro-pass "set-callgraph" funcs)
+  (let ((callgraph (make-callgraph)))
+    (dolist (f funcs)
+      (add-edges callgraph f (called-by f))
+      (add-vertex callgraph f))
+    callgraph))
+#+end_src
+
+** resolve calls
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/resolve-calls/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :resolve-calls
+  (:use :cl :errors :logging :ast :ast-mcpl :resolve-exports)
+  (:import-from :anaphora :awhen :aif :it)
+  (:export :resolve-calls))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":resolve-calls"
+    :header-args+: :tangle "../system/micro-passes/resolve-calls/resolve-calls.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :resolve-calls)
+#+end_src
+
+#+begin_src lisp
+(let (funcs resolve-imported-func)
+
+  (defun lookup (call)
+    (with-slots (id) call
+      (dolist (f funcs)
+	(when (ast= id (id f))
+	  (return-from lookup f)))
+      (let ((resolved-func (funcall resolve-imported-func id)))
+	(cond (resolved-func
+	       resolved-func)
+	      ((builtin-func-p id)
+	       nil)
+	      (t
+	       (undefined-func-error
+		(location id) "Unkown function: ~a" (name id)))))))
+  
+  (defgeneric resolve-bw (ast))
+  (defgeneric resolve-fw (ast))
+
+  (defvisitor resolve-bw ast (ast string list number symbol) 
+    nil)
+  (defvisitor resolve-fw ast (ast string list number symbol) 
+    t)
+
+
+  
+  (defvisitor resolve-fw call (call)
+    (awhen (lookup call)
+      (check-parameters call it)
+      (setf (func call) it)
+      (pushnew call (called-by it)))
+    t)
+    
+
+  (defun resolve-calls (module exports)
+    (log-micro-pass "resolve-calls" module)
+    (setf funcs (funcs (code module)))
+    (setf resolve-imported-func (get-resolve-func exports))
+    (visit module #'resolve-fw #'resolve-bw)
+    module))
+
+(defun get-resolve-func (exports)
+  #'(lambda (id) (resolve-exports (imports (get-module id)) id exports)))
+
+(defun check-parameters (call func)
+  (when (not (eql (length (params call)) (length (params func))))
+    (unequal-nr-params-error (location call)
+		"The number of parameters does not match for function call ~a"
+		(name (id call)))))
+#+end_src
+    
+
+*** Testing resolving calls
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-resolve-calls/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-resolve-calls
+  (:use :cl :test-mcl :fiveam :parse-mcpl :ast :ast-mcpl
+	:resolve-calls)
+  (:export :test-resolve-calls))
+#+end_src
+
+**** The functionality
+     :PROPERTIES:
+     :header-args+: :package ":test-resolve-calls"
+     :header-args+: :tangle "../system/tests/test-resolve-calls/test-resolve-calls.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-resolve-calls)
+#+end_src
+
+#+begin_src lisp
+(def-suite resolve-calls)
+(in-suite resolve-calls)
+
+(test resolve-calls
+  (let* ((input "package m;
+                  module a;
+                  
+                  perfect void f() {
+                  }
+
+                  perfect void g() {
+                      f();
+                  }")
+	 (module (parse-mcpl input))
+	 (funcs (funcs (code (resolve-calls module #'(lambda (id) (declare (ignore id)) nil)))))
+	 (f (first funcs))
+	 (g (second funcs)))
+    (is (and (null (called-by g))
+	     (eql (length (called-by f)) 1)
+	     (eq (func (first (called-by f))) f)))))
+#+end_src
+
+    
+** Resolve Types
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/resolve-types/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :resolve-types
+  (:use :cl :logging :errors :ast :ast-mcpl :resolve-exports)
+  (:import-from :anaphora :aif :it)
+  (:export :resolve-types))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":resolve-types"
+    :header-args+: :tangle "../system/micro-passes/resolve-types/resolve-types.lisp"
+    :END:
+
+#+begin_src lisp  :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :resolve-types)
+#+end_src
+
+#+begin_src lisp
+(defgeneric resolve-bw (ast))
+(defgeneric resolve-fw (ast))
+
+(defvisitor resolve-bw ast (ast string list number symbol) 
+  nil)
+(defvisitor resolve-fw ast (ast string list number symbol) 
+  t)
+
+(let (typedefs funcs resolve-imported-func)
+  (defun resolve-types (module exports)
+    (log-micro-pass "resolve-types" module)
+    (setf funcs (funcs (code module)))
+    (setf resolve-imported-func (get-resolve-imported-func exports))
+    (visit module #'resolve-fw #'resolve-bw)
+    module)
+
+  (defmethod resolve-fw ((td typedef))
+    (push td typedefs)
+    t)
+
+  (defmethod resolve-fw ((ct custom-type))
+    (setf (typedef ct) (lookup (id ct)))
+    t)
+
+  (defun lookup (id)
+    (dolist (td typedefs)
+      (when (ast= id (id td))
+	(return-from lookup td)))
+    (let ((resolved-typedef (funcall resolve-imported-func id)))
+      (aif resolved-typedef
+	   it
+	   (undefined-type-error (location id) "Unkown type: ~a" (name id))))))
+
+(defun get-resolve-imported-func (exports)
+  #'(lambda (id) (resolve-exports (imports (get-module id)) id exports)))
+#+end_src
+    
+
+** Resolve Vars
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/resolve-vars/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :resolve-vars
+  (:use :cl :errors :logging :ast :ast-mcpl :query-hdl-mcpl
+	:resolve-exports)
+  (:import-from :anaphora :aif :it)
+  (:export :resolve-vars :skip))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":resolve-vars"
+    :header-args+: :tangle "../system/micro-passes/resolve-vars/resolve-vars.lisp"
+    :END:
+
+In this package we are resolving variables, which means that we are going to
+map it to their declarations.  We define a visitor ~define-fw/bw~ that walks
+the AST.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :resolve-vars)
+#+end_src
+
+#+begin_src lisp
+(defgeneric define-bw (ast))
+(defgeneric define-fw (ast))
+
+(defvisitor define-bw ast (ast string list number symbol) 
+  nil)
+(defvisitor define-fw ast (ast string list number symbol) 
+  t)
+#+end_src
+
+The function ~resolve-vars~ operates on a module.  This is necessary as in any
+AST form, there may be references to declarations higher-up in the tree. 
+
+We keep a list of scopes with declarations.  Each scope represents a list of
+declarations with the found declarations in this scope.  The ~resolve-vars~
+function initializes this with an empty list and starts visiting the AST.  Each
+new scope that is introduced, we push a new empty list of declarations onto the
+list of scopes.
+
+As soon as we discover a variable, we will search the declarations for a match.
+We start with the first scope and continue until we have seen all scopes.  If
+we found a match, we return the basic declaration, otherwise we throw an error.
+
+To be able to do this, we have to associate each ~basic-decl~ with its ~decl~.
+This is easy with ~normal-decls~ and ~assign-decls~, but more difficult with
+~as~ statements.  As soon we discover an ~as~ statement, we request the ~decl~
+of its variable and add the ~basic-decls~ of the ~as~ statement to the list of
+~as-basic-decls~ of the ~decl~.
+
+This means that if we find a declaration, we register the declaration with each
+of its basic-declarations and we push the declaration to the first scope in the
+~scopes-with-declaration~ variable.  If we discover an ~as~ statement, we
+should be able to resolve the variable, and hence retrieve its ~decl~.  We then
+set up all the links.
+
+If we find a variable, we resolve it, find its basic-declaration and register
+it with this variable.
+    
+#+begin_src lisp
+(defparameter *scopes-with-declarations* (list nil))
+(defparameter *get-constant-decl-func* (constantly nil))
+
+(defun resolve-vars (module exports)
+  "Resolve variables in a module based on exports."
+  (log-micro-pass "resolve-vars" module)
+  (setf *scopes-with-declarations* (list nil))
+  (setf *get-constant-decl-func* (constant-decl-func exports))
+  (visit module #'define-fw #'define-bw)
+  module)
+#+end_src
+
+The function below creates a function that resolve identifiers for constants.
+These constants can be defined in the module, but also in other files.
+
+#+begin_src lisp
+(defun constant-decl-func (exports)
+  #'(lambda (id)
+      (if (const-id-p id)
+	  (aif (resolve-exports (imports (get-module id)) id exports)
+	       (decl it)
+	       nil)
+	  nil)))
+
+(defvisitor define-fw ast (func code-block foreach-stat for-stat typedef)
+  (push '() *scopes-with-declarations*)
+  t)
+
+(defvisitor define-bw ast (func code-block foreach-stat for-stat typedef)
+  (pop *scopes-with-declarations*))
+
+(defgeneric resolve (var))
+
+(defun resolve-with-error (ast)
+  (aif (resolve ast)
+       it
+       (undeclared-var-error (location ast)
+		   "variable ~a is not declared" (name (get-id ast)))))
+
+(defmethod resolve ((id id))
+  (with-slots (name location) id
+      (dolist (decls *scopes-with-declarations*)
+	(dolist (d decls)
+	  (dolist (bd (get-basic-decls d))
+	    (when (equal (name (id bd)) name)
+	      (return-from resolve bd)))))
+      (aif (funcall *get-constant-decl-func* id)
+	   (basic-decl it)
+	   (values nil name location))))
+
+(defmethod resolve ((bv basic-var))
+  (resolve (get-id bv)))
+
+(defmethod resolve ((bd basic-decl))
+  (resolve (get-id bd)))
+
+
+(defmethod resolve ((v var))
+  (if (var-in-dot-var-p v)
+      (resolve-in-dot-var v)
+      (resolve (basic-var v))))
+
+(defun var-in-dot-var-p (v)
+  (let ((parent (parent v)))
+    (and (typep parent 'dot-var)
+	 (eq v (var parent)))))
+
+(defun error-already-declared (loc id)
+  (already-declared-error loc "~a already declared" (name id)))
+  
+(defvisitor define-fw d (normal-decl)
+  (dolist (bd (basic-decls d))
+    (with-slots (id location) bd
+      (when (resolve bd)
+	(error-already-declared (location bd) id))
+      (setf (decl bd) d)))
+  (push d (first *scopes-with-declarations*))
+  t)
+
+(defvisitor define-fw d (assign-decl)
+  (with-slots (basic-decl) d
+    (with-slots (id location) basic-decl
+      (when (resolve basic-decl)
+	(error-already-declared location id)))
+    (setf (decl (basic-decl d)) d)
+    (push d (first *scopes-with-declarations*)))
+  t)
+
+
+(defvisitor define-fw as (as-stat)
+  (with-slots (var basic-decls) as
+    (let ((d (decl (resolve-with-error var))))
+      (setf (as-basic-decls d) (append (as-basic-decls d) basic-decls))
+      (dolist (bd basic-decls)
+	(setf (decl bd) d))))
+  t)
+
+(defun set-decls (bd v)
+  (setf (basic-decl (basic-var v)) bd)
+  (push v (vars bd)))
+
+(defmethod define-fw ((v normal-var))
+  (restart-case
+      (let ((bd (resolve-with-error v)))
+	(set-decls bd v))
+    (skip () nil))
+  t)
+
+(defmethod define-fw ((v dot-var))
+  (if (hardware-description-var-p v)
+      (progn
+	(check-hwd-var v)
+	nil)
+      (let ((bd (resolve-with-error (basic-var v))))
+	(set-decls bd v)
+	t)))
+
+(defun resolve-in-dot-var (v)
+  (let* ((dot-var (parent v))
+	 (bd-dot-var (resolve-with-error (basic-var dot-var)))
+	 (type-dot-var (get-base-type (mcl-type bd-dot-var))))
+    (if (typep type-dot-var 'custom-type)
+	(let ((*scopes-with-declarations* 
+	       (list (fields (typedef type-dot-var)))))
+	  (resolve-with-error (basic-var v)))
+	(let ((id (get-id dot-var)))
+	  (non-primitive-type-error
+	   (location (get-id v))
+	   "Expecting a non-primitive type for variable ~a."
+	   (name id))))))
+
+(defun check-hwd-var (hwd-var)
+  (when (not (resolve-hardware-description-var hwd-var))
+    (undefined-hardware-description-var-error
+     (location hwd-var)
+     "unknown hardware description variable." hwd-var)))
+#+end_src
+
+
+** loading hardware descriptions
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/load-hardware-descriptions/packages.lisp"
+    :END:
+
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :load-hardware-descriptions
+  (:use :cl :mcl-util :errors :ast :ast-hdl
+        :hardware-descriptions :parse-hdl :set-parents :replace-id-stats)
+  (:import-from :anaphora :awhen :aif :it)
+  (:import-from :cl-fad :file-exists-p)
+  (:export :load-hardware-description))
+#+end_src
+
+*** Loading a hardware description
+    :PROPERTIES:
+    :header-args+: :package ":load-hardware-descriptions"
+    :header-args+: :tangle "../system/micro-passes/load-hardware-descriptions/load-hardware-descriptions.lisp"
+    :END:
+
+Loading a hardware description has several components.  First, we parse the hdl
+file, after which we can set the parents in the AST.  We can then load the
+parent hardware description.  After we have loaded all parent hardware
+descriptions we, make it available to the hardware description library, after
+which we can replace the ~id-stats~ of the hardware description with the blocks
+they are referring to.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :load-hardware-descriptions)
+#+end_src
+
+#+begin_src lisp
+(defun load-hardware-description (name-hwd)
+  (aif (get-hardware-description-by-name name-hwd)
+       it
+       (load-hardware-description-real name-hwd)))
+#+end_src
+
+#+begin_src lisp
+(defun load-hardware-description-real (name-hwd)
+  (let ((filename (format nil "~a/~a.hdl" (getenv "HDL_DIR") name-hwd)))
+    (unless (file-exists-p filename)
+      (mcl-error nil "Unknown hardware-description: ~a" name-hwd))
+    (let ((hwd (parse-hdl-file filename)))
+      (awhen (get-parent-hardware-description hwd)
+        (load-hardware-description it))
+      (save-hardware-description name-hwd hwd)
+      (set-parents hwd)
+      (replace-id-stats hwd)
+      hwd)))
+#+end_src
+
+
+** replace identifier statements
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/replace-id-stats/packages.lisp"
+    :END:
+
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :replace-id-stats
+  (:use :cl :ast :ast-hdl :hardware-descriptions :set-parents)
+  (:export :replace-id-stats))
+#+end_src
+
+*** Replacing identifier statements
+    :PROPERTIES:
+    :header-args+: :package ":replace-id-stats"
+    :header-args+: :tangle "../system/micro-passes/replace-id-stats/replace-id-stats.lisp"
+    :END:
+
+A hardware description contains possibly qualified identifiers that refer to a
+block.  This pass ensures that those statements are replaced by their blocks.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :replace-id-stats)
+#+end_src
+
+#+begin_src lisp
+(defgeneric replace-fw (ast))
+(defgeneric replace-bw (ast))
+
+(let (the-hwd)
+  (defun replace-id-stats (hwd)
+    "Replace id-stats in hardware description hwd with the blocks they are
+referring to."
+    (setf the-hwd hwd)
+    (visit-breadth-first the-hwd #'replace-fw #'replace-bw)
+    the-hwd)
+
+
+  (defvisitor replace-fw ast (ast string list symbol number)
+    t)
+
+  (defvisitor replace-bw ast (ast string list symbol number)
+    nil)
+
+  (defvisitor replace-bw id-stat (id-stat)
+    (let* ((resolved-block (resolve id-stat the-hwd))
+	   (replacement-block (if (inherited-id id-stat)
+				  (set-parents (copy-ast resolved-block))
+				  resolved-block)))
+      (replace-in-ast id-stat :with replacement-block)
+      (unless (inherited-id id-stat)
+	(remove-from-ast replacement-block))
+      (setf (parent replacement-block) (parent id-stat)))))
+#+end_src
+
+*** Testing replacing identifier statements
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-replace-id-stats/packages.lisp"
+    :END:
+
+#+begin_src lisp  :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-replace-id-stats
+  (:use :cl :test-mcl :fiveam :ast :ast-hdl :parse-hdl :set-parents
+	:replace-id-stats :hardware-descriptions)
+  (:export :test-replace-id-stats))
+#+end_src
+
+**** The tests
+     :PROPERTIES:
+     :header-args+: :package ":test-replace-id-stats"
+     :header-args+: :tangle "../system/tests/test-replace-id-stats/test-replace-id-stats.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-replace-id-stats)
+#+end_src
+
+#+begin_src lisp
+(def-suite replace-id-stats :in mcl-test-suite)
+(in-suite replace-id-stats)
+
+(defun hwd ()
+  (set-parents (parse-hdl "
+hardware_description perfect;
+
+device perfect {
+  mem;
+}
+
+memory mem {
+  capacity = unlimited B;
+}")))
+
+(defparameter *result* (set-parents (parse-hdl "
+hardware_description perfect;
+
+device perfect {
+  memory mem {
+    capacity = unlimited B;
+  }
+}")))
+
+
+(test simple ()
+  (is
+    (ast= (replace-id-stats (hwd)) *result*)))
+
+(defun lower-level-hwd ()
+  (save-hardware-description "perfect" (hwd))
+  (save-hardware-description "lower" (set-parents (parse-hdl "
+hardware_description lower;
+
+device lower {
+  perfect.mem;
+}"))))
+
+(defparameter *result-lower-level* (set-parents (parse-hdl "
+hardware_description lower;
+
+device lower {
+  memory mem {
+    capacity = unlimited B;
+  }
+}")))
+
+(test inheritance
+  (let ((hardware-descriptions::*hardware-descriptions*
+	 (make-hash-table :test 'equal)))
+    (is (ast= (replace-id-stats (lower-level-hwd)) *result-lower-level*))))
+
+
+(defun hwd-dependent ()
+  (set-parents (parse-hdl "
+hardware_description perfect;
+
+device perfect {
+  mem;
+}
+
+memory mem {
+  mem2;
+}
+
+memory mem2 {
+  capacity = 1 B;
+}")))
+
+(defparameter *result-dependent* (set-parents (parse-hdl "
+hardware_description perfect;
+
+device perfect {
+  memory mem {
+    memory mem2 {
+      capacity = 1 B;
+    }
+  }
+}")))
+
+(test dependent
+  (is (ast= (replace-id-stats (hwd-dependent)) *result-dependent*)))
+#+end_src
+
+
+** set control flow graphs
+
+*** The package 
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/set-cfgraphs/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :set-cfgraphs
+  (:use :cl :cl-graph :ast :ast-mcpl :logging :controlflow)
+  (:import-from :alexandria :last-elt)
+  (:import-from :utility-directory :filter)
+  (:export :set-cfgraphs))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":set-cfgraphs"
+    :header-args+: :tangle "../system/micro-passes/set-cfgraphs/set-cfgraphs.lisp"
+    :END:
+
+We can define several different controlflow graphs.  First, we can choose
+between the representation of a foreach statement, as a loop or one basic
+block.  Second, we can view the controlflow optimistically, that is, a for loop
+is always executed at least once.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :set-cfgraphs)
+#+end_src
+
+#+begin_src lisp
+(let (cfgraph entries exits optimistic2 foreach-summarized2)
+
+  (defun get-entry (param)
+    (typecase param
+      (bb param)
+      (ast (gethash param entries))
+      (cons (get-entry (first param)))))
+
+  (defun get-exits (param)
+    (typecase param
+      (bb (list param))
+      (ast (gethash param exits))
+      (cons (get-exits (last-elt param)))))
+
+  (defun true-bb (form)
+    (and (not (null form))
+	 (not (null (get-entry form)))))
+
+  (defun connect (&rest params)
+    (let ((params-wo-nil (filter #'true-bb params)))
+      (loop for (a b) on params-wo-nil
+	 while b 
+	 collect (unless (null b)
+		   (dolist (i (get-exits a))
+		     (add-edge-between-vertexes cfgraph
+						i (get-entry b)))))))
+
+
+  
+
+  (defgeneric record-cfgraph-fw (ast))
+
+  (defvisitor record-cfgraph-fw ast (ast string list number symbol)
+    t)
+  
+  (defvisitor record-cfgraph-fw f (func)
+    (setf cfgraph (make-cfgraph))
+    (setf entries (make-hash-table))
+    (setf exits (make-hash-table))
+    t)
+  
+  
+  (defgeneric record-cfgraph-bw (ast))
+  
+  (defvisitor record-cfgraph-bw ast (string list number symbol)
+    nil)
+
+  (defvisitor record-cfgraph-bw ast (ast)
+    nil)
+
+  (defvisitor record-cfgraph-bw d (decl)
+    (let ((bb-decl (make-bb-decl d)))
+      (if (param-p d)
+	  (progn
+	    (setf (gethash d entries) bb-decl)
+	    (setf (gethash d exits) (list bb-decl))))))
+
+  (defvisitor record-cfgraph-bw s (stat)
+    (let ((bb-stat (make-bb-stat s)))
+      (setf (gethash s entries) bb-stat)
+      (setf (gethash s exits) (list bb-stat))))
+
+  (defvisitor record-cfgraph-bw cb (code-block)
+    (let ((stats (stats cb)))
+      (apply #'connect stats)
+      (if (not (null stats))
+	(progn
+	  (setf (gethash cb entries) (gethash (first stats) entries))
+	  (setf (gethash cb exits) (gethash (last-elt stats) exits))))))
+
+  (defvisitor record-cfgraph-bw f (for-stat)
+    (with-slots (decl cond-expr inc stat) f
+      (let ((bb-for-decl (make-bb-for-decl decl))
+	    (bb-for-cond (make-bb-for-cond cond-expr))
+	    (bb-for-inc (make-bb-for-inc inc)))
+	(if optimistic2
+	    (connect bb-for-decl stat bb-for-inc bb-for-cond stat)
+	    (connect bb-for-decl bb-for-cond stat bb-for-inc bb-for-cond))
+	(setf (gethash f entries) bb-for-decl)
+	(setf (gethash f exits) (list bb-for-cond)))))
+
+  (defvisitor record-cfgraph-bw fe (foreach-stat)
+    (if foreach-summarized2
+	(record-foreach-summarized fe)
+	(record-foreach-regular fe)))
+
+  (defun record-foreach-summarized (fe)
+    (let ((bb (make-bb-foreach fe)))
+      (setf (gethash fe entries) bb)
+      (setf (gethash fe exits) (list bb))))
+
+    
+  (defun record-foreach-regular (fe)
+    (with-slots (decl nr-iters stat) fe
+      (let ((bb-fe-size (make-bb-foreach-size nr-iters))
+	    (bb-fe-decl (make-bb-foreach-decl decl)))
+	(connect bb-fe-size bb-fe-decl stat bb-fe-size)
+	(setf (gethash fe entries) bb-fe-size)
+	(setf (gethash fe exits) (list bb-fe-size)))))
+
+  (defvisitor record-cfgraph-bw is (if-stat)
+    (with-slots (cond-expr stat elsestat) is
+      (let ((bb-cond (make-bb-if-cond cond-expr)))
+	(connect bb-cond stat)
+	(setf (gethash is entries) bb-cond)
+	(if elsestat
+	    (progn (connect bb-cond elsestat)
+		   (setf (gethash is exits) (concatenate 'list (get-exits stat)
+							 (get-exits elsestat))))
+	    (setf (gethash is exits) (get-exits stat))))))
+
+  (defvisitor record-cfgraph-bw bs (block-stat)
+    (with-slots (code-block) bs
+      (setf (gethash bs entries) (get-entry code-block))
+      (setf (gethash bs exits) (get-exits code-block))))
+	  
+
+  (defvisitor record-cfgraph-bw f (func)
+    (apply #'connect (params f))
+    (connect (entry cfgraph) (params f) (code-block f) (exit cfgraph))
+    (setf (cfgraph f) (remove-unconnected-blocks cfgraph)))
+
+  (defun set-cfgraphs (ast &optional (optimistic nil) (foreach-summarized nil))
+    (log-micro-pass "set-cfgraphs" ast)
+    (setf optimistic2 optimistic)
+    (setf foreach-summarized2 foreach-summarized)
+    (visit ast #'record-cfgraph-fw #'record-cfgraph-bw)
+    ast))
+#+end_src
+
+
+    
+
+*** Testing setting control flow graphs
+
+**** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/tests/test-set-cfgraphs/packages.lisp"
+    :END:
+
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-set-cfgraphs
+  (:use :cl :cl-graph :fiveam :test-mcl :parse-mcpl :ast :ast-mcpl :controlflow
+	:set-cfgraphs :set-parents :build-ast)
+  (:export :test-set-cfgraphs))
+#+end_src
+
+**** The tests
+     :PROPERTIES:
+     :header-args+: :package ":test-set-cfgraphs"
+     :header-args+: :tangle "../system/tests/test-set-cfgraphs/test-set-cfgraphs.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-set-cfgraphs)
+#+end_src
+
+#+begin_src lisp
+(def-suite set-cfgraphs :in mcl-test-suite)
+(in-suite set-cfgraphs)
+
+(test minimal
+  (let ((cfgraph (make-cfgraph)))
+    (add-edge-between-vertexes cfgraph (make-bb-entry) (make-bb-exit))
+    (is
+      (cfgraph= (get-cfgraph "package m;
+                              module a;
+                              perfect void f() {
+                              }") cfgraph))))
+
+
+
+(test decl
+  (let ((cfgraph (make-cfgraph))
+	(bb-decl (build-bb-decl "a")))
+    (add-edge-between-vertexes cfgraph (make-bb-entry) bb-decl)
+    (add-edge-between-vertexes cfgraph bb-decl (make-bb-exit))
+    (is
+      (cfgraph= (get-cfgraph "package m;
+                              module a;
+                              perfect void f(int a) {
+                              }") cfgraph))))
+
+
+
+(test decls
+  (is
+    (let ((cfgraph (make-cfgraph))
+	  (bb-decl-1 (build-bb-decl "a"))
+	  (bb-decl-2 (build-bb-decl "b")))
+      (add-edge-between-vertexes cfgraph (make-bb-entry) bb-decl-1)
+      (add-edge-between-vertexes cfgraph bb-decl-1 bb-decl-2)
+      (add-edge-between-vertexes cfgraph bb-decl-2 (make-bb-exit))
+      (cfgraph= (get-cfgraph "package m;
+                              module a;
+                              perfect void f(int a, int b) {
+                              }") cfgraph))))
+
+(test stat
+  (let ((cfgraph (make-cfgraph))
+	(bb-decl-1 (build-bb-decl "a"))
+	(bb-decl-2 (build-bb-decl "b"))
+	(bb-stat (make-bb-stat (make-decl-stat (build-decl "c") nil))))
+    (add-edge-between-vertexes cfgraph (make-bb-entry) bb-decl-1)
+    (add-edge-between-vertexes cfgraph bb-decl-1 bb-decl-2)
+    (add-edge-between-vertexes cfgraph bb-decl-2 bb-stat)
+    (add-edge-between-vertexes cfgraph bb-stat (make-bb-exit))
+    (is
+      (cfgraph= (get-cfgraph "package m;
+                              module a;
+                              perfect void f(int a, int b) {
+                                  int c;
+                              }") cfgraph))))
+
+(test stats
+  (let ((cfgraph (make-cfgraph))
+	(bb-decl-1 (build-bb-decl "a"))
+	(bb-decl-2 (build-bb-decl "b"))
+	(bb-stat-1 (make-bb-stat (make-decl-stat (build-decl "c") nil)))
+	(bb-stat-2 (make-bb-stat (make-decl-stat (build-decl "d") nil))))
+    (add-edge-between-vertexes cfgraph (make-bb-entry) bb-decl-1)
+    (add-edge-between-vertexes cfgraph bb-decl-1 bb-decl-2)
+    (add-edge-between-vertexes cfgraph bb-decl-2 bb-stat-1)
+    (add-edge-between-vertexes cfgraph bb-stat-1 bb-stat-2)
+    (add-edge-between-vertexes cfgraph bb-stat-2 (make-bb-exit))
+    (is
+      (cfgraph= (get-cfgraph "package m;
+                              module a;
+                              perfect void f(int a, int b) {
+                                  int c;
+                                  int d;
+                              }") cfgraph))))
+
+
+
+
+(test foreach
+  (let ((cfgraph (make-cfgraph))
+	(bb-decl-1 (build-bb-decl "a"))
+	(bb-decl-2 (build-bb-decl "b"))
+	(bb-fe-size (make-bb-foreach-size
+		     (make-var-expr
+		      (make-normal-var
+		       (make-basic-var (make-id "a" nil) nil nil) nil) nil)))
+	(bb-fe-decl (make-bb-foreach-decl (build-decl "i")))
+	(bb-stat-1 (make-bb-stat (make-decl-stat (build-decl "c") nil)))
+	(bb-stat-2 (make-bb-stat (make-decl-stat (build-decl "d") nil))))
+    (add-edge-between-vertexes cfgraph (make-bb-entry) bb-decl-1)
+    (add-edge-between-vertexes cfgraph bb-decl-1 bb-decl-2)
+    (add-edge-between-vertexes cfgraph bb-decl-2 bb-fe-size)
+    (add-edge-between-vertexes cfgraph bb-fe-size bb-fe-decl)
+    (add-edge-between-vertexes cfgraph bb-fe-decl bb-stat-1)
+    (add-edge-between-vertexes cfgraph bb-stat-1 bb-fe-size)
+    (add-edge-between-vertexes cfgraph bb-fe-size bb-stat-2)
+    (add-edge-between-vertexes cfgraph bb-stat-2 (make-bb-exit))
+    (is 
+      (cfgraph= (get-cfgraph "package m;
+                              module a;
+                              perfect void f(int a, int b) {
+                                  foreach (int i in a threads) {
+                                      int c;
+                                  }
+                                  int d;
+                              }") cfgraph))))
+
+
+
+(test for
+  (let ((cfgraph (make-cfgraph))
+	(bb-decl-1 (build-bb-decl "a"))
+	(bb-decl-2 (build-bb-decl "b"))
+	(bb-for-decl (make-bb-for-decl
+		      (make-assign-decl
+		       nil
+		       (make-basic-decl
+			(make-int nil) (make-id "i" nil) nil)
+		       (make-int-constant 0 nil)
+		       nil)))
+	(bb-for-cond (make-bb-for-cond
+		      (make-lt
+		       (build-expr "i")
+		       (build-expr "a") nil)))
+	(bb-for-inc (make-bb-for-inc
+		     (make-inc (make-normal-var
+				  (make-basic-var
+				   (make-id "i" nil) nil nil) nil) t nil)))
+	(bb-stat-1 (make-bb-stat (make-decl-stat (build-decl "c") nil)))
+	(bb-stat-2 (make-bb-stat (make-decl-stat (build-decl "d") nil))))
+    (add-edge-between-vertexes cfgraph (make-bb-entry) bb-decl-1)
+    (add-edge-between-vertexes cfgraph bb-decl-1 bb-decl-2)
+    (add-edge-between-vertexes cfgraph bb-decl-2 bb-for-decl)
+    (add-edge-between-vertexes cfgraph bb-for-decl bb-for-cond)
+    (add-edge-between-vertexes cfgraph bb-for-cond bb-stat-1)
+    (add-edge-between-vertexes cfgraph bb-stat-1 bb-for-inc)
+    (add-edge-between-vertexes cfgraph bb-for-inc bb-for-cond)
+    (add-edge-between-vertexes cfgraph bb-for-cond bb-stat-2)
+    (add-edge-between-vertexes cfgraph bb-stat-2 (make-bb-exit))
+    (is 
+      (cfgraph= (get-cfgraph "package m;
+                              module a;
+                              perfect void f(int a, int b) {
+                                  for (int i = 0; i < a; i++) {
+                                      int c;
+                                  }
+                                  int d;
+                              }") cfgraph))))
+
+
+
+#+end_src
+
+
+The following code iss the summarized controlflow graphs:
+
+#+begin_src lisp
+(test summarized
+  (let ((cfgraph (make-cfgraph))
+	(bb-foreach (make-bb-foreach
+		     (build-foreach "i" "a"
+				    (list (make-decl-stat (build-decl "c"))))))
+	(bb-decl-1 (build-bb-decl "a"))
+	(bb-decl-2 (build-bb-decl "b")))
+    (add-edge-between-vertexes cfgraph (make-bb-entry) bb-decl-1)
+    (add-edge-between-vertexes cfgraph bb-decl-1 bb-decl-2)
+    (add-edge-between-vertexes cfgraph bb-decl-2 bb-foreach)
+    (add-edge-between-vertexes cfgraph bb-foreach (make-bb-exit))
+    (is
+      (cfgraph= (get-cfgraph "package m;
+                              module a;
+                              perfect void f(int a, int b) {
+                                  foreach (int i in a threads) {
+                                      int c;
+                                  }
+                              }" nil t) cfgraph))))
+
+(test summarized-multiple-statements
+  (let ((cfgraph (make-cfgraph))
+	(bb-foreach (make-bb-foreach
+		     (build-foreach "i" "a"
+				    (list (make-decl-stat (build-decl "c"))
+					  (make-decl-stat (build-decl "d"))))))
+	(bb-decl-1 (build-bb-decl "a"))
+	(bb-decl-2 (build-bb-decl "b")))
+    (add-edge-between-vertexes cfgraph (make-bb-entry) bb-decl-1)
+    (add-edge-between-vertexes cfgraph bb-decl-1 bb-decl-2)
+    (add-edge-between-vertexes cfgraph bb-decl-2 bb-foreach)
+    (add-edge-between-vertexes cfgraph bb-foreach (make-bb-exit))
+    (is
+      (cfgraph= (get-cfgraph "package m;
+                              module a;
+                              perfect void f(int a, int b) {
+                                  foreach (int i in a threads) {
+                                      int c;
+                                      int d;
+                                  }
+                              }" nil t) cfgraph))))
+
+
+#+end_src
+
+
+
+Helper functions:
+
+
+
+#+begin_src lisp
+(defun get-cfgraph (input &optional optimistic foreach-summarized)
+  (let ((module (set-cfgraphs (set-parents (parse-mcpl input))
+			      optimistic foreach-summarized)))
+    (cfgraph (first (funcs (code module))))))
+
+(defun build-bb-decl (name)
+  (make-bb-decl (build-decl name)))
+#+end_src
+
+
+** set parents
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/set-parents/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :set-parents
+  (:use :cl :logging :ast)
+  (:export :set-parents))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":set-parents"
+    :header-args+: :tangle "../system/micro-passes/set-parents/set-parents.lisp"
+    :END:
+
+In function ~set-parents~, the list of parents is initially set to zero and
+then the current AST form is pushed as parent.  In this way, the parent of the
+current AST will be maintained.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :set-parents)
+#+end_src
+
+#+begin_src lisp
+(let ((parents nil))
+  (defgeneric set-parent-fw (ast))
+  (defgeneric set-parent-bw (ast))
+
+  (defvisitor set-parent-fw ast (string list number symbol)
+    t)
+
+  (defvisitor set-parent-bw ast (string list number symbol)
+    nil)
+
+  (defmethod set-parent-fw ((ast ast))
+    (setf (parent ast) (first parents))
+    (push ast parents)
+    t)
+
+  (defmethod set-parent-bw ((i ast))
+    (pop parents))
+  
+  (defun set-parents (ast)
+    "Sets the parents of an AST form."
+    (log-micro-pass "set-parents" ast)
+    (setf parents nil)
+    (push (parent ast) parents)
+    (visit ast #'set-parent-fw #'set-parent-bw)
+    ast))
+#+end_src
+
+

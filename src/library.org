@@ -1,0 +1,3316 @@
+#+name: license-preamble
+#+begin_src lisp :exports none 
+;;;; A system for programming many-cores on multiple levels of abstraction.
+;;;; Copyright (C) 2018 Pieter Hijma
+
+;;;; This program is free software: you can redistribute it and/or modify
+;;;; it under the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation, either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; This program is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#+end_src
+
+#+property: header-args :comments link :tangle-mode (identity #o400) :results output silent :mkdirp yes
+
+* The library
+
+This section shows the libraries that are used within MCL.
+
+#+toc: headlines 4 local
+
+** Parsing
+
+There are some functions and terminals and non-terminals that are common among
+the two parsers.  
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/parsing/packages.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :parsing
+     (:use :cl :esrap :parser.common-rules :ast)
+     (:export :skippable
+	      :skippable?
+	      :defkw
+	      :identifier
+	      :make-loc
+	      :do-left-assoc
+	      :do-right-assoc
+	      :do-non-assoc
+	      :semi-colon/?s
+	      :block-open/?s
+	      :block-close/?s
+	      :equals/?s
+	      :parenthesis-open/?s
+	      :parenthesis-close/?s
+	      :bracket-open/?s
+	      :bracket-close/?s
+	      :dot
+	      :dot/?s
+	      :comma/?s))
+#+end_src
+
+*** The common parsing functions
+    :PROPERTIES:
+    :header-args+: :package ":ast"
+    :header-args+: :tangle "system/library/parsing/parsing.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :parsing)
+#+end_src
+
+#+begin_src lisp
+(defrule skippable (+  (or whitespace
+                           c-style-comment/rest-of-line
+                           c-style-comment/delimited)))
+
+(defrule skippable? (* (or whitespace
+			   c-style-comment/rest-of-line
+			   c-style-comment/delimited)))
+
+(defmacro defkw (kw-string &optional &body body)
+  (let ((rule-sym (intern (format nil "~a-KW" (string-upcase kw-string))))) ;
+    (if body
+        `(defrule/s ,rule-sym (and ,kw-string (! (character-ranges (#\a #\z)))) ,@body)
+        `(defrule/s ,rule-sym (and ,kw-string (! (character-ranges (#\a #\z))))))))
+
+(defrule/s identifier (and (character-ranges (#\a #\z))
+		   (* (or (character-ranges (#\a #\z) (#\A #\Z) (#\0 #\9))
+			#\_)))
+  (:text t))
+
+(defun make-loc (start end)
+  (list (cons start end) nil))
+
+(defun do-left-assoc (l tail)
+  (if tail 
+    (let* ((op-exp (car tail))
+           (f (first op-exp))
+           (r (second op-exp)))
+       (do-left-assoc (funcall f l r (location l)) (cdr tail)))
+    l))
+
+(defun do-right-assoc (l tail)
+  (if tail 
+    (let* ((op-exp (car tail))
+           (f (first op-exp))
+           (r (second op-exp)))
+      (funcall f l (do-right-assoc r (cdr tail)) (location l)))
+    l))
+
+(defun do-non-assoc (l lst)
+  (if lst 
+    (let* ((f (first lst))
+           (r (second lst)))
+      (funcall f l r (location l)))
+    l))
+#+end_src
+
+
+#+begin_src lisp
+(defrule/s semi-colon #\;)
+
+(defrule/s block-open #\{)
+(defrule/s block-close #\})
+
+(defrule/s equals #\=)
+
+(defrule/s parenthesis-open #\()
+
+(defrule/s parenthesis-close #\))
+
+(defrule/s bracket-open #\[)
+
+(defrule/s bracket-close #\])
+
+(defrule/s dot #\.)
+
+(defrule/s comma #\,)
+#+end_src
+
+
+** AST
+
+This library allows one to define ASTs.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/ast/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :ast
+     (:use :cl ;;:util :lol
+	   )
+     (:import-from :alexandria :flatten)
+     (:import-from :anaphora :aif :it)
+     (:import-from :utility-directory :splice-if)
+     (:export :defast
+	      :ast
+	      :ast=
+	      :ast<
+	      :location<
+	      :location
+	      :parent
+	      :children
+	      :parent-in-asts-p
+	      :get-parents
+	      :has-as-child-p
+	      :get-child-elements
+              :siblings-before
+	      :visit
+	      :mirrored-visit
+	      :visit-breadth-first
+	      :defvisitor
+	      :retrieve
+	      :retrieve-all
+	      :collect
+	      :collect-all
+	      :collect-all-parent
+	      :copy-ast
+	      :replace-in-ast
+	      :remove-from-ast
+	      :insert-before-ast
+	      :insert-after-ast
+	      :create-print-functions))
+#+end_src
+
+*** Defining an AST
+    :PROPERTIES:
+    :header-args+: :package ":ast"
+    :header-args+: :tangle "system/library/ast/ast-macros.lisp"
+    :END:
+
+The following code shows an example of how the ~defast~ macro is used.  This
+macro allows us to define kind of an algebraic datatype on which pattern
+matching can be applied using generic methods.
+
+#+begin_src lisp :tangle no
+(defast module
+        ((module (id imports code) (module-callgraph))) 
+        ())
+#+end_src
+
+This form defines an AST node called module.  It has only one constructor that
+has the same name as the AST node.  It has the three fields ~id~, ~imports~,
+and ~code~.  It has one auxilary field ~module-callgraph~ that is not
+necessarily part of the tree but can also refer back to other nodes.
+
+Another example is listed below:
+
+#+begin_src lisp :tangle no
+(defast decl 
+        ((normal-decl (modifiers basic-decls) ())
+         (assign-decl (modifiers basic-decl expr) ())) 
+        (as-basic-decls written))
+#+end_src
+
+This defines an AST node ~decl~ which can be a ~normal-decl~ with ~modifiers~
+and ~basic-decls~, and an ~assign-decl~ with an additional field ~expr~.  The
+auxiliary fields of a ~decl~ keep track of the "as-basic-decls" and whether this
+declaration is written anywhere.
+
+The ~defast~ macro has to first check whether the two constructors are the same
+as in the first example.  Based on that it determines the type and creates a
+superclass or not.  Finally, it creates constructors, visit methods, and a
+method to retrieve the children:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :ast)
+#+end_src
+
+#+begin_src lisp
+(defmacro defast (type constructors auxiliary-fields)
+  (let* ((first-constructor (caar constructors))
+         (constructors-equal (cl:eq type first-constructor))
+         (type (if constructors-equal 'ast type))
+         (superclass (if constructors-equal
+			 nil
+			 (create-superclass type auxiliary-fields))))
+    `(progn
+       ,superclass
+       ,(when (not constructors-equal)
+	  (create-empty-visit-method type)
+	  (create-empty-mirrored-visit-method type))
+       ,@(let ((res nil))
+           (dolist (c constructors)
+             (push (create-constructor c type) res)
+             (push (create-visit-methods c) res)
+             (push (create-children-method c) res))
+           (nreverse res)))))
+#+end_src
+
+The following function creates superclass code and code that exports several
+symbols:
+
+#+begin_src lisp
+(defun create-superclass (type auxiliary-fields)
+  `(progn
+     (defclass ,type (ast) 
+       ,(let ((res nil))
+	     (dolist (f auxiliary-fields)
+	       (push `(,f :initform nil :accessor ,f) res))
+	     (nreverse res)))
+     ,@(create-export-list auxiliary-fields)
+     (export ',type)))
+#+end_src
+
+The following code creates empty visit methods:
+
+#+begin_src lisp
+(defun create-empty-visit-method (c)
+  `(defmethod visit ((ast ,c) forward backward)
+       (funcall forward ast)
+       (funcall backward ast)
+       nil))
+
+(defun create-empty-mirrored-visit-method (c)
+  `(defmethod mirrored-visit ((read-only-ast ,c) (mod-ast ,c)
+			      forward backward)
+       (funcall forward read-only-ast mod-ast)
+       (funcall backward read-only-ast mod-ast)
+       nil))
+#+end_src
+
+The following function creates a constructor:
+
+#+begin_src lisp
+(defun create-constructor (c type)
+  (let* ((c-name (first c))
+	 (fields (second c))
+	 (aux-fields (third c))
+	 (make-sym (intern (format nil "MAKE-~a" c-name))))
+    `(progn 
+       ,(create-class c-name type fields aux-fields)
+       (export ',c-name)
+       ,@(create-export-list fields)
+       ,@(create-export-list aux-fields)
+       ,(create-make-function make-sym c-name fields)
+       ,(create-copy-method make-sym c-name fields)
+       ,(create-replace-child-method c-name fields)
+       ,(create-remove-child-method c-name fields)
+       ,(create-insert-before/after-child-method c-name fields 'before)
+       ,(create-insert-before/after-child-method c-name fields 'after)
+       ,(create-child-ast<-method c-name fields)
+       (export ',make-sym))))
+#+end_src
+
+Creating a class:
+
+#+begin_src lisp
+(defun create-class (c-name type fields aux-fields)
+  `(defclass ,c-name (,type)
+     ,(let ((res nil))
+        (dolist (f fields)
+	  (let* ((fname (symbol-name f))
+		 (kw (intern fname "KEYWORD")))
+	    (push `(,f :initarg ,kw
+		       :initform 
+		       (error ,(format nil "Must supply value to ~a"
+				       fname)) :accessor ,f)
+		  res)))
+	(dolist (f aux-fields)
+	  (push `(,f :initform nil :accessor ,f) res))
+	(nreverse res))))
+#+end_src
+
+Creating a convenience function to make the class:
+
+#+begin_src lisp
+(defun create-make-function (make-sym c-name fields)
+  `(defun ,make-sym (,@fields &optional location)
+     (make-instance ',c-name
+		    ,@(let ((res nil))
+			   (dolist (f fields)
+			     (let* ((fname (symbol-name f))
+				    (kw (intern fname "KEYWORD")))
+			       (push kw res)
+			       (push f res)))
+			   (nreverse res))
+	      :location location)))
+#+end_src
+
+The following function creates a copy function that creates a deep copy of an
+AST.
+
+#+begin_src lisp
+(defun create-copy-method (make-symbol c-name fields)
+  `(defmethod copy-ast ((ast ,c-name))
+     (,make-symbol ,@(let (res)
+			  (dolist (f fields)
+			    (push `(copy-ast (,f ast)) res))
+			  (nreverse res))
+		   (location ast))))
+#+end_src
+
+The following two functions create methods that replace a child in and remove a
+child from the AST respecively.  For every field, we check whether it is the
+same as child and if true we replace it or set it to ~nil~.  A field can be a
+list and in that case we have to replace or remove it in the list.  However, if
+a field has no value, the value is going to be ~nil~ which is also a list.
+Therefore, we also check whether the list is non ~nil~.
+
+#+begin_src lisp
+(defun create-replace-child-method (c-name fields)
+  `(defmethod replace-child ((ast ,c-name) child &key with)
+     ,@(if fields
+	   `((with-slots ,fields ast
+		(cond ,@(loop for f in fields
+			   collect `((eq child ,f)
+				     (setf ,f with))))
+		(cond ,@ (loop for f in fields
+			      collect `((and (listp ,f) ,f)
+					(setf ,f (splice-if with #'(lambda (x) (eql x child)) ,f)))))
+		(setf (parent child) ast)))
+	  `((declare (ignore with))
+	    (error "~a has no child." ast)))))
+#+end_src
+
+
+The following function creates a function that removes a child from the AST.
+
+#+begin_src lisp
+(defun create-remove-child-method (c-name fields)
+  `(defmethod remove-child ((ast ,c-name) child)
+     ,@(if fields
+	   `((with-slots ,fields ast
+		(cond ,@(loop for f in fields
+			   collect `((eq child ,f)
+				     (setf ,f nil))))
+		(cond ,@ (loop for f in fields
+			    collect `((and (listp ,f) (member child ,f))
+				     (setf ,f (remove child ,f)))))))
+	   `((error "~a has no child" ast)))))
+#+end_src
+
+The following function creates an insert-before-child method:
+
+#+begin_src lisp
+(defun create-insert-before/after-child-method (c-name fields before/after)
+  (let ((insert-b/a-child
+	 (intern (format nil "INSERT-~A-CHILD" before/after) :ast))
+	(insert-b/a (intern (format nil "INSERT-~A" before/after) :utility-directory)))
+    `(defmethod ,insert-b/a-child ((ast ,c-name) child to-insert)
+       ,@(if fields
+	     `((with-slots ,fields ast
+		 (cond ,@(loop for f in fields
+			    collect `((and (listp ,f) (member child ,f))
+				      (setf ,f (,insert-b/a child ,f to-insert))
+				      (setf (parent to-insert) ast)))
+		       (t
+			(,insert-b/a-child (parent ast) ast to-insert)))))
+	     `((error "~a has no child." ast))))))
+#+end_src
+
+
+The following function creates method that checks whether a child of a parent
+AST is less than another child of the parent AST.
+
+#+begin_src lisp
+(defun create-child-ast<-method (c-name fields)
+  `(defmethod child-ast< ((ast ,c-name) child1 child2)
+     ,(if fields
+	  `(if (eq child1 child2)
+	       nil
+	       (with-slots ,fields ast
+		 (let ((position-child1 ,(create-conditions 'child1 fields))
+		       (position-child2 ,(create-conditions 'child2 fields)))
+		   (if (eql (car position-child1) (car position-child2))
+		       (let ((list (cdr position-child1)))
+			 (< (position child1 list) (position child2 list)))
+		       (< (car position-child1) (car position-child2))))))
+	   `(error "~a has no child." ast))))
+
+(defun create-conditions (child-symbol fields)
+  `(cond ,@(loop for f in fields
+	      for pos from 0
+	      collect `((or (eq ,child-symbol ,f)
+			    (and (listp ,f) (member ,child-symbol ,f)))
+			(cons ,pos ,f)))
+	 (t
+	  (error "child1 not a child"))))
+#+end_src
+
+
+The following function creates visit methods, that visit all fields:
+
+#+begin_src lisp
+(defun create-visit-methods (c )
+  (let ((c-name (first c))
+	(fields (second c)))
+    `(progn
+       (defmethod visit ((ast ,c-name) forward backward)
+	 (when (funcall forward ast)
+	   ,@(let ((res nil))
+		  (dolist (f fields)
+		    (push `(visit (,f ast) forward backward) res))
+		  (nreverse res)))
+	 (funcall backward ast))
+       (defmethod mirrored-visit ((read-only-ast ,c-name) (mod-ast ,c-name)
+				  forward backward)
+	 (when (funcall forward read-only-ast mod-ast)
+	   ,@(let ((res nil))
+		  (dolist (f fields)
+		    (push `(mirrored-visit (,f read-only-ast) (,f mod-ast)
+					   forward backward) res))
+		  (nreverse res)))
+	 (funcall backward read-only-ast mod-ast)))))
+#+end_src
+
+The following function retrieves all children from an AST node:
+
+#+begin_src lisp
+(defun create-children-method (c)
+  (let ((c-name (first c))
+	(fields (second c)))
+    `(defmethod children ((ast ,c-name))
+       (list ,@(let ((res nil))
+		    (dolist (f fields)
+		      (push `(,f ast) res))
+		    (nreverse res))))))
+#+end_src
+
+The following function is a helper function that generates exports for each
+element in the list.
+
+#+begin_src lisp
+(defun create-export-list (l)
+  (let (res)
+    (dolist (e l)
+      (push `(export ',e) res))
+    (nreverse res)))
+#+end_src
+
+
+*** Helper functions
+    :PROPERTIES:
+    :header-args+: :package ":ast"
+    :header-args+: :tangle "system/library/ast/library.lisp"
+    :END:
+
+**** The root of the AST
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :ast)
+#+end_src
+
+
+#+begin_src lisp
+(defclass ast ()
+  ((parent :initarg :parent
+           :initform nil 
+           :accessor parent)
+   (location :initarg :location
+             :initform (error "Must supply value to :location") 
+             :accessor location)))
+#+end_src
+
+**** Equality of ASTs
+
+#+begin_src lisp
+(defgeneric ast= (ast1 ast2)
+  (:documentation "Whether ast1 is equal to ast2."))
+
+(defun ast< (ast1 ast2)
+  (let ((common-parents (find-common-parents ast1 ast2)))
+    (ast<2 (move-to-child-of-parents common-parents ast1)
+	    (move-to-child-of-parents common-parents ast2))))
+
+(defun move-to-child-of-parents (parents ast)
+  "Move ast such that it becomes a child of one of the parents in parents."
+  (when (null ast)
+    (error "Reached the end of the chain of parents"))
+  (if (member (parent ast) parents)
+      ast
+      (move-to-child-of-parents parents (parent ast))))
+
+(defun find-common-parents (ast1 ast2)
+  (intersection (get-parents ast1) (get-parents ast2)))
+
+(defun ast<2 (ast1 ast2)
+  (assert (eq (parent ast1) (parent ast2)))
+  (child-ast< (parent ast1) ast1 ast2))
+
+(defgeneric child-ast< (ast child1 child2)
+  (:documentation "Whether child1 is less than child2 in the parent ast."))
+
+(defun location< (location1 location2)
+  (if (or (null location1) (null location2))
+      (error "one of locations is nil: ~a, ~a" location1 location2)
+      (if (eql (car location1) (car location2))
+	  (< (cdr location1) (cdr location2))
+	  (< (car location1) (car location2)))))
+#+end_src
+
+TODO: I don't understand why this one is necessary.
+ 
+#+begin_src lisp
+(defmethod ast= ((s1 t) s2)
+  (equals s1 s2))
+#+end_src
+
+#+begin_src lisp
+(defmethod ast= ((s1 number) s2)
+  (equals s1 s2))
+
+(defmethod ast= ((s1 string) s2)
+  (equal s1 s2))
+#+end_src
+
+TODO: I don't understand why this one would work.
+
+#+begin_src lisp
+(defmethod ast= ((l1 list) l2)
+  (and (equal (type-of l1) (type-of l2))
+       (or (and (null l1) (null l2))
+           (and (ast= (car l1) (car l2)) 
+                (ast= (cdr l1) (cdr l2))))))
+#+end_src
+
+#+begin_src lisp
+(defmethod ast= ((ast1 ast) ast2)
+  (and (equal (type-of ast1) (type-of ast2))
+       (ast= (children ast1) (children ast2))))
+#+end_src
+
+#+begin_src lisp
+(defun equals (a b)
+  (and (equal (type-of a) (type-of b))
+       (equal a b)))
+#+end_src
+
+**** Parents of ASTs
+
+#+begin_src lisp
+(defun parent-in-asts-p (ast asts)
+  "Whether ast has a parent that is in asts"
+  (intersection (get-parents ast) asts))
+
+(defun get-parents (ast)
+  "Get all the parents of ast"
+  (let ((parent (parent ast)))
+    (if (null parent)
+	nil
+	(cons parent (get-parents parent)))))
+#+end_src
+
+**** Children of ASTs
+
+#+begin_src lisp
+(defun has-as-child-p (parent child)
+  "Whether parent has child as child"
+  (member child (get-child-elements parent)))
+
+(defun get-child-elements (ast)
+  "Retrieve the child elements from an AST.  
+
+If one of the children is a list, return the elements in the list instead of 
+the list."
+  (flatten (children ast)))
+#+end_src
+
+**** Siblings of ASTs
+
+#+begin_src lisp
+(defun siblings-before (ast)
+  (let ((siblings (get-child-elements (parent ast))))
+    (subseq siblings 0 (position ast siblings))))
+#+end_src
+
+**** Visitors
+
+The visit is a depth-first visit.
+
+#+begin_src lisp
+(defgeneric visit (ast forward backward)
+  (:documentation "Visit the ast with functions forward and backward."))
+
+(defmethod visit ((ast ast) forward backward)
+  (error "unimplemented ~a" (class-of ast)))
+
+(defmethod visit ((s string) forward backward)
+  (funcall forward s)
+  (funcall backward s))
+
+(defmethod visit ((l list) forward backward)
+  (funcall forward l)
+  (dolist (e l)
+        (visit e forward backward))
+  (funcall backward l))
+
+(defmethod visit ((l number) forward backward)
+  (funcall forward l)
+  (funcall backward l))
+
+(defmethod visit ((s symbol) forward backward)
+  (funcall forward s)
+  (funcall backward s))
+#+end_src
+
+The mirrored-visit is similar:
+
+#+begin_src lisp
+(defgeneric mirrored-visit (read-only-ast mod-ast forward backward)
+  (:documentation "Visit both read-only- and mod- ast with functions forward 
+and backward."))
+
+(defmethod mirrored-visit ((ro-ast ast) (mod-ast ast) forward backward)
+  (error "unimplemented ~a" (class-of ro-ast)))
+
+(defmethod mirrored-visit ((ro-s string) (mod-s string) forward backward)
+  (funcall forward ro-s mod-s)
+  (funcall backward ro-s mod-s))
+
+(defmethod mirrored-visit ((ro-l list) (mod-l list) forward backward)
+  (funcall forward ro-l mod-l)
+  (loop for i from 0 below (length ro-l)
+     do (mirrored-visit (nth i ro-l) (nth i mod-l) forward backward))
+  (funcall backward ro-l mod-l))
+
+(defmethod mirrored-visit ((ro-n number) (mod-n number) forward backward)
+  (funcall forward ro-n mod-n)
+  (funcall backward ro-n mod-n))
+
+(defmethod mirrored-visit ((ro-s symbol) (mod-s symbol) forward backward)
+  (funcall forward ro-s mod-s)
+  (funcall backward ro-s mod-s))
+#+end_src
+
+
+The following visit is a breadth-first visit.  The input of
+~visit-breadth-first-2~ should be a list of ast forms.  It keeps track of two
+queues, one for the atoms and one for the children.  First we push the items on
+the queues.  The children of the ast forms (which can be lists themselves, in
+which' case we push the items of the lists on the queue) are put on the queue
+of children.  We then call the forward function on the queue of atoms,
+recursively call the function on the queue of children and then call the
+backward function for queue of atoms.
+
+#+begin_src lisp
+(in-package :ast)
+
+(defun visit-breadth-first (ast forward backward)
+     (visit-breadth-first-2 (list ast) forward backward))
+
+(defun visit-breadth-first-2 (asts forward backward)
+  (assert (listp asts))
+  (when asts
+    (let (q-of-atoms q-of-children)
+      (labels ((push-ast-on-queue (ast)
+		 (assert (atom ast))
+		 (push ast q-of-atoms)
+		 (when (typep ast 'ast)
+		   (mapcar #'(lambda (x)
+			       (if (listp x)
+				   (mapcar #'(lambda (y)
+					       (push y q-of-children))
+					   x)
+				   (push x q-of-children)))
+			   (children ast)))))
+	(mapcar #'push-ast-on-queue asts)
+	(mapcar forward (reverse q-of-atoms))
+	(visit-breadth-first-2 (nreverse q-of-children) forward backward)
+	(mapcar backward (reverse q-of-atoms))))))
+#+end_src
+
+**** Visitor macros
+     :PROPERTIES:
+     :header-args+: :package ":ast"
+     :header-args+: :tangle "system/library/ast/visitor-macros.lisp"
+     :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :ast)
+#+end_src
+
+#+begin_src lisp
+(defmacro defvisitor (visitor-name param-name types &body body)
+  `(progn
+     ,@(let ((res nil))
+        (dolist (type types)
+          (push `(defmethod ,visitor-name ((,param-name ,type))
+                   ,@body) res))
+        (nreverse res))))
+#+end_src
+
+**** Deep copies
+
+#+begin_src lisp
+(in-package :ast)
+
+(defgeneric copy-ast (ast)
+  (:documentation "Make a deep copy of the AST.
+
+The parent should be set again, and the auxiliary fields are not copied."))
+
+(defmethod copy-ast ((s string)) s)
+(defmethod copy-ast ((l list)) (mapcar #'copy-ast l))
+(defmethod copy-ast ((s symbol)) s)
+(defmethod copy-ast ((n number)) n)
+#+end_src
+
+**** Replacing AST nodes
+
+#+begin_src lisp
+(defgeneric replace-in-ast (to-be-replaced &key with)
+  (:documentation "Replace AST node to-be-replaced with with."))
+
+(defmethod replace-in-ast ((to-be-replaced ast) &key with)
+  (aif (parent to-be-replaced)
+       (replace-child it to-be-replaced :with with)
+       (error "~a has no parent" to-be-replaced)))
+
+(defgeneric replace-child (ast child-to-replace &key with)
+  (:documentation "Replace the child child-to-replace with with in ast."))
+#+end_src
+
+**** Removing AST nodes
+
+#+begin_src lisp
+(defgeneric remove-from-ast (to-be-removed)
+  (:documentation "Remove AST node from the AST."))
+
+(defmethod remove-from-ast ((to-be-removed ast))
+  (aif (parent to-be-removed)
+       (remove-child it to-be-removed)
+       (error "~a has no parent" to-be-removed)))
+
+(defgeneric remove-child (ast child-to-removed)
+  (:documentation "Remove the child child-to-removed in ast."))
+#+end_src
+
+**** Inserting AST nodes
+
+#+begin_src lisp
+(defgeneric insert-before-child (parent child to-insert ))
+(defgeneric insert-after-child (parent child to-insert ))
+
+(defun insert-before-ast (point-in-ast ast-to-insert)
+  (insert-before-child (parent point-in-ast) point-in-ast ast-to-insert))
+
+(defun insert-after-ast (point-in-ast ast-to-insert)
+  (insert-after-child (parent point-in-ast) point-in-ast ast-to-insert))
+#+end_src
+
+**** Declaration for the children method.
+
+#+begin_src lisp
+(defgeneric children (ast)
+  (:documentation "Retrieve the children of the ast."))
+#+end_src
+       
+**** Printing the AST
+
+The following macro creates print functions for the AST-forms:
+
+#+begin_src lisp
+(defmacro create-print-functions (types)
+  "Creates print-object functions for AST forms. 
+
+The types should be a list of pairs.  The first in the pair is the AST-form for
+which a print-object function is generated.  The second in the pair is the form
+that should be printed with the AST-form.
+
+Example: (create-print-functions ((module id) (lib-import id)))"
+  `(progn
+     ,@(loop for spec in types
+	  collect
+	    `(defmethod print-object ((ast ,(first spec)) stream)
+	      (print-unreadable-object (ast stream :type t)
+		(format stream "~a" (,(second spec) ast)))))))
+#+end_src
+    
+**** Querying the AST
+
+The following four functions help to query ASTs.  The exported functions are
+~collect~, ~retrieve~, ~collect-all~, and ~retrieve-all~.  They all take as
+input an AST and a predicate.  If the predicate is true, the resulting AST form
+is collected.  The function ~retrieve~ expects to match on only one AST form
+and will not return a list, but the element.  The ~all~ variants do a deep
+search whereas the non-~all~ variant only visits each child of the AST.
+
+#+begin_src lisp
+(in-package :ast)
+
+(defgeneric collect-fw (ast))
+(defgeneric collect-bw (ast))
+
+(let ((result nil)
+      (function (constantly nil)))
+
+  (defvisitor collect-fw ast (ast string list number symbol)
+    (when (funcall function ast)
+      (push ast result))
+    t)
+
+  (defvisitor collect-bw ast (ast string list number symbol)
+    nil)
+
+  (defun retrieve-all (ast predicate)
+    "Retrieves the ast that satisfies predicate.  
+This function searches through each child.
+An error is returned if it finds none or multiple results."
+    (setf result nil)
+    (setf function predicate)
+    (visit ast #'collect-fw #'collect-bw)
+    (if (> (length result) 1)
+	(error "more than one result")
+	(first result)))
+
+  (defun collect-all (ast predicate)
+    "Collects the asts that satisfy predicate while searching the complete
+tree." 
+    (setf result nil)
+    (setf function predicate)
+    (visit ast #'collect-fw #'collect-bw)
+    (nreverse result)))
+
+(defun collect (ast predicate)
+  "Collects the ASTs that satisfy predicate.  It only iterates over the 
+children of the ast."
+  (remove-if (complement predicate) (flatten (children ast))))
+
+(defun retrieve (ast predicate)
+  "Retrieves the AST that satisfies predicate.  It only iterates over the 
+children of the ast and it expects to return only one result."
+  (let ((result (collect ast predicate)))
+    (if (> (length result) 1)
+	(error "more than one result")
+	(first result))))
+
+(defun collect-all-parent (ast predicate)
+  "Collect from the parents of ast the ast-forms that satisfy predicate."
+  (let ((result nil))
+    (do ((parent (parent ast) (parent parent)))
+	((null parent) (nreverse result))
+      (when (funcall predicate parent)
+	(push parent result)))))
+#+end_src
+
+
+** Building AST forms
+
+This library contains convenience functions to create simple AST forms, for
+example to build an AST form for testing purposes.  There are several
+assumptions:
+
+- there will be no modifiers in the declarations other than ~const~,
+- non-array type variables will be of type ~int~, and
+- array type variables will be of type ~float~.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/build-ast/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :build-ast
+  (:use :cl :ast :ast-mcpl)
+  (:import-from :mcl-quickutil :map-tree)
+  (:export :build-decl
+	   :build-type
+	   
+	   :build-foreach
+	   :build-call
+	   :build-call-stat
+	   :build-decl-stat
+	   :build-assign-stat
+
+	   :build-var
+
+	   :build-expr))
+#+end_src
+
+*** Building AST-forms
+    :PROPERTIES:
+    :header-args+: :package ":build-ast"
+    :header-args+: :tangle "system/library/build-ast/build-ast.lisp"
+    :END:
+
+**** Declarations
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :build-ast)
+#+end_src
+
+#+begin_src lisp
+(defun build-decl (name &optional array-sizes const expr)
+  (if expr
+      (build-assign-decl name array-sizes expr const)
+      (build-normal-decl name array-sizes const)))
+
+
+
+(defun build-assign-decl (name  array-sizes expr &optional const)
+  (make-assign-decl
+   (if const (list (make-const)) nil)
+   (build-basic-decl name array-sizes)
+   (build-expr expr)))
+
+(defun build-normal-decl (name array-sizes &optional const)
+  (make-normal-decl
+   (if const (list (make-const)) nil)
+   (list (build-basic-decl name array-sizes))))
+
+(defgeneric build-basic-decl (name array-sizes))
+
+(defmethod build-basic-decl ((name string) array-sizes)
+  (make-basic-decl (build-type array-sizes)
+		   (make-id name)))
+#+end_src
+
+**** Types
+
+#+begin_src lisp
+(defgeneric build-type (array-sizes))
+
+(defmethod build-type ((array-sizes (eql nil)))
+  (make-int))
+
+(defmethod build-type ((array-sizes list))
+  (build-array-type array-sizes))
+
+(defgeneric build-array-type (array-sizes))
+
+(defmethod build-array-type ((array-sizes (eql nil)))
+  (make-flt))
+
+(defmethod build-array-type ((array-sizes list))
+  (destructuring-bind (first &rest rest) array-sizes
+    (make-array-type (build-array-type rest)
+		     (mapcar #'build-array-size first))))
+
+(defun build-array-size (size)
+  (make-decl-array-size (build-expr size) nil))
+#+end_src
+
+**** Statements
+
+#+begin_src lisp
+(defgeneric build-foreach (decl nr-iters stats))
+
+(defmethod build-foreach ((decl string) (nr-iters string) stats)
+  (make-foreach-stat (build-decl decl) (build-expr nr-iters) (make-id "threads")
+		     (make-block-stat (make-code-block stats))))
+
+(defun build-call (name &rest parameters)
+  (make-call (make-id name) (mapcar #'build-expr parameters)))
+
+(defun build-call-stat (name &rest parameters)
+  (make-call-stat (apply #'build-call name parameters)))
+
+(defun build-decl-stat (name &optional array-sizes const expr)
+  (make-decl-stat (build-decl name array-sizes const expr)))
+
+(defun build-assign-stat (var expr)
+  (make-assign-stat (build-var var) (build-expr expr)))
+#+end_src
+
+
+**** Variables
+
+#+begin_src lisp
+(defgeneric build-var (name &optional array-exprs))
+
+(defmethod build-var ((name string) &optional array-exprs)
+  (make-normal-var
+   (make-basic-var (make-id name)
+		   (if array-exprs
+		       (map-tree #'build-expr array-exprs)
+		       nil))))
+
+(defmethod build-var ((var var) &optional array-exprs)
+  (assert (null array-exprs))
+  var)
+#+end_src
+
+**** Expressions
+
+#+begin_src lisp
+(defgeneric build-expr (name &optional array-exprs))
+
+(defmethod build-expr ((name string) &optional array-exprs)
+  (make-var-expr
+   (build-var name array-exprs)))
+
+(defmethod build-expr ((expr expr) &optional array-exprs)
+  (assert (null array-exprs))
+  expr)
+
+(defmethod build-expr ((expr number) &optional array-exprs)
+  (assert (null array-exprs))
+  (make-int-constant expr))
+#+end_src
+
+** Errors
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-users"
+    :header-args+: :tangle "system/library/errors/packages.lisp"
+    :END:
+
+This package defines functionality for errors in MCL.
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :errors
+  (:use :cl)
+  (:export :mcl-error :mcpl-error
+
+	   :text
+	   :loc
+
+	   :pass-error
+
+	   :export-error :pkg-error
+	   :define-resolve-error :undefined-func-error :unequal-nr-params-error
+	   :undefined-type-error :undeclared-var-error :already-declared-error
+	   :non-primitive-type-error :undefined-hardware-description-var-error
+
+	   :non-var-written-error
+	   :constant-var-written-error
+	   
+	   :mcpl-type-error :numeric-type-error :incompatible-type-error
+	   :inequivalent-type-error :too-many-array-exprs-error
+	   :unequal-nr-array-exprs-error
+
+	   :mcpl-memory-space-error))
+#+end_src
+
+*** The errors
+    :PROPERTIES:
+    :header-args+: :package ":errors"
+    :header-args+: :tangle "system/library/errors/errors.lisp"
+    :END:
+
+**** Macros for generating an error function
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :errors)
+#+end_src
+
+#+begin_src lisp
+(defmacro create-error-function (symbol)
+  `(defun ,symbol (location message &rest arguments)
+     (error ',symbol
+	    :text (apply #'format (append (list  nil message) arguments))
+	    :loc location)))
+
+(defmacro def-mcl-error (name parent)
+  `(progn
+     (define-condition ,name (,parent) ())
+     (create-error-function ,name)))
+#+end_src
+
+**** Common errors
+
+#+begin_src lisp
+(define-condition mcl-error (error)
+  ((text :initarg :text :reader text)
+   (loc :initarg :loc :reader loc)))
+(create-error-function mcl-error)
+
+(def-mcl-error mcpl-error mcl-error)
+#+end_src
+
+
+**** Pass errors
+
+#+begin_src lisp
+(def-mcl-error pass-error mcl-error)
+#+end_src
+
+**** Define/resolve errors
+
+#+begin_src lisp
+(def-mcl-error export-error mcpl-error)
+(def-mcl-error pkg-error mcpl-error)
+
+(def-mcl-error define-resolve-error mcpl-error)
+
+(def-mcl-error undefined-func-error define-resolve-error)
+(def-mcl-error unequal-nr-params-error define-resolve-error)
+(def-mcl-error undefined-type-error define-resolve-error)
+
+(def-mcl-error undeclared-var-error define-resolve-error)
+(def-mcl-error already-declared-error  define-resolve-error)
+
+(def-mcl-error non-primitive-type-error define-resolve-error)
+(def-mcl-error undefined-hardware-description-var-error define-resolve-error)
+#+end_src
+
+**** Constant/written variables
+
+#+begin_src lisp
+(def-mcl-error non-var-written-error mcpl-error)
+(def-mcl-error constant-var-written-error mcpl-error)
+#+end_src
+
+**** Type errors
+
+An MCPL type error is a form of an MCPL error:
+
+#+begin_src lisp
+(def-mcl-error mcpl-type-error mcpl-error)
+#+end_src
+
+There is also a special numeric type error.
+
+#+begin_src lisp
+(def-mcl-error numeric-type-error mcpl-type-error)
+
+(def-mcl-error incompatible-type-error mcpl-type-error)
+
+(def-mcl-error inequivalent-type-error mcpl-type-error)
+
+(def-mcl-error too-many-array-exprs-error mcpl-type-error)
+
+(def-mcl-error unequal-nr-array-exprs-error mcpl-type-error)
+#+end_src
+
+**** Memory-space errors
+
+#+begin_src lisp
+(def-mcl-error mcpl-memory-space-error mcpl-error)
+#+end_src
+
+
+
+
+
+** Callgraph
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/callgraph/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :callgraph
+  (:use :cl :cl-graph :cl-graph-extension :ast :ast-mcpl)
+  (:export :callgraph :make-callgraph :funcs-ordered :tops-callgraph
+	   :get-funcs-subgraph-ordered))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":callgraph"
+    :header-args+: :tangle "system/library/callgraph/callgraph.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :callgraph)
+#+end_src
+
+#+begin_src lisp
+(defclass callgraph (graph-container) ())
+
+(defun make-callgraph ()
+  (make-instance 'callgraph :default-edge-type :directed))
+
+(defgeneric funcs-ordered (callgraph)
+  (:documentation "Returns the functions of the callgraph sorted in topogical order."))
+
+(defmethod funcs-ordered ((callgraph callgraph))
+  (mapcar #'element (topological-sort callgraph)))
+
+(defgeneric get-funcs-subgraph-ordered (callgraph funcs)
+  (:documentation "Returns a list of functions that form the subgraph of 
+functions funcs"))
+
+(defmethod get-funcs-subgraph-ordered ((callgraph callgraph) (funcs list))
+  (funcs-ordered (get-subgraph callgraph funcs)))
+
+(defmethod get-funcs-subgraph-ordered ((callgraph callgraph) (func func))
+  (funcs-ordered (get-subgraph callgraph func)))
+
+(defgeneric get-subgraph (callgraph funcs)
+  (:documentation "Get the subgraph of the callgraph give several funcs"))
+
+(defmethod get-subgraph ((callgraph callgraph) (func func))
+  (closure callgraph (list func)))
+
+(defmethod get-subgraph ((callgraph callgraph) (funcs list))
+  (closure callgraph funcs))
+
+(defun tops-callgraph (callgraph)
+  (mapcar #'element (graph-roots callgraph)))
+
+#+end_src
+
+** Control-flow graph
+
+It is possible to create two versions of the control-flow graph.  One version
+considers foreach statements as loops, while the other version considers the
+foreach statement as one statement or one node in the graph.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/controlflow/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+
+(utility-directory:unexport-symbols :controlflow)
+#+end_src
+
+#+begin_src lisp
+(defpackage :controlflow
+  (:use :cl ;;:alexandria :anaphora
+	:cl-graph :cl-graph-extension :ast :ast-mcpl)
+  (:import-from :anaphora :awhen :it)
+  (:import-from :utility-directory :def-methods)
+  (:export :make-cfgraph
+	   :cfgraph=
+	   :basic-blocks
+	   :bb
+	   :bb-entry
+	   :bb-exit
+	   :make-bb-entry
+	   :make-bb-exit
+	   :entry
+	   :exit
+	   :bb=
+	   :ast->basic-blocks
+	   :get-ast-basic-block
+	   :get-basic-block-ast
+	   :predecessors
+	   :successors
+	   :predecessor-p
+	   :successor-p
+	   :remove-unconnected-blocks))
+#+end_src
+
+*** The graph
+    :PROPERTIES:
+    :header-args+: :package ":controlflow"
+    :header-args+: :tangle "system/library/controlflow/cfgraph.lisp"
+    :END:
+
+A ~cfgraph~ keeps track of the entry and exit nodes.
+    
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :controlflow)
+#+end_src
+
+#+begin_src lisp
+(defclass cfgraph (graph-container)
+  ((entry :initarg :entry :initform (error "must supply entry") :reader entry)
+   (exit :initarg :exit :initform (error "must supply exit") :reader exit)))
+
+(defun make-cfgraph ()
+  (let ((graph (make-directed-graph)))
+    (change-class graph 'cfgraph :entry (make-bb-entry) :exit (make-bb-exit))))
+
+(defgeneric cfgraph= (cfgraph1 cfgraph2))
+
+(defmethod cfgraph= ((g1 cfgraph) (g2 cfgraph))
+  (graph= g1 g2 :test #'bb=))
+
+(defgeneric basic-blocks (cfgraph))
+
+(defmethod basic-blocks ((cfgraph cfgraph))
+  (mapcar #'element (vertexes cfgraph)))
+#+end_src
+
+*** The main interface
+    :PROPERTIES:
+    :header-args+: :package ":controlflow"
+    :header-args+: :tangle "system/library/controlflow/controlflow.lisp"
+    :END:
+
+The following code defines several basic-blocks classes:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :controlflow)
+#+end_src
+
+#+begin_src lisp
+(defgeneric bb= (bb1 bb2))
+
+(defclass bb () ())
+(defclass bb-entry (bb) ())
+(defclass bb-exit (bb) ())
+
+(defgeneric get-ast-basic-block (basic-block)
+  (:documentation "Get the AST from a basic-block."))
+
+(defmethod get-ast-basic-block (bb-entry)
+  nil)
+
+(defmethod get-ast-basic-block (bb-exit)
+  nil)
+
+(defbb-generic decl)
+(defbb-generic stat)
+(defbb-generic expr)
+(defbb-generic inc)
+
+(defun make-bb-entry ()
+  (make-instance 'bb-entry))
+(defun make-bb-exit ()
+  (make-instance 'bb-exit))
+#+end_src
+
+The following code defines specific basic block types.  
+
+
+#+begin_src lisp
+(defbb bb-decl decl)
+(defbb bb-stat stat)
+(defbb bb-for-decl decl)
+(defbb bb-for-cond expr)
+(defbb bb-for-inc inc)
+(defbb bb-if-cond expr)
+#+end_src
+
+There are two types for ~foreach~ statements.  The first type uses three
+different basic blocks to represent the foreach statement as a loop.  The
+latter type represents it just as a foreach statement.
+
+#+begin_src lisp
+(defbb bb-foreach-size expr)
+(defbb bb-foreach-decl decl)
+(defbb bb-foreach-exit decl)
+
+(defbb bb-foreach stat)
+#+end_src
+
+
+*** Macros
+    :PROPERTIES:
+    :header-args+: :package ":controlflow"
+    :header-args+: :tangle "system/library/controlflow/macros-controlflow.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :controlflow)
+#+end_src
+
+#+begin_src lisp
+(defmacro defbb (name param)
+  (let ((make-name (intern (format nil "MAKE-~a" name)))
+	(keyword (intern (symbol-name param) "KEYWORD"))
+	(superclass-name (intern (format nil "BB-~a-GENERIC" param))))
+    `(progn
+       (defclass ,name (,superclass-name) ())
+       (defun ,make-name (,param)
+	 (make-instance ',name ,keyword ,param))
+       (defmethod bb= ((bb1 ,name) (bb2 ,name))
+	 (ast= (,param bb1) (,param bb2)))
+       (export ',make-name)
+       (export ',name))))
+
+(defmacro defbb-generic (name)
+  (let ((class-name (intern (format nil "BB-~a-GENERIC" name)))
+	(keyword-name (intern (symbol-name name) "KEYWORD")))
+    `(progn
+       (defclass ,class-name (bb)
+	 ((,name :initarg ,keyword-name
+		 :initform (error ,(format nil "must supply ~a" name))
+		 :reader ,name)))
+       (defmethod get-ast-basic-block ((bb ,class-name))
+	 (,name bb))
+       (export ',class-name))))
+#+end_src
+
+*** Library functions for controlflow
+    :PROPERTIES:
+    :header-args+: :package ":controlflow"
+    :header-args+: :tangle "system/library/controlflow/library.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :controlflow)
+#+end_src
+
+#+begin_src lisp
+(defmethod bb= ((bb1 bb) (bb2 bb)) nil)
+
+(defmethod bb= ((bb1 bb-entry) (bb2 bb-entry)) t)
+(defmethod bb= ((bb1 bb-exit) (bb2 bb-exit)) t)
+
+
+(defun predecessors (bb cfgraph)
+  (pred/successors bb cfgraph #'parent-vertexes))
+
+(defun successors (bb cfgraph)
+  (pred/successors bb cfgraph #'child-vertexes))
+
+(defgeneric pred/successors (bb cfgraph func))
+(defmethod pred/successors ((bb cl-graph:graph-container-vertex) cfgraph func)
+  (declare (ignore cfgraph))
+  (mapcar #'element (funcall func bb)))
+(defmethod pred/successors (bb cfgraph func)
+  (mapcar #'element (funcall func (find-vertex cfgraph bb))))
+
+(defun predecessor-p (pred-bb succ-bb cfgraph)
+  "Whether pred-bb is a predecessor of succ-bb in controlflow graph cfgraph"
+  (member pred-bb (predecessors succ-bb cfgraph)))
+
+(defun successor-p (succ-bb pred-bb cfgraph)
+  "Whether succ-bb is a successor of pred-bb in controlflow graph cfgraph"
+  (member succ-bb (successors pred-bb cfgraph)))
+
+(defun get-basic-block-ast (ast cfgraph)
+  (let ((bbs (basic-blocks cfgraph)))
+    (loop for bb in bbs
+       do (awhen (get-ast-basic-block bb)
+	    (when (retrieve-all it #'(lambda (ast-form) (eq ast-form ast)))
+	      (return bb))))))
+
+;; (defgeneric ast-in-bb-p (ast bb))
+
+;; (defmethod ast-in-bb-p ((ast bb))
+;;   nil)
+
+;; (defmethod ast-in-bb-p (ast ))
+
+(defun remove-unconnected-blocks (cfgraph)
+  (subgraph-containing cfgraph (find-vertex cfgraph (entry cfgraph))))
+#+end_src
+
+
+Printing functions:
+
+#+begin_src lisp
+(defmethod print-object ((bb bb-decl-generic) stream)
+  (print-unreadable-object (bb stream :type t)
+    (format stream "~a" (decl bb))))
+
+(defmethod print-object ((bb bb-stat-generic) stream)
+  (print-unreadable-object (bb stream :type t)
+    (format stream "~a" (stat bb))))
+
+(defmethod print-object ((bb bb-expr-generic) stream)
+  (print-unreadable-object (bb stream :type t)
+    (format stream "~a" (expr bb))))
+
+(defmethod print-object ((bb bb-inc-generic) stream)
+  (print-unreadable-object (bb stream :type t)
+    (format stream "~a" (inc bb))))
+
+(defmethod print-object ((bb bb-foreach) stream)
+  (print-unreadable-object (bb stream :type t)
+    (format stream "foreach ~a" (decl (stat bb)))))
+#+end_src
+
+Other library functions:
+
+#+begin_src lisp
+(defun ast->basic-blocks (ast)
+  (let ((cfgraph (cfgraph (get-func ast))))
+    (ast->basic-blocks2 ast (basic-blocks cfgraph))))
+
+(defgeneric ast->basic-blocks2 (ast basic-blocks))
+
+(defmethod ast->basic-blocks2 ((fes foreach-stat) basic-blocks)
+  (with-slots (decl nr-iters stat) fes
+    (concatenate
+     'list
+     (list (find-basic-block-with-type 'bb-foreach-decl
+				       (equals-bb-decl decl) basic-blocks)
+	   (find-basic-block-with-type 'bb-foreach-size
+				       (equals-bb-expr nr-iters) basic-blocks))
+     (ast->basic-blocks2 stat basic-blocks))))
+
+(defmethod ast->basic-blocks2 ((fs for-stat) basic-blocks)
+  (with-slots (decl cond-expr inc stat) fs
+    (concatenate
+     'list
+     (list (find-basic-block-with-type 'bb-for-decl
+				       (equals-bb-decl decl) basic-blocks)
+	   (find-basic-block-with-type 'bb-for-cond
+				       (equals-bb-expr cond-expr)
+				       basic-blocks)
+	   (find-basic-block-with-type 'bb-for-inc
+				       (equals-bb-inc inc) basic-blocks))
+     (ast->basic-blocks2 stat basic-blocks))))
+
+(defmethod ast->basic-blocks2 ((bs block-stat) basic-blocks)
+  (with-slots (code-block) bs
+    (ast->basic-blocks2 code-block basic-blocks)))
+
+(defmethod ast->basic-blocks2 ((cb code-block) basic-blocks)
+  (mapcan #'(lambda (stat) (ast->basic-blocks2 stat basic-blocks)) (stats cb)))
+
+(def-methods ast->basic-blocks2
+    ((stat (decl-stat assign-stat inc-stat call-stat swap-stat barrier-stat
+		      as-stat))
+     basic-blocks)
+  (list (find-basic-block-stat stat basic-blocks)))
+
+(defmethod ast->basic-blocks2 ((decl decl) basic-blocks)
+  (list (find-basic-block (has-one-of-types '(bb-stat bb-decl))
+			  #'(lambda (bb)
+			      (typecase bb
+				(bb-stat (let ((s (stat bb)))
+				    (and (typep s 'decl-stat)
+					 (eq decl (decl s)))))
+				(bb-decl (eq decl (decl bb)))
+				(otherwise nil)))
+			  basic-blocks)))
+
+(defun find-basic-block-stat (stat basic-blocks)
+  (find-basic-block-with-type 'bb-stat (equals-bb-stat stat) basic-blocks))
+
+(defmethod ast->basic-blocks2 ((is if-stat) basic-blocks)
+  (with-slots (cond-expr stat elsestat) is
+    (cons (find-basic-block-with-type 'bb-if-cond
+				      (equals-bb-expr cond-expr) basic-blocks)
+	  (concatenate
+	   'list
+	   (ast->basic-blocks2 stat basic-blocks)
+	   (if elsestat (ast->basic-blocks2 elsestat basic-blocks) nil)))))
+
+(defun find-basic-block-with-type (type equal-test basic-blocks)
+  (find-basic-block (has-one-of-types (list type)) equal-test basic-blocks))
+
+(defun find-basic-block (type-test equal-test basic-blocks)
+  (loop for bb in basic-blocks
+     do (if (and (funcall type-test bb) (funcall equal-test bb))
+	    (return-from find-basic-block bb)))
+  (error "Did not find basic-block"))
+
+(defun has-one-of-types (types)
+  #'(lambda (bb)
+      (loop for type in types thereis (typep bb type))))
+
+(defun equals-bb-decl (decl)
+  #'(lambda (bb) (eq decl (decl bb))))
+
+(defun equals-bb-expr (expr)
+  #'(lambda (bb) (eq expr (expr bb))))
+
+(defun equals-bb-stat (stat)
+  #'(lambda (bb) (eq stat (stat bb))))
+
+(defun equals-bb-inc (inc)
+  #'(lambda (bb) (eq inc (inc bb))))
+#+end_src
+
+** Dataflow
+
+*** Defining the package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/dataflow/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :dataflow
+  (:use :cl
+	;;:alexandria
+	:cl-graph
+	:simple-sets
+	;;:anaphora :ast
+	:ast-mcpl :controlflow)
+  (:import-from :alexandria :copy-hash-table)
+  (:import-from :utility-directory :hash-table= :fixed-point)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :dataflow-forward :dataflow-backward
+	   :must-forward :must-backward
+	   :may-forward :may-backward
+
+	   :add-forward-dataflow-analysis
+	   :add-backward-dataflow-analysis
+	   :out-set
+	   :in-set
+
+	   :dataflow-element
+	   :dataflow-variable-with-bb
+	   :dataflow-variable
+	   :bb-dataflow-element
+	   :definition
+	   :use
+
+	   :make-dataflow-variable
+
+	   :dataflow-element=
+
+	   :make-dataflow-set
+	   :universal-set
+	   :empty-dataflow-map
+	   :empty-dataflow-map-p
+
+	   :dataflow-union
+	   :dataflow-intersection
+	   :dataflow-difference
+
+	   :get-predecessor-values
+	   :get-successor-values
+	   :filter-dataflow-map
+	   :combine
+	   :get-ast-dataflow-element
+
+	   :dataflow-variables-called-func->calling-func
+	   :dataflow-variable-called-func->calling-func
+	   :dataflow-variables-calling-func->called-func
+	   :dataflow-variable-calling-func->called-func))
+#+end_src
+
+*** The basic dataflow framework
+    :PROPERTIES:
+    :header-args+: :package ":dataflow"
+    :header-args+: :tangle "system/library/dataflow/dataflow.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :dataflow)
+#+end_src
+
+#+begin_src lisp
+(defun dataflow-forward (cfgraph v-entry top transfer-function meet)
+  "Execute a forward dataflow instance with controlflow graph cfgraph, the
+dataflow value v-entry for the entry node in the controlflow graph, a function
+top that gives each block an initial top dataflow value, a transfer function
+that returns a dataflow value based on a basic block and a dataflow-value in
+the controlflow graph and a meet function that combines dataflow values from IN
+and OUT.
+
+cfgraph should be of type cfgraph
+v-entry should be of type dataflow-value
+top should be a function that returns a dataflow-value given no arguments.
+   It is necessary that \"x meet top = x\" and \"top meet x = x\"
+transfer-function should be a function with a basic-block and dataflow-value as
+   input and returns a dataflow-value
+meet is a function that takes two dataflow values and returns a dataflow-value
+
+The function returns a pair of dataflow maps with OUT as the first value and IN
+as the second value."
+  (dataflow cfgraph v-entry top transfer-function meet #'entry #'predecessors))
+
+(defun dataflow-backward (cfgraph v-exit top transfer-function meet)
+  "Execute a backward dataflow instance with controlflow graph cfgraph, the
+dataflow value v-exit for the exit node in the controlflow graph, a function
+top that gives each block an initial top dataflow value, a transfer function
+that returns a dataflow value based on a basic block and a dataflow-value in
+the controlflow graph and a meet function that combines dataflow values from OUT
+and IN.
+
+cfgraph should be of type cfgraph
+v-exit should be of type dataflow-value
+top should be a function that returns a dataflow-value given no arguments.
+   It is necessary that \"x meet top = x\" and \"top meet x = x\"
+transfer-function should be a function with a basic-block and dataflow-value as
+   input and returns a dataflow-value
+meet is a function that takes two dataflow values and returns a dataflow-value
+
+The function returns a pair of dataflow maps with IN as the first value and OUT
+as the second value."
+  (dataflow cfgraph v-exit top transfer-function meet #'exit #'successors))
+#+end_src
+
+The following function is the actual dataflow function and is written in a
+forward manner:
+
+#+begin_src lisp
+(defun dataflow (cfgraph v-entry top transfer-function meet entry predecessors)
+  (let* ((bb-vertexes (vertexes cfgraph))
+         (entry (funcall entry cfgraph))
+         (bb-vertexes-wo-entry (remove-if #'(lambda (x)
+					      (eq (element x) entry))
+					  bb-vertexes))
+	 (out (make-hash-table))
+	 (in (make-hash-table)))
+    (dolist (bb-vertex bb-vertexes)
+      (let ((bb (element bb-vertex)))
+	(setf (gethash bb in) (make-dataflow-set))
+	(setf (gethash bb out) (make-dataflow-set))))
+    (setf (gethash entry out) v-entry)
+    (dolist (bb-vertex bb-vertexes-wo-entry)
+      (let ((bb (element bb-vertex)))
+	(setf (gethash bb out) (copy-set top))))
+    (fixed-point out #'copy #'compare
+      (debug-df2 "new iteration" "" "" predecessors cfgraph out in)
+      (dolist (bb-vertex bb-vertexes-wo-entry)
+	(let ((b (element bb-vertex)))
+	  (setf (gethash b in) (make-dataflow-set))
+	  (debug-df (format nil "doing block ~a" b))
+	  (setf (gethash b in)
+		(compute-meet
+		 out meet
+		 (funcall predecessors bb-vertex cfgraph)))
+	  (debug-df2 "after the meets of each " "predecessor" "successor"
+		     predecessors cfgraph out in)
+	  (setf (gethash b out) (funcall transfer-function b (gethash b in)))
+	  (debug-df2 "after the transfer function" "" "" predecessors
+		     cfgraph out in))))
+    (visualize-df entry cfgraph out in)
+    (values out in)))
+
+(defun compute-meet (out meet predecessors)
+  (destructuring-bind (first &rest rest) predecessors
+    (let ((result (copy-set (gethash first out))))
+      (dolist (p rest)
+	(setf result (funcall meet result (gethash p out))))
+      result)))
+#+end_src
+
+
+*** Generic functions
+    :PROPERTIES:
+    :header-args+: :package ":dataflow"
+    :header-args+: :tangle "system/library/dataflow/dataflow.lisp"
+    :END:
+
+The following functions are useful generic must/may forward/backward functions:
+
+#+begin_src lisp
+(defun must-forward (cfgraph gen kill)
+  (must-forward/backward cfgraph gen kill #'dataflow-forward))
+
+(defun must-backward (cfgraph gen kill)
+  (must-forward/backward cfgraph gen kill #'dataflow-backward))
+
+(defun may-backward (cfgraph gen kill)
+  (may-forward/backward cfgraph gen kill #'dataflow-backward))
+
+(defun may-forward (cfgraph gen kill)
+  (may-forward/backward cfgraph gen kill #'dataflow-forward))
+
+(defun must-forward/backward (cfgraph gen kill dataflow-func)
+  (must/may-forward/backward cfgraph gen kill dataflow-func (universal-set gen)
+			     #'intersection))
+
+(defun may-forward/backward (cfgraph gen kill dataflow-func)
+  (must/may-forward/backward cfgraph gen kill dataflow-func (make-dataflow-set)
+			     #'union))
+
+(defun must/may-forward/backward (cfgraph gen kill dataflow-func top meet)
+  (funcall dataflow-func
+     cfgraph
+     (make-dataflow-set)
+     top
+     #'(lambda (bb v)
+	 (union (gethash bb gen) (set-difference v (gethash bb kill))))
+     meet))
+#+end_src
+
+
+
+*** Basic dataflow-elements
+    :PROPERTIES:
+    :header-args+: :package ":dataflow"
+    :header-args+: :tangle "system/library/dataflow/dataflow-elements.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :dataflow)
+#+end_src
+
+#+begin_src lisp
+(defclass dataflow-element () ())
+
+(defclass dataflow-variable (dataflow-element)
+  ((decl :initarg :decl :initform (error "must supply a decl") :reader decl)))
+
+(defclass bb-dataflow-element (dataflow-element) 
+  ((bb :initarg :bb :initform (error "must supply basic-block") :reader bb)))
+
+(defclass dataflow-variable-with-bb (dataflow-variable bb-dataflow-element) ())
+
+(defclass definition (dataflow-variable-with-bb) ())
+
+(defclass use (dataflow-variable-with-bb) ())
+
+(defgeneric dataflow-element= (e1 e2)
+  (:documentation "whether two dataflow elements are the same")
+  (:method-combination and))
+
+(defmethod dataflow-element= and ((de1 bb-dataflow-element) (de2 bb-dataflow-element))
+  (eq (bb de1) (bb de2)))
+
+(defmethod dataflow-element= and ((dv1 dataflow-variable) (dv2 dataflow-variable))
+  (eq (decl dv1) (decl dv2)))
+
+(defun make-dataflow-set (&optional elements)
+  (make-set :test #'dataflow-element= :elements elements))
+
+(defun make-dataflow-variable (decl)
+  (make-instance 'dataflow-variable :decl decl))
+
+(defmethod print-object ((d dataflow-variable-with-bb) stream)
+  (print-unreadable-object (d stream :type t)
+    (format stream "~a: ~a" (bb d) (decl d))))
+
+(defmethod print-object ((d dataflow-variable) stream)
+  (print-unreadable-object (d stream :type t)
+    (format stream "~a" (decl d))))
+#+end_src
+
+
+*** Some utility functions
+    :PROPERTIES:
+    :header-args+: :package ":dataflow"
+    :header-args+: :tangle "system/library/dataflow/library.lisp"
+    :END:
+
+The following macro helps to retrieve the IN or OUT set of a dataflow map.  It
+makes use of two global variables that maintain whether an analysis is forward
+of backward.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :dataflow)
+#+end_src
+
+#+begin_src lisp
+(defparameter *forward-dataflow-analyses* (list 'dataflow-forward))
+(defparameter *backward-dataflow-analyses* (list 'dataflow-backward))
+
+(defun add-forward-dataflow-analysis (symbol)
+  (push symbol *forward-dataflow-analyses*))
+
+(defun add-backward-dataflow-analysis (symbol)
+  (push symbol *backward-dataflow-analyses*))
+
+(defmacro out-set (analysis)
+  (in/out-set analysis 0 1))
+
+(defmacro in-set (analysis)
+  (in/out-set analysis 1 0))
+
+(eval-when (:compile-toplevel :load-toplevel)
+  (defun in/out-set (analysis value-forward value-backward)
+    (if (listp analysis)
+	(let ((name-analysis (first analysis)))
+	  (cond ((member name-analysis *forward-dataflow-analyses*)
+		 `(nth-value ,value-forward ,analysis))
+		((member name-analysis *backward-dataflow-analyses*)
+		 `(nth-value ,value-backward ,analysis))
+		(t (error "Analysis ~a is not known to be forward or backward
+Use add-forward-dataflow-analysis or add-backward-dataflow-analysis to register
+the analyses." name-analysis))))
+	(error "in/out-set only works on function calls"))))
+#+end_src
+
+
+
+#+begin_src lisp
+(defgeneric get-ast-dataflow-element (dataflow-element))
+
+(defmethod get-ast-dataflow-element ((de bb-dataflow-element))
+  (get-ast-basic-block (bb de)))
+
+(defun dataflow-union (map1 map2)
+  (dataflow-set-operation map1 map2 #'union))
+
+(defun dataflow-difference (map1 map2)
+  (dataflow-set-operation map1 map2 #'set-difference))
+
+(defun dataflow-intersection (map1 map2)
+  (dataflow-set-operation map1 map2 #'intersection))
+
+(defun dataflow-set-operation (map1 map2 operation)
+  (let ((result-map (make-hash-table)))
+    (loop for bb being the hash-keys in map1
+       do (do-set-operation bb result-map map1 map2 operation))
+    result-map))
+
+(defun do-set-operation (bb result-map map1 map2 operation)
+  (setf (gethash bb result-map)
+	(funcall operation (gethash bb map1) (gethash bb map2))))
+
+(defun universal-set (map)
+  (let ((set (make-set :test #'dataflow-element=)))
+    (loop for bb being the hash-key in map
+       do (add-all-to-set (elements (gethash bb map)) set))
+    set))
+
+(defun empty-dataflow-map (cfgraph)
+  (let ((map (make-hash-table)))
+    (loop for bb in (basic-blocks cfgraph)
+       do (setf (gethash bb map) (make-dataflow-set)))
+    map))
+
+(defun empty-dataflow-map-p (dataflow-map)
+  (loop for v being the hash-values in dataflow-map
+       always (empty-set-p v)))
+
+(defun get-predecessor-values (map cfgraph)
+  (get-pred/succ-values map cfgraph #'predecessor-p))
+
+(defun get-successor-values (map cfgraph)
+  (get-pred/succ-values map cfgraph #'successor-p))
+
+(defun get-pred/succ-values (map cfgraph pred/succ-func)
+  (combine map map
+	   #'(lambda (b1 b2) (funcall pred/succ-func b2 b1 cfgraph))
+	   (constantly t)
+	   #'(lambda (e1 e2) (declare (ignore e1)) e2)))
+
+(defun filter-dataflow-map (pred map)
+  (combine map map #'eq
+	   #'(lambda (e1 e2) (declare (ignore e2)) (funcall pred e1))
+	   #'(lambda (e1 e2) (declare (ignore e2)) e1)))
+
+(defun combine (map1 map2 bb-predicate dataflow-predicate create-element-func)
+  "Combine two dataflow solutions.
+
+bb-predicate should be a predicate on two basic blocks, 
+  for example whether they are equal or not.
+dataflow-predicate should be a predicate on two dataflow-elements,
+  for example whether two declarations are the same.
+create-element-func should be a function that takes two dataflow elements
+  and returns a new one."
+  (let ((map (make-hash-table)))
+    (loop for bb1 being the hash-keys in map1
+       do (let ((set (make-dataflow-set)))
+	    (loop for bb2 being the hash-keys in map2
+	       when (funcall bb-predicate bb1 bb2)
+	       do (fill-set (gethash bb1 map1) (gethash bb2 map2)
+			    dataflow-predicate create-element-func set))
+	    (setf (gethash bb1 map) set)))
+    map))
+
+(defun fill-set (set1 set2 dataflow-predicate create-element-func result-set)
+  (let ((elements1 (elements set1))
+	(elements2 (elements set2)))
+    (loop for e1 in elements1
+       do (loop for e2 in elements2
+	     when (funcall dataflow-predicate e1 e2)
+	     do (add-to-set (funcall create-element-func e1 e2) result-set)))))
+#+end_src
+
+
+#+begin_src lisp
+(defun copy (hash-table)
+  (copy-hash-table hash-table :key #'copy-set))
+
+(defun compare (hash-table-1 hash-table-2)
+  (hash-table= hash-table-1 hash-table-2 :test-for-value #'set=))
+#+end_src
+
+
+Converting dataflow variables:
+
+#+begin_src lisp
+(defun dataflow-variables-called-func->calling-func
+    (dataflow-variables-list call)
+  "Takes a list of dataflow variables and a call and transforms the declarations
+to those of the calling function.  It returns a list."
+  (loop for dv in dataflow-variables-list collect
+       (dataflow-variable-called-func->calling-func dv call)))
+
+(defun dataflow-variable-called-func->calling-func
+    (dataflow-variable-called-func call)
+  "Makes a dataflow-variable from the called function to one that belongs to the
+calling function."
+  (make-instance
+   (class-of dataflow-variable-called-func)
+   :decl (decl-called-func->calling-func
+	  (decl dataflow-variable-called-func) call)))
+
+(defun dataflow-variables-calling-func->called-func
+    (dataflow-variables-list call)
+  "Takes a list of dataflow variables and a call and transforms the declarations
+to those of the calling function.  It returns a list."
+  (loop for dv in dataflow-variables-list collect 
+       (dataflow-variable-calling-func->called-func dv call)))
+
+(defun dataflow-variable-calling-func->called-func
+    (dataflow-variable-calling-func call)
+  "Makes a dataflow-variable from the calling function to one that belongs to 
+the called function."
+  (make-instance
+   (class-of dataflow-variable-calling-func)
+   :decl
+   (decl-calling-func->called-func (decl dataflow-variable-calling-func) call)))
+#+end_src
+
+
+*** Debugging functions
+    :PROPERTIES:
+    :header-args+: :package ":dataflow"
+    :header-args+: :tangle "system/library/dataflow/library.lisp"
+    :END:
+
+The following functions are empty debugging functions.  By redefining these
+functions, one can debug and visualize the dataflow process.
+
+#+begin_src lisp
+(defun debug-df2 (message arg-forward arg-backward predecessor-function
+		  cfgraph out in)
+  (declare (ignore message arg-forward arg-backward predecessor-function
+		   cfgraph out in)))
+
+(defun debug-df (message &optional cfgraph out in)
+  (declare (ignore message cfgraph out in)))
+(defun visualize-df (entry cfgraph out in)
+  (declare (ignore entry cfgraph out in)))
+#+end_src
+
+    
+#+begin_src lisp :tangle no :exports no
+(defparameter *turn-debug-on* nil)
+(defparameter *turn-visualize-on* nil)
+
+(defun turn-on-debug () (setf *turn-debug-on* t))
+(defun turn-off-debug () (setf *turn-debug-on* nil))
+(defun turn-on-visualize () (setf *turn-visualize-on* t))
+(defun turn-off-visualize ()  (setf *turn-visualize-on* nil))
+ 
+(defun debug-df (message &optional cfgraph out in)
+  (when *turn-debug-on*
+    (format t "~a~%" message)
+    (when (and cfgraph out in)
+      (show cfgraph in out t))))
+;;(uiop:run-program '("dot" "-Tpng" "/home/pieter/dataflow.dot") :output "/home/pieter/dataflow.png")
+;;(uiop:run-program '("qiv" "-t" "/home/pieter/dataflow.png"))
+
+(defun debug-df2 (message arg-forward arg-backward predecessor-function
+		  cfgraph out in)
+  
+  (when *turn-debug-on*
+    (if (eq predecessor-function #'predecessors)
+	(progn (format t "~a~a~%" message arg-forward)
+	       (when (and cfgraph out in)
+		 (show cfgraph in out t)))
+	(progn (format t "~a~a~%" message arg-backward)
+	       (when (and cfgraph out in)
+		 (show cfgraph out in t))))))
+
+(defun show (cfgraph in out generate-png)
+  (visualize-dataflow-graph:visualize-dataflow-graph
+   cfgraph in out "/home/pieter/dataflow.dot")
+  (when generate-png
+    (uiop:run-program
+     '("dot" "-Tpng" "/home/pieter/dataflow.dot")
+     :output "/home/pieter/dataflow.png")
+    (uiop:run-program '("qiv" "-t" "/home/pieter/dataflow.png"))))
+  
+(defun visualize-df (entry cfgraph out in)
+  (when *turn-visualize-on*
+    (if (typep entry 'bb-entry)
+	(show cfgraph in out t)
+	(show cfgraph out in t))))
+#+end_src
+
+
+
+
+*** A library to help testing dataflow
+
+**** The package
+     :PROPERTIES:
+     :header-args+: :package ":cl-user"
+     :header-args+: :tangle "system/tests/test-dataflow-library/packages.lisp"
+     :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :test-dataflow-library
+  (:use :cl :cl-graph :simple-sets
+	:ast :ast-mcpl :controlflow :dataflow
+	:set-cfgraphs :resolve-vars :set-parents :parse-mcpl)
+  (:shadowing-import-from :simple-sets :union :intersection :set-difference)
+  (:export :build-definition
+	   :build-use
+
+	   :build-dataflow-set
+
+	   :build-compare-set :build-element :build-use-var
+	   :map->compare-set
+	   :get-cfgraph))
+#+end_src
+
+**** The functionality
+     :PROPERTIES:
+     :header-args+: :package ":test-dataflow-library"
+     :header-args+: :tangle "system/tests/test-dataflow-library/library.lisp"
+     :END:
+
+Firstly, we need compare functions to verify the results:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :test-dataflow-library)
+#+end_src
+
+
+#+begin_src lisp
+(defgeneric eq-bb (bb1 bb2))
+
+(defmethod eq-bb ((bb1 bb) (bb2 bb))
+  (if (eq (type-of bb1) (type-of bb2))
+      (error "not implemented for ~a" bb1)
+      nil))
+
+(defmethod eq-bb ((bb1 bb-exit) (bb2 bb-exit))
+  t)
+(defmethod eq-bb ((bb1 bb-entry) (bb2 bb-entry))
+  t)
+
+(defmethod eq-bb ((bb1 bb-decl-generic) (bb2 bb-decl-generic))
+  (ast= (decl bb1) (decl bb2)))
+(defmethod eq-bb ((bb1 bb-stat-generic) (bb2 bb-stat-generic))
+  (ast= (stat bb1) (stat bb2)))
+(defmethod eq-bb ((bb1 bb-expr-generic) (bb2 bb-expr-generic))
+  (ast= (expr bb1) (expr bb2)))
+(defmethod eq-bb ((bb1 bb-inc-generic) (bb2 bb-inc-generic))
+  (ast= (inc bb1) (inc bb2)))
+
+(defgeneric eq-dataflow-element (e1 e2)
+  (:method-combination and))
+
+(defmethod eq-dataflow-element and ((de1 bb-dataflow-element) (de2 bb-dataflow-element))
+  (eq-bb (bb de1) (bb de2)))
+
+(defmethod eq-dataflow-element and ((de1 dataflow-variable) (de2 dataflow-variable))
+  (ast= (decl de1) (decl de2)))
+#+end_src
+
+We also need datastructures to compare dataflow-results.
+
+#+begin_src lisp
+(defclass element ()
+  ((bb :initarg :bb :initform (error "need bb") :reader bb)
+   (dataflow-set :initarg :dataflow-set
+		 :initform (error "need dataflow-set") :reader dataflow-set)))
+
+(defun make-element (bb dataflow-set)
+  (make-instance 'element :bb bb :dataflow-set dataflow-set))
+
+(defun element= (e1 e2)
+  (and
+   (eq-bb (bb e1) (bb e2))
+   (set= (dataflow-set e1) (dataflow-set e2))))
+
+(defun make-compare-set (&key (elements nil))
+  (make-set :test #'element= :elements elements))
+
+(defun make-dataflow-test-set (&key elements)
+  (make-set :test #'eq-dataflow-element :elements elements))
+
+(defmethod print-object ((e element) stream)
+  (print-unreadable-object (e stream :type t)
+    (format stream "~a: ~a" (bb e) (dataflow-set e))))
+#+end_src
+
+We need functions to build the compare set from scratch.
+
+#+begin_src lisp
+(defun add-empty-bb (bb set)
+  (unless (find bb (elements set) :test #'eq-bb :key #'bb)
+    (add-to-compare-set (make-element bb (make-dataflow-test-set :elements nil))
+			set)))
+
+(defun build-compare-set (&rest elements)
+  (let ((set (make-compare-set :elements nil)))
+    (loop for element in elements do (add-to-compare-set element set))
+    (add-empty-bb (make-bb-entry) set)
+    (add-empty-bb (make-bb-exit) set)
+    set))
+
+(defgeneric add-to-compare-set (element set))
+
+(defmethod add-to-compare-set ((d definition) set)
+  (add-to-compare-set (make-element
+		       (bb d)
+		       (make-dataflow-test-set :elements (list d))) set))
+
+(defmethod add-to-compare-set ((e element) set)
+  (add-to-set e set))
+
+(defgeneric build-element (decl-or-stat dataflow-set))
+(defmethod build-element ((d decl) dataflow-set)
+  (make-element (make-bb-decl d) dataflow-set))
+(defmethod build-element ((s stat) dataflow-set)
+  (make-element (make-bb-stat s) dataflow-set))
+(defmethod build-element ((bb bb) dataflow-set)
+  (make-element bb dataflow-set))
+    
+(defun build-dataflow-set (&rest elements)
+  (make-dataflow-test-set :elements elements))
+
+
+(defgeneric build-definition (decl decl-or-stat))
+(defmethod build-definition (d (d2 decl))
+  (make-instance 'definition :decl d :bb (make-bb-decl d2)))
+(defmethod build-definition (d (s stat))
+  (make-instance 'definition :decl d :bb (make-bb-stat s)))
+
+(defgeneric build-use (decl decl-or-stat))
+(defmethod build-use (d (d2 decl))
+  (make-instance 'use :decl d :bb (make-bb-decl d2)))
+(defmethod build-use (d (s stat))
+  (make-instance 'use :decl d :bb (make-bb-stat s)))
+
+(defun map->compare-set (hash-table cfgraph)
+  (let ((result (make-compare-set)))
+    (dolist (bb (mapcar #'element (vertexes cfgraph)))
+      (let ((dataflow-set (elements (gethash bb hash-table))))
+	(add-to-set (build-element
+		     bb
+		     (make-dataflow-test-set :elements dataflow-set))
+		    result)))
+    result))
+#+end_src
+
+
+Finally, we need some functionality for getting the results:
+
+#+begin_src lisp
+(defun get-cfgraph (input)
+  (let ((ast (set-cfgraphs
+	      (resolve-vars
+	       (set-parents (parse-mcpl input)) nil))))
+    (values (cfgraph (first (funcs (code ast)))) ast)))
+#+end_src
+
+
+** Hardware descriptions
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/hardware-descriptions/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :hardware-descriptions
+  (:use :cl
+	;; :lol :util
+	;;:pathname 
+	:mcl-util :ast :ast-hdl)
+  (:import-from :alexandria :flatten)
+  (:import-from :anaphora :aif :it)
+  (:import-from :utility-directory :walk-tree)
+  (:import-from :cl-fad :file-exists-p)
+  (:export :save-hardware-description :get-hardware-description-by-name
+	   :get-parent-hardware-description
+	   :hardware-description-p
+	   :get-hardware-description-dir
+	   :get-executing-par-unit
+	   :block-with-types
+	   :block-with-type
+	   :block-with-name
+	   :property-with-name
+	   :get-nr-units
+	   :get-property-from-block
+	   :resolve
+	   :inherited-id
+	   :get-par-unit
+	   :get-default-memory-space))
+#+end_src
+
+*** Retrieving the hardware descriptions
+    :PROPERTIES:
+    :header-args+: :package ":hardware-descriptions"
+    :header-args+: :tangle "system/library/hardware-descriptions/hardware-descriptions.lisp"
+    :END:
+
+The hardware descriptions are stored in a hash-table.  Since this is a library,
+loading the hardware-descriptions is not possible.  Therefore, there is a
+~save-hardware-description~ that stores the hardware descriptions in the
+hash-table. 
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :hardware-descriptions)
+#+end_src
+
+#+begin_src lisp
+
+(defparameter *hardware-descriptions* (make-hash-table :test 'equal))
+
+(defun save-hardware-description (name hwd)
+  (setf (gethash name *hardware-descriptions*) hwd))
+
+(defun get-hardware-description-by-name (name)
+  (gethash name *hardware-descriptions*))
+
+(defgeneric hardware-description-p (id))
+
+(defmethod hardware-description-p ((import ast-mcpl:lib-import))
+  (hardware-description-p (ast-mcpl:id import)))
+
+(defmethod hardware-description-p ((id ast-mcpl:id))
+  (hardware-description-p (ast-mcpl:name id)))
+
+(defmethod hardware-description-p ((ci ast-mcpl:compound-id))
+  nil)
+
+(defmethod hardware-description-p ((name-hwd string))
+  (let ((hwd-dir (get-hardware-description-dir)))
+    (file-exists-p (format nil "~a/~a.hdl" hwd-dir name-hwd))))
+
+(defun get-hardware-description-dir ()
+  (getenv "HDL_DIR"))
+#+end_src
+
+*** Macros
+    :PROPERTIES:
+    :header-args+: :package ":hardware-descriptions"
+    :header-args+: :tangle "system/library/hardware-descriptions/macros.lisp"
+    :END:
+
+The macro ~with-hardware-description~ is a convenience macro that ensures that
+functions can be called with the hardware description itself, or a string with
+the name of the hardware description that will automatically get the hardware
+description.
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :hardware-descriptions)
+#+end_src
+
+#+begin_src lisp
+(defmacro with-hardware-description (hwd &body body)
+  `(let ((,hwd (cond ((stringp ,hwd)
+		    (aif (gethash ,hwd *hardware-descriptions*) 
+			 it
+			 (error "~a not loaded." ,hwd)))
+		   ((typep ,hwd 'hardware-description)
+		    ,hwd)
+		   (t
+		    (error "~a not a hardware description" ,hwd)))))
+    ,@body))
+#+end_src
+
+*** The device hierarchy
+    :PROPERTIES:
+    :header-args+: :package ":hardware-descriptions"
+    :header-args+: :tangle "system/library/hardware-descriptions/hardware-descriptions.lisp"
+    :END:
+
+The types of devices defined in a hardware description are organized in a
+hierarchy that is defined below.  We have added a function that retrieves the
+all subtypes given a type.
+
+#+begin_src lisp
+(defparameter *device-hierarchy*
+  '("device"
+    ("device_group" 
+     "device_unit"
+     ("memory" ("cache"))
+     ("execution_group" ("simd_group" ("load_store_group")))
+     ("execution_unit" ("simd_unit") ("load_store_unit"))
+     "interconnect")))
+
+(defun get-device-types (type)
+  (let (result)
+    (walk-tree *device-hierarchy* #'(lambda (x)
+				      (when (and (listp x)
+						 (stringp (first x))
+						 (string= (first x) type))
+					(push x result))))
+    (flatten result)))
+#+end_src
+
+*** Resolving names in hardware descriptions
+    :PROPERTIES:
+    :header-args+: :package ":hardware-descriptions"
+    :header-args+: :tangle "system/library/hardware-descriptions/hardware-descriptions.lisp"
+    :END:
+
+The following function resolve expressions or statements in hardware
+descriptions.
+
+
+#+begin_src lisp
+(defgeneric resolve (expression-or-id-stat ast-hwd)
+  (:documentation
+   "Resolve an identifier expression or statement in the AST of
+hardware descriptions."))
+#+end_src
+
+The following methods just peel off until identifiers.
+
+#+begin_src lisp
+(defmethod resolve ((expr unit-expr) ast-hwd)
+  (resolve (expr expr) ast-hwd))
+
+(defmethod resolve ((id-expr id-expr) ast-hwd)
+  (resolve (qual-id id-expr) ast-hwd))
+
+(defmethod resolve ((is id-stat) ast-hwd)
+  (resolve (id is) ast-hwd))
+#+end_src
+
+A compound statement is slightly more complicated as a compound id can refer to
+an external (higher up in the hierarchy of hardware descriptions) hdl block.
+
+#+begin_src lisp
+(defmethod resolve ((ci compound-id) ast-hwd)
+  (with-slots (name compound) ci
+    (aif (get-hardware-description-by-name (name name))
+	 (resolve compound it)
+	 (resolve compound (resolve name ast-hwd)))))
+#+end_src
+
+Resolving an identifier in a hardware description is somewhat more involved
+as one can refer to blocks directly (for example "cores.core") or using the
+name of the hardware description (which is required to be a block in the
+hardware description as well), for example "perfect.cores.core").  We solve
+this by just trying both cases.
+
+#+begin_src lisp
+(defmethod resolve ((id id) (hwd hardware-description))
+  (or (resolve-with-function id hwd #'hdl-blocks)
+      (resolve id (resolve (id hwd) hwd))))
+#+end_src
+
+Resolving identifiers in a block searches for blocks in stats.
+
+#+begin_src lisp
+(defmethod resolve ((id id) (b hdl-block))
+  (resolve-with-function id b #'hdl-stats))
+#+end_src
+
+The ~resolve-with-function~ searches for the specified block and verifies
+whether there is only one of them.
+
+#+begin_src lisp
+(in-package :hardware-descriptions)
+
+(defun resolve-with-function (id ast-hwd function)
+  (let ((result (loop for b in (funcall function ast-hwd)
+		   when (or (and (typep b 'hdl-block)
+				 (ast= id (id b)))
+			    (and (typep b 'property)
+				 (string= (name id) (property-type b))))
+		   collect b)))
+    (if (> (length result) 1)
+	(error "More than one result.")
+	(first result))))
+#+end_src
+
+*** Predicate functions for collect and retrieve
+    :PROPERTIES:
+    :header-args+: :package ":hardware-descriptions"
+    :header-args+: :tangle "system/library/hardware-descriptions/hardware-descriptions.lisp"
+    :END:
+
+The following functions return closures that can be used as input to the
+functions ~collect~ and ~retrieve~.
+
+#+begin_src lisp
+(defun block-with-types (types)
+  #'(lambda (ast-hwd)
+      (and (typep ast-hwd 'hdl-block)
+	   (member (hdl-block-type ast-hwd) types :test #'string=))))
+
+(defun block-with-type (type)
+  #'(lambda (ast-hwd)
+      (and (typep ast-hwd 'hdl-block)
+	   (string= (hdl-block-type ast-hwd) type))))
+
+(defun property-with-name (name)
+  #'(lambda (ast-hwd)
+      (and (typep ast-hwd 'property)
+	   (string= name (property-type ast-hwd)))))
+
+(defun block-with-name (name)
+  #'(lambda (ast-hwd)
+      (and (typep ast-hwd 'hdl-block)
+	   (string= name (name (id ast-hwd))))))
+#+end_src
+
+*** Generic query functions for hardware descriptions
+    :PROPERTIES:
+    :header-args+: :package ":hardware-descriptions"
+    :header-args+: :tangle "system/library/hardware-descriptions/hardware-descriptions.lisp"
+    :END:
+
+#+begin_src lisp
+(defun get-parent-hardware-description (hwd)
+  "Returns the name of the parent hardware description."
+  (with-hardware-description hwd
+    (let ((identifier (specializes hwd)))
+      (if (null identifier) nil (name identifier)))))
+#+end_src
+
+#+begin_src lisp
+(defun get-blocks-of-type (ast-hwd type)
+  "Retrieve all blocks from an AST form ast-hwd of type type."
+  (let ((types (get-device-types type)))
+    (pushnew type types :test #'string=)
+    (collect-all ast-hwd (block-with-types types))))
+#+end_src
+
+#+begin_src lisp
+(in-package :hardware-descriptions)
+
+(defun get-executing-par-unit (hwd)
+  "Get the name of the executing unit of parallelism from hardware description
+hwd."
+  (with-hardware-description hwd
+    (let* ((executing_unit
+	    (parent (first (get-blocks-of-type hwd "instructions"))))
+	   (slot-property
+	    (first (collect-all executing_unit (property-with-name "slots")))))
+      (name (qual-id (expr (first (exprs slot-property))))))))
+#+end_src
+
+#+begin_src lisp
+(defun get-nr-units (a-block &optional prefix)
+  "Get the number of units from block a-block."
+  (assert (or (null prefix) (string= prefix "max")))
+  (let ((property-name (if prefix
+			   (format nil "~a_nr_units" prefix)
+			   "nr_units")))
+    (aif (get-property-from-block a-block property-name)
+	 it
+	 (if (not prefix)
+	     (get-nr-units a-block "max")
+	     nil))))
+#+end_src
+
+#+begin_src lisp
+(in-package :hardware-descriptions)
+
+(defun get-property-from-block (a-block property-name)
+     "Get the value of a property with name property-name from block a-block."
+     (let ((property (retrieve a-block (property-with-name property-name))))
+       (if property
+	   (let ((exprs (exprs property)))
+	     (if (> (length exprs) 1) exprs (first exprs)))
+	   nil)))
+#+end_src
+
+The following function checks whether an identifier is an inherited identifier,
+which means that it originates from another hardware description.
+
+#+begin_src lisp
+(defgeneric inherited-id (id)
+  (:documentation
+   "Whether the id is an inherited id (from another hardware description)."))
+
+(defmethod inherited-id ((id-stat id-stat))
+  (inherited-id (id id-stat)))
+
+(defmethod inherited-id ((id id))
+  nil)
+
+(defmethod inherited-id ((ci compound-id))
+  (get-hardware-description-by-name (name (name ci))))
+#+end_src
+
+#+begin_src lisp
+(defun get-par-unit (par-group hardware-description)
+  "Get the parallelism unit from a par-group given a hardware-description."
+  (with-hardware-description hardware-description
+    (retrieve
+     (retrieve-all hardware-description (block-with-name par-group))
+     (block-with-type "par_unit"))))
+
+(defun get-default-memory-space (hardware-description parallelism-level)
+  "Return the default memory space of parallelism-level."
+  (with-hardware-description hardware-description
+    (let* ((hdl-block (retrieve-all hardware-description
+				(if (string= parallelism-level "parallelism")
+				    (block-with-type "parallelism")
+				    (block-with-name parallelism-level))))
+	   (memory-spaces (collect hdl-block (block-with-type "memory_space")))
+	   (result (remove-if (complement #'(lambda (x)
+					      (retrieve x (property-with-name "default"))))
+			      memory-spaces)))
+      (cond ((eql (length result) 1)
+	     (first result))
+	    ((null result)
+	     nil)
+	    (t
+	     (error "More than one default memory spaces."))))))
+
+
+  
+  
+#+end_src
+
+
+** Querying HDL and MCPL
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/query-hdl-mcpl/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :query-hdl-mcpl
+  (:use :cl ;;:alexandria :lol :util
+	:ast :ast-mcpl :ast-hdl
+        :hardware-descriptions)
+  (:import-from :alexandria :compose)
+  (:import-from :anaphora :aif :it)
+  (:export :get-parallelism-level 
+	   :get-hardware-description
+	   :get-memory-spaces
+	   :resolve-hardware-description-var
+	   :hardware-description-var-p)
+  (:shadowing-import-from :ast-mcpl :id :compound-id :left :make-mul :make-add
+			  :expr :make-div :right :sub :add :div :make-sub
+			  :make-id :make-compound-id :mul :name :compound)
+  (:shadowing-import-from :alexandria :flatten))
+
+
+#+end_src
+
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":query-hdl-mcpl"
+    :header-args+: :tangle "system/library/query-hdl-mcpl/query-hdl-mcpl.lisp"
+    :END:
+
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :query-hdl-mcpl)
+#+end_src
+
+#+begin_src lisp
+(defun get-parallelism-level (ast)
+  "Get the parallelism level of an AST form."
+  (get-parallelism-level2 (parent ast)))
+
+(defun get-parallelism-level2 (ast)
+  (cond ((null ast) "parallelism")
+	((typep ast 'foreach-stat)
+	 (ast-hdl:name (ast-hdl:id
+			(get-par-unit (name (par-group ast))
+				      (get-hardware-description ast)))))
+	((typep ast 'func)
+	 (get-parallelism-level-func ast))
+	(t (get-parallelism-level2 (parent ast)))))
+
+(defun get-parallelism-level-func (func)
+  (aif (called-by func)
+       (get-lowest-parallelism-level it)
+       (get-parallelism-level2 (parent func))))
+
+(defun get-lowest-parallelism-level (calls)
+  (get-parallelism-level
+   (reduce #'(lambda (r c) (if (parallelism-level< r c) r c)) calls)))
+
+(defun parallelism-level< (ast1 ast2)
+  (let* ((hwd1 (get-hardware-description ast1))
+	 (hwd2 (get-hardware-description ast2))
+	 (par-units
+	  (cons "parallelism"
+		(mapcar (compose #'ast-hdl:name #'ast-hdl:id)
+			(sort (collect-all hwd1 (block-with-type "par_unit"))
+			      #'ast<)))))
+    (assert (eq hwd1 hwd2))
+    (< (get-position ast1 par-units) (get-position ast2 par-units))))
+
+(defun get-position (ast par-units)
+  (position (get-parallelism-level ast) par-units :test #'string=))
+
+(defgeneric get-hardware-description (form)
+  (:documentation "Get the hardware description of form form."))
+
+(defmethod get-hardware-description ((s string))
+  (get-hardware-description-by-name s))
+
+(defmethod get-hardware-description ((ast ast))
+  (get-hardware-description (get-func ast)))
+
+(defmethod get-hardware-description ((func func))
+  (get-hardware-description (hw-desc func)))
+
+(defmethod get-hardware-description ((id id))
+  (get-hardware-description (name id)))
+#+end_src
+
+The following method returns a string as it will not be clear if an
+~ast-mcpl:id~ or ~ast-hdl:id~ will be returned.
+
+#+begin_src lisp
+(defgeneric get-memory-spaces (ast)
+  (:documentation "Get the memory space of an AST-form"))
+
+(defmethod get-memory-spaces ((decl decl))
+  (assert (not (memory-space-disallowed decl)))
+  (aif (get-memory-spaces-modifier decl)
+       (mapcar #'name it)
+       (list (ast-hdl:name
+	      (ast-hdl:id
+	       (get-default-memory-space (get-hardware-description decl)
+					 (get-parallelism-level decl)))))))
+
+
+#+end_src
+
+#+begin_src lisp
+(defgeneric hardware-description-var-p (var)
+  (:documentation "Whether var is a hardware description variable."))
+
+(defmethod hardware-description-var-p ((var dot-var))
+  (get-hardware-description (id (basic-var var))))
+
+(defgeneric resolve-hardware-description-var (var)
+  (:documentation "Resolve a hardware description variable."))
+
+(defmethod resolve-hardware-description-var ((var dot-var))
+  (let ((hwd (get-hardware-description (id (basic-var var)))))
+    (hdl-expr->mcpl-expr (first (exprs (resolve (mcpl-var->hdl-var var) hwd))))))
+
+(defgeneric mcpl-var->hdl-var (var)
+  (:documentation "Convert an MCPL variable to an HDL variable."))
+
+(defmethod mcpl-var->hdl-var ((dv dot-var))
+  (ast-hdl:make-compound-id (ast-hdl:make-id (name (id (basic-var dv))))
+			    (mcpl-var->hdl-var (var dv))))
+
+(defmethod mcpl-var->hdl-var ((nv normal-var))
+  (mcpl-var->hdl-var (basic-var nv)))
+
+(defmethod mcpl-var->hdl-var ((bv basic-var))
+  (assert (null (array-exprs bv)))
+  (ast-hdl:make-id (name (id bv))))
+
+(defgeneric hdl-expr->mcpl-expr (hdl-expr)
+  (:documentation "Convert an HDL expression to an MCPL expression."))
+
+(defmethod hdl-expr->mcpl-expr ((unit-expr unit-expr))
+  (assert (null (unit unit-expr)))
+  (hdl-expr->mcpl-expr (ast-hdl:expr unit-expr)))
+
+(defmethod hdl-expr->mcpl-expr ((int-literal int-literal))
+  (with-slots (value location) int-literal
+    (make-int-constant value location)))
+#+end_src
+
+
+#+include: "pass-library.org" :minlevel 2
+
+
+** Check consistency AST
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/check-consistency-ast/packages.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :check-consistency-ast
+  (:use :cl :cl-log :ast :ast-mcpl :query-hdl-mcpl)
+  (:import-from :utility-directory :def-methods)
+  (:export :check-consistency-ast
+	   :check-parents-child-consistency
+	   :check-decls-vars-consistency
+	   :check-funcs-calls-consistency))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":check-consistency-ast"
+    :header-args+: :tangle "system/library/check-consistency-ast/check-consistency-ast.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :check-consistency-ast)
+#+end_src
+
+#+begin_src lisp
+(defun check-consistency-ast (module)
+  (log-message :check-consistency "Checking consistency")
+  (check-parents-child-consistency module)
+  (check-decls-vars-consistency module)
+  (check-funcs-calls-consistency module)
+  module)
+#+end_src
+
+**** Checking parents/child relationship
+
+The following functions check the parent/child relationship.  Modules are
+supposed to not have a parent.  Each other AST-form should have a parent that
+points to child.
+
+#+begin_src lisp
+(defun check-parents-child-consistency (ast)
+  (log-message :check-consistency-part "Checking parents-child-relationship")
+  (visit ast #'check-parents-child-fw #'check-parents-child-bw))
+
+(defgeneric check-parents-child-fw (ast))
+(defgeneric check-parents-child-bw (ast))
+
+(defvisitor check-parents-child-fw ast (list string symbol number)
+  t)
+(defvisitor check-parents-child-bw ast (ast list string symbol number)
+  nil)
+
+(defmethod check-parents-child-fw ((module module))
+  (when (not (null (parent module)))
+    (error "The parent of module ~a is not nil." module))
+  (check-children module)
+  t)
+
+(defmethod check-parents-child-fw ((ast ast))
+  ;; (when (and (typep ast 'call)
+  ;; 	     (string= (name (id ast)) "mcl_builtin_transfer_from_device"))
+  ;;   (format t "yep~%"))
+  (check-parent ast)
+  (check-children ast)
+  t)
+
+(defun check-parent (ast)
+  (with-slots (parent) ast
+    (if (null parent)
+	(error "AST ~a does not have a parent." ast)
+	(when (not (has-as-child-p parent ast))
+	  (error "AST ~a has ~a as parent, but the parent does not have it 
+as child" ast parent)))))
+
+(defun check-children (ast)
+  (dolist (child (children ast))
+    (check-child child ast)))
+
+(defgeneric check-child (child parent))
+
+(defmethod check-child ((child ast) parent)
+  (when (not (eq (parent child) parent))
+    (error "AST ~a has ~a as child, but the child does not have it as parent"
+	   parent child)))
+
+(defmethod check-child ((l list) parent)
+  (dolist (e l)
+    (check-child e parent)))
+
+(def-methods check-child ((ast (string symbol number)) parent)
+  t)
+
+#+end_src
+
+**** Checking decls/vars relationship
+
+The following pass visits the AST and reacts to basic declarations, normal
+variables and dot-variables.  In the latter case, the visit does not continue
+if it is a hardware variable.
+
+#+begin_src lisp
+(defun check-decls-vars-consistency (ast)
+  (log-message :check-consistency-part "Checking decls-vars-relationship")
+  (visit ast #'check-decls-vars-fw #'check-decls-vars-bw)
+  ast)
+
+(defgeneric check-decls-vars-fw (ast))
+(defgeneric check-decls-vars-bw (ast))
+
+(defvisitor check-decls-vars-fw ast (ast list string symbol number)
+  t)
+
+(defvisitor check-decls-vars-bw ast (ast list string symbol number)
+  nil)
+
+(defmethod check-decls-vars-fw ((bd basic-decl))
+  (check-decl-basic-decl bd)
+  (check-vars-basic-decl bd))
+
+(defmethod check-decls-vars-fw ((v normal-var))
+  (check-basic-var (basic-var v)))
+
+(defmethod check-decls-vars-fw ((dv dot-var))
+  (if (not (hardware-description-var-p dv))
+      (progn
+	(check-basic-var (basic-var dv))
+	t)
+      nil))
+#+end_src
+
+For basic declarations:
+     
+#+begin_src lisp
+(defun check-decl-basic-decl (bd)
+  (with-slots (id decl) bd
+    (if decl
+	(check-decl-has-bd decl bd)
+	(error "basic-decl ~a has no decl" (name id)))))
+
+(defun check-decl-has-bd (decl bd)
+  (with-slots (id location) bd
+    (unless (loop for bd2 in (get-basic-decls decl)
+	       thereis (eq bd bd2))
+      (error-message "basic-decl" (name id) "decl" (name (get-id decl))
+		     location))))
+
+(defun check-vars-basic-decl (bd)
+  (with-slots ((id-bd id) id vars location) bd
+    (dolist (v vars)
+      (with-slots ((id-v id) basic-decl) (basic-var v)
+	(check bd basic-decl
+	       "basic-decl" (name id-bd) "var" (name id-v) location)))))
+#+end_src
+
+For basic vars:
+
+#+begin_src lisp
+(defun check-basic-var (bv)
+  (with-slots ((id-var id) basic-decl location) bv
+    (if basic-decl
+	(with-slots ((id-basic-decl id) vars) basic-decl
+	  (when (not (member (parent bv) vars))
+	    (check bv basic-decl "basic-var" (name id-var) "basic-decl"
+		   (name id-basic-decl) location)))
+	(error "basic-var ~a has no basic-decl" (name id-var)))))
+#+end_src
+
+The following function is a generic function that reports an error:
+
+#+begin_src lisp
+(defun check (ast1 ast2 type-ast1 name-ast1 type-ast2 name-ast2 location)
+  (when (not (eq ast1 ast2))
+    (error-message type-ast1 name-ast1 type-ast2 name-ast2 location)))
+
+(defun error-message (type-ast1 name-ast1 type-ast2 name-ast2 location)
+  (error "~a ~a points to ~a ~a, but ~a does not point to ~a at ~a"
+	 type-ast1 name-ast1 type-ast2 name-ast2 name-ast2 name-ast1
+	 location))
+#+end_src
+
+**** Checking the function/call relationship
+    
+#+begin_src lisp
+(defun check-funcs-calls-consistency (ast)
+  (log-message :check-consistency-part "Checking funcs-calls-relationship")
+  (visit ast #'check-funcs-calls-fw #'check-funcs-calls-bw)
+  ast)
+
+(defgeneric check-funcs-calls-fw (ast))
+(defgeneric check-funcs-calls-bw (ast))
+
+(defvisitor check-funcs-calls-fw ast (ast list string symbol number)
+  t)
+
+(defvisitor check-funcs-calls-bw ast (ast list string symbol number)
+  nil)
+
+(defmethod check-funcs-calls-fw ((f func))
+  (with-slots (called-by (id-f id) location) f
+    (dolist (c called-by)
+      (with-slots (func (id-c id)) c
+	(check f func "function" (name id-f) "call" (name id-c) location))))
+  t)
+
+(defmethod check-funcs-calls-fw ((c call))
+  (unless (builtin-func-p c)
+    (with-slots (func (id-c id) location) c
+      (if (null func)
+	  (error "Call ~a does not have an associated func." (name id-c))
+	  (with-slots (called-by (id-f id)) func
+	    (when (not (member c called-by))
+	      (error "Call ~a is associated with func ~a, but the func does not know about it."
+		     (name id-c) (name id-f)))))))
+  t)
+#+end_src
+     
+
+
+
+** Logging
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/logging/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :logging
+  (:use :cl :cl-log)
+  (:import-from :anaphora :aif :it)
+  (:export :dbg :initialize-logging :log-micro-pass :set-level))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":logging"
+    :header-args+: :tangle "system/library/logging/logging.lisp"
+    :END:
+
+**** External functions
+
+The following function initializes the logging.  It creates a log manager,
+starts a messenger, and sets the time to zero.
+    
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :logging)
+#+end_src
+
+#+begin_src lisp
+(defvar *logging-initialized* nil)
+(defparameter *levels* (make-array 10 :initial-element nil :adjustable t :fill-pointer 0))
+
+(defun initialize-logging ()
+  (unless *logging-initialized*
+    (setf (log-manager)
+	  (make-instance 'log-manager :message-class 'indented-message))
+    (start-messenger 'text-stream-messenger :stream t :filter :log-level)
+    (setf *logging-initialized* t)
+    (set-level-category :debug 1)
+    (set-level-category :pass 1)
+    (set-level-category :micro-pass 2)
+    (set-level-category :translate 2)
+    (set-level-category :check-consistency 2)
+    (set-level-category :check-consistency-part 3)
+    (set-level 1))
+  (setf (slot-value (log-manager) 'cl-log::first-time) 0))
+#+end_src
+
+An example of how we can start logging an AST form in category ~micro-pass~ is:
+
+#+begin_example lisp
+(log-message :micro-pass "This is a message ~a" ast-form)
+#+end_example
+
+There are several convenience methods defined:
+
+#+begin_src lisp
+(defun dbg (format-string &rest arguments)
+  (log-message :debug (apply #'format nil format-string arguments)))
+
+(defun log-micro-pass (name arg)
+  (log-message :micro-pass "Running micro-pass ~a on ~a" name arg))
+#+end_src
+
+The following function can set the log-level, which basically means the level
+of indentation.
+
+#+begin_src lisp
+(defun set-level (level)
+  (setf (log-level) (cons 'or (get-categories-for-level level))))
+#+end_src
+
+#+begin_src lisp
+(defun (setf log-level) (new-value)
+  (defcategory-fn :log-level new-value))
+#+end_src
+
+
+
+**** The internals
+
+To use logging in MCL, we have to define a level for the categorie.  The level
+determines to what extent the log messages are indented.  The function
+~set-level~ stores the levels in an array and associates the level with the
+symbol.
+
+#+begin_src lisp
+
+(defun set-level-category (category level)
+  (setf (get 'level category) level)
+  (when (>= level (length *levels*))
+    (adjust-array *levels* (+ level 10) :initial-element nil))
+  (setf (aref *levels* level) (push category (aref *levels* level))))
+#+end_src
+
+
+We can retrieve the level of a category with the following function that gives
+an error if the categorie is unknown:
+
+#+begin_src lisp
+(defun get-level (category)
+  (aif (get 'level category)
+       it
+       (error "Need to specifiy a level for categorie ~a" category)))
+#+end_src
+
+Likewise, we can retrieve all categories for a specific level:
+
+#+begin_src lisp
+(defun get-categories-for-level (level)
+  (loop for i from 0 to level append (aref *levels* i)))
+#+end_src
+
+The class ~formatted-message~ creates formatted messages.  We override this to
+create indented messages.  The class does not need to have a slot value, as the
+level of indentation is based on the category of the message.
+
+#+begin_src lisp
+(defclass indented-message (formatted-message) nil)
+#+end_src
+
+To create indented output, we override the following function:
+
+#+begin_src lisp
+(defparameter *indentation-width* 2)
+
+(defmethod format-message ((self indented-message))
+  (let ((level (1- (get-level (message-category self)))))
+    (if (eql level 0)
+	(format nil "~a ~?~&"
+		(message-category self)
+		(message-description self)
+		(message-arguments self))
+	(format nil "~vt~a ~?~&"
+		(* *indentation-width* level)
+		(message-category self)
+		(message-description self)
+		(message-arguments self)))))
+#+end_src
+
+** Utilities
+
+The following library defines several utility functions for MCL.
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "system/library/mcl-util/packages.lisp"
+    :END:
+
+#+begin_src lisp :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+
+#+begin_src lisp
+(defpackage :mcl-util
+  (:use :cl
+	;;:lol :util
+	:errors)
+  (:import-from :anaphora :aif :it)
+  (:export :getenv :tostring))
+#+end_src
+
+
+*** The utility functions
+    :PROPERTIES:
+    :header-args+: :package ":mcl-util"
+    :header-args+: :tangle "system/library/mcl-util/mcl-util.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :mcl-util)
+#+end_src
+
+#+begin_src lisp
+(defun getenv (string)
+  "Get the environment variable in the string."
+  (aif (uiop:getenv string)
+       it
+       (mcl-error nil "Environment variable ~s has not been defined" string)))
+
+(defun tostring (&rest lines)
+  (format nil "~{~a~^~%~}" lines))
+#+end_src

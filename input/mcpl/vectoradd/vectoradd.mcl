@@ -1,0 +1,15 @@
+package vectoradd;
+
+module vectoradd;
+
+export vectoradd;
+
+import perfect;
+
+perfect void vectoradd(int n, float[n] c, 
+	float[n] a, float[n] b) {
+			
+    foreach (int i in n threads) {
+	c[i] = a[i] + b[i];
+    }
+}

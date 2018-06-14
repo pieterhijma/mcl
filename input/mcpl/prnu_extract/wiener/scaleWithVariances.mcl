@@ -1,0 +1,20 @@
+package prnu_extract.wiener;
+
+module scaleWithVariances;
+
+import perfect;
+
+import lib.math.common;
+
+perfect void scaleWithVariances(int h, int w, Complex[h][w] output,
+	float[h][w] varianceEstimates, float[1] variance) {
+	
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    float scale = 
+		variance[0] / max(variance[0], varianceEstimates[i][j]);
+	    output[i][j].real = output[i][j].real * scale;
+	    output[i][j].imag = output[i][j].imag * scale;
+	}
+    }
+}

@@ -1,0 +1,15 @@
+package lib.math;
+
+module transposeComplex;
+
+import lib.math.complex;
+
+perfect void transposeComplex(int h, int w, Complex[h][w] transposed,
+	const Complex[w][h] input) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    assign(transposed[i][j], input[j][i]);
+	}
+    }
+}
+

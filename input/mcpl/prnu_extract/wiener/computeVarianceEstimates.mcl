@@ -1,0 +1,44 @@
+package prnu_extract.wiener;
+
+module computeVarianceEstimates;
+
+
+import perfect;
+
+import lib.math.common;
+
+perfect void computeVarianceEstimates(int h, int w, 
+	float[h][w] varianceEstimates, float[h][w] input) {
+    foreach (int i in h threads) {
+	foreach (int j in w threads) {
+	    float res = MAX_FLOAT;
+
+	    for (int filterSize = 3;  filterSize <= 9; filterSize+=2) {
+		int border = filterSize/2;
+
+		float sum = 0.0;
+		for (int fi = 0; fi < filterSize; fi++) {
+		    for (int fj = 0; fj < filterSize; fj++) {
+			//originally
+			//sum += input[(i + fi)*(w+border*2)+(j + fj)];
+        
+			int row = i+fi-border;
+			int col = j+fj-border;
+			//the following ifs are a hack to save redundant copying
+			if (row >= 0 && row < h) {
+			    if (col >= 0 && col < w) {
+				sum += input[row][col];
+			    }
+			}
+		    }
+		}
+		sum /= toFloat(filterSize * filterSize);
+        
+		if (sum < res) {
+		    res = sum;
+		}
+	    }
+	    varianceEstimates[i][j] = res;
+	}
+    }
+}
