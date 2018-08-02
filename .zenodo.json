@@ -1,6 +1,6 @@
 {
     "description": "Many-Core Levels (MCL) is a framework that allows one to write computational kernels for different kinds of many-core hardware",
-    "license": "GNU General Public License 3.0",
+    "license": "gpl-3.0",
     "title": "Many-Core Levels",
     "upload_type": "software",
     "creators": [{
