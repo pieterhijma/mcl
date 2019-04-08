@@ -139,7 +139,7 @@ cd $MCL_ROOT_DIR
 #+end_src
 
 #+header: :comments link :eval no
-#+header: :shebang "#!/bin/sh" :exports none
+#+header: :shebang "#!/bin/bash" :exports none
 #+begin_src sh :tangle "../scripts/install-quicklisp"
 
 if [ -z $QUICKLISP_DIR ]
@@ -186,7 +186,7 @@ out the capabilities of a terminal.
 #+end_src
 
 #+header: :comments link :eval no
-#+header: :shebang "#!/bin/sh" :exports none
+#+header: :shebang "#!/bin/bash" :exports none
 #+begin_src sh :tangle "../scripts/setup-sbcl"
 
 function check_env_dir() {
@@ -232,7 +232,7 @@ simplify expressions.  We can install it with:
 #+end_src
 
 #+header: :comments link :eval no
-#+header: :shebang "#!/bin/sh" :exports none
+#+header: :shebang "#!/bin/bash" :exports none
 #+begin_src sh :tangle "../scripts/install-maxima"
 
 function check_env_dir() {
@@ -291,7 +291,7 @@ quicklisp.  We do that by using the following script:
 #+end_src
 
 #+header: :comments link :eval no
-#+header: :shebang "#!/bin/sh" :exports none
+#+header: :shebang "#!/bin/bash" :exports none
 #+begin_src sh :tangle "../scripts/fetch-quicklisp-libs"
 
 function check_env_dir() {
@@ -338,9 +338,8 @@ will return with an error-code.
 #+end_src
 
 #+header: :comments link :eval no
-#+header: :shebang "#!/bin/sh" :exports none
+#+header: :shebang "#!/bin/bash" :exports none
 #+begin_src sh :tangle "../scripts/test-mcl"
-#!/bin/sh
 
 sbcl --eval "(asdf:load-system :mcl/tests)" \
      --eval "(unless (test-mcl:test-mcl) (sb-ext:exit :code 1))" \

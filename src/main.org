@@ -88,7 +88,7 @@
 
  # clean
 #+header: :tangle "../scripts/clean-mcl" :tangle-mode (identity #o700)
-#+begin_src sh :exports none :results output silent :shebang #!/bin/sh
+#+begin_src sh :exports none :results output silent :shebang #!/bin/bash
 source $MCL_ROOT_DIR/scripts/mcl_dirs.sh
 
 # generated documentation
@@ -141,7 +141,7 @@ LIBS=$(ls $LIB_DIR)
 ** Exporting to HTML
 
 #+header: :eval no :tangle-mode (identity #o700)
-#+begin_src sh :tangle "../scripts/export-to-html-mcl" :shebang #!/bin/sh 
+#+begin_src sh :tangle "../scripts/export-to-html-mcl" :shebang #!/bin/bash 
 source $MCL_ROOT_DIR/scripts/mcl_dirs.sh
 
 function check_env_dir() {
@@ -239,7 +239,7 @@ The following lisp script will load MCL and dump an image that can be executed:
 #+end_src
 
 #+header: :eval no :tangle-mode (identity #o700)
-#+begin_src sh :tangle "../scripts/make-mcl" :shebang #!/bin/sh 
+#+begin_src sh :tangle "../scripts/make-mcl" :shebang #!/bin/bash 
 sbcl --load $MCL_ROOT_DIR/scripts/make-mcl-image.lisp
 #+end_src
 
