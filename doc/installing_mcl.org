@@ -264,7 +264,7 @@ MAXIMA_URL=https://kent.dl.sourceforge.net/project/maxima/Maxima-source/$MAXIMA_
 if [ ! -f $MAXIMA_TAR_PATH ]
 then
     echo $MAXIMA_URL
-    curl -o $MAXIMA_TAR_PATH $MAXIMA_URL
+    curl -L -o $MAXIMA_TAR_PATH $MAXIMA_URL
 fi
 
 if [ ! -d $MAXIMA_PATH ]
