@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 function check_env_dir() {
     local name_env_dir=$1
