@@ -744,7 +744,7 @@ Testing a simple module:
   (defgeneric print-forward (ast))
   (defgeneric print-backward (ast))
 
-  (defvisitor print-backward ast (ast string list number)
+  (defvisitor print-backward ast (ast string list number symbol)
      (dec))
 
 
@@ -762,6 +762,10 @@ Testing a simple module:
 
   (defmethod print-forward ((n number))
     (do-print "~a" n)
+    t)
+
+  (defmethod print-forward ((s symbol))
+    (do-print "~a" s)
     t)
   
   (defun print-ast (ast)

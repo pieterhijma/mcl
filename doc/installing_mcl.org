@@ -390,3 +390,12 @@ links to the system description files with extension ~.asd~.
 
 In ~.mcl_util~ we installed ~org-build-tools~ and the Quicklisp distribution.
 Emacs added a directory to ~.emacs.d~ to generate colorized HTML output.
+* Maxima and a new version of SBCL
+
+Each time SBCL is updated, it is necessary to reinstall Maxima.  To accomplish
+this, remove the directory ~lib/maxima-5.41.0/src/binary-sbcl~ and rerun the
+installation script:
+
+#+begin_src sh
+./scripts/install-maxima
+#+end_src
