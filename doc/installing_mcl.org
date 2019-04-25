@@ -131,7 +131,8 @@ all the .org files with the following command:
 MCL needs to have access to several existing libraries.  [[https://www.quicklisp.org][Quicklisp]] is a library
 manager for Common Lisp.  The script ~scripts/install-quicklisp~ downloads
 Quicklisp, verifies the integrity of the file, and adds it to the SBCL
-initialization file ~$HOME/.sbclrc~.
+initialization file ~$HOME/.sbclrc~.  It is possible to override the location
+of ~.sbclrc~ by setting the environment variable ~SBCLRC~ to some value.
 
 #+begin_src sh
 cd $MCL_ROOT_DIR
@@ -148,6 +149,10 @@ then
     exit 1
 fi
 
+if [ -z $SBCLRC_FILE ]
+then
+    SBCLRC_FILE=$HOME/.sbclrc
+fi
 
 check_env_dir QUICKLISP_DIR
 
@@ -162,11 +167,10 @@ gpg --verify quicklisp.lisp.asc quicklisp.lisp
 sbcl --load quicklisp.lisp \
      --eval "(quicklisp-quickstart:install :path \"$QUICKLISP_DIR\")" \
      --eval "(setf ql-util::*do-not-prompt* t)" \
-     --eval "(ql:add-to-init-file)" \
+     --eval "(ql:add-to-init-file \"$SBCLRC_FILE\")" \
      --quit
 rm -rf $DIR
 #+end_src
-
 
 * Setting up SBCL
 
@@ -181,6 +185,9 @@ The script will then add some code to ~$HOME/.sbclrc~ to inform SBCL where to
 look for systems.  In addition, we set the environment variable ~CC~ to ~gcc~
 for SBCL to ensure that one of the libraries can generate native code to find
 out the capabilities of a terminal.
+
+It is possible to override the default location of systems
+(~$HOME/.sbcl/systems~) by setting the environment variable ~SBCL_SYSTEM_DIR~.
 
 #+begin_src sh
 ./scripts/setup-sbcl
@@ -207,14 +214,24 @@ function check_env_dir() {
 
 check_env_dir MCL_ROOT_DIR
 
-mkdir -p $HOME/.sbcl/systems
-ln -s $MCL_ROOT_DIR/src/system/mcl.asd $HOME/.sbcl/systems
+if [ -z $SBCLRC_FILE ]
+then
+    SBCLRC_FILE=$HOME/.sbclrc
+fi
 
-cat <<EOT >> $HOME/.sbclrc
+if [ -z $SBCL_SYSTEM_DIR ]
+then
+    SBCL_SYSTEM_DIR=$HOME/.sbcl/systems
+fi
+
+mkdir -p $SBCL_SYSTEM_DIR
+ln -s $MCL_ROOT_DIR/src/system/mcl.asd $SBCL_SYSTEM_DIR
+
+cat <<EOT >> $SBCLRC_FILE
 ;; inserted by $MCL_ROOT_DIR/scripts/setup-sbcl
 (setf asdf:*central-registry*
     (list* '*default-pathname-defaults*
-           #p"$HOME/.sbcl/systems/"
+           #p"$SBCL_SYSTEM_DIR/"
            asdf:*central-registry*))
 
 (require :sb-posix)
