@@ -161,6 +161,7 @@ gpg --verify quicklisp.lisp.asc quicklisp.lisp
 
 sbcl --load quicklisp.lisp \
      --eval "(quicklisp-quickstart:install :path \"$QUICKLISP_DIR\")" \
+     --eval "(setf ql-util::*do-not-prompt* t)" \
      --eval "(ql:add-to-init-file)" \
      --quit
 rm -rf $DIR
