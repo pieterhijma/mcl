@@ -794,7 +794,7 @@ Testing a simple module:
 
 #+begin_src lisp
 (defpackage :print-ast-json
-  (:use :cl :ast :ast-mcpl)
+  (:use :cl :ast :ast-mcpl :code-emitter)
   (:export :print-ast-json))
 #+end_src
 
@@ -811,46 +811,51 @@ Testing a simple module:
 #+end_src
 
 #+begin_src lisp
-(let ((indentation 0)
-      (s (make-string-output-stream)))
+(defun slot-values (object)
+  (mapcar #'(lambda (slot-name)
+	      (slot-value object slot-name))
+	  (slot-names-children object)))
 
-  (defun dec ()
-    (decf indentation))
+(defun slot-name->string (slot-name)
+  (kebab:to-camel-case (format nil "~a" slot-name)))
 
-  (defun do-print (f v)
-    (incf indentation)
-    (format s (concatenate 'string "~vt" f "~%") indentation v))
+(defun slot-names (object)
+  (mapcar #'slot-name->string (slot-names-children object)))
 
-  (defgeneric print-forward (ast))
-  (defgeneric print-backward (ast))
+(defun print-slots (ast class-name)
+  (emit-list (mapcar #'(lambda (slot-name slot-value)
+			 (emit "\"~a\": ~a" slot-name (print-ast slot-value)))
+		     (cons "class" (slot-names ast))
+		     (cons class-name (slot-values ast)))
+	     :separator ", "))
 
-  (defvisitor print-backward ast (ast string list number symbol)
-     (dec))
+(defgeneric print-ast (ast))
 
+(defmethod print-ast ((s string))
+  (format nil "~s" s))
 
-  (defmethod print-forward ((ast ast))
-    (do-print "~a" (class-name (class-of ast)))
-    t)
+(defmethod print-ast ((n number))
+  (format nil "~a" n))
 
-  (defmethod print-forward ((str string))
-    (do-print "~s" str)
-    t)
+(defmethod print-ast ((s (eql t)))
+  "true")
 
-  (defmethod print-forward ((l list))
-    (incf indentation)
-    t)
+(defmethod print-ast ((s (eql nil)))
+  "false")
 
-  (defmethod print-forward ((n number))
-    (do-print "~a" n)
-    t)
+(defmethod print-ast ((l list))
+  (if l
+      (emit "["
+	    "  ~a" (emit-list l :separator ", " :function #'print-ast)
+	    "]")
+      (emit "[]")))
 
-  (defmethod print-forward ((s symbol))
-    (do-print "~a" s)
-    t)
+(defmethod print-ast ((ast ast))
+  (emit "{"
+	"  ~a" (print-slots ast (kebab:to-camel-case (symbol-name (sb-mop:class-name (class-of ast)))))
+	"}"))
   
-  (defun print-ast-json (ast)
-    (setf indentation 0)
-    (visit ast #'print-forward #'print-backward)
-    (get-output-stream-string s))) 
+(defun print-ast-json (ast)
+  (print ast))
 #+end_src
 
