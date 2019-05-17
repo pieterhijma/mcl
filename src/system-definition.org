@@ -102,7 +102,7 @@ good way, we use quicklisp to do that using ~asdf-system-connections~.
 			   :cl-utilities :esrap :parser.common-rules
 			   :parser.common-rules.operators
 			   :string-case :iterate :cl-log 
-			   :net.didierverna.clon :clon-completion
+			   :net.didierverna.clon :clon-completion :kebab
 			   :simple-sets :cl-graph-extension
 			   :code-emitter)
     :components

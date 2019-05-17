@@ -827,7 +827,9 @@ Testing a simple module:
 			 (emit "\"~a\": ~a" slot-name (print-ast slot-value)))
 		     (cons "class" (slot-names ast))
 		     (cons class-name (slot-values ast)))
-	     :separator ", "))
+	     :separator ","
+	     :nr-lines 1
+	     ))
 
 (defgeneric print-ast (ast))
 
@@ -846,7 +848,7 @@ Testing a simple module:
 (defmethod print-ast ((l list))
   (if l
       (emit "["
-	    "  ~a" (emit-list l :separator ", " :function #'print-ast)
+	    "  ~a" (emit-list l :separator "," :nr-lines 1 :function #'print-ast)
 	    "]")
       (emit "[]")))
 
@@ -856,6 +858,6 @@ Testing a simple module:
 	"}"))
   
 (defun print-ast-json (ast)
-  (print ast))
+  (print-ast ast))
 #+end_src
 
