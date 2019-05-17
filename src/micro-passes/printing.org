@@ -775,3 +775,82 @@ Testing a simple module:
 #+end_src
 
 
+
+
+** Print the AST in JSON format
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/print-ast-json/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :print-ast-json
+  (:use :cl :ast :ast-mcpl)
+  (:export :print-ast-json))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":print-ast-json"
+    :header-args+: :tangle "../system/micro-passes/print-ast-json/print-ast-json.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :print-ast-json)
+#+end_src
+
+#+begin_src lisp
+(let ((indentation 0)
+      (s (make-string-output-stream)))
+
+  (defun dec ()
+    (decf indentation))
+
+  (defun do-print (f v)
+    (incf indentation)
+    (format s (concatenate 'string "~vt" f "~%") indentation v))
+
+  (defgeneric print-forward (ast))
+  (defgeneric print-backward (ast))
+
+  (defvisitor print-backward ast (ast string list number symbol)
+     (dec))
+
+
+  (defmethod print-forward ((ast ast))
+    (do-print "~a" (class-name (class-of ast)))
+    t)
+
+  (defmethod print-forward ((str string))
+    (do-print "~s" str)
+    t)
+
+  (defmethod print-forward ((l list))
+    (incf indentation)
+    t)
+
+  (defmethod print-forward ((n number))
+    (do-print "~a" n)
+    t)
+
+  (defmethod print-forward ((s symbol))
+    (do-print "~a" s)
+    t)
+  
+  (defun print-ast-json (ast)
+    (setf indentation 0)
+    (visit ast #'print-forward #'print-backward)
+    (get-output-stream-string s))) 
+#+end_src
+

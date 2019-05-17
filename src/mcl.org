@@ -97,7 +97,8 @@ pass over the AST.
 	   :print-pretty :pp
 	   :generate-code :gen
            :generate-cashmere-code
-	   :translate))
+	   :translate
+	   :print))
 #+end_src
 
 
@@ -137,6 +138,28 @@ pass over the AST.
 
 (defun pp ()
   (print-pretty "input/mcpl/lib/fft/fft.mcl"))
+#+end_src
+
+#+begin_src lisp
+(defun print-ast-json (mcl-file-name &optional hwd)
+  ;; (enable-pass 'print-pretty 'remove-hardware-vars)
+  ;; (enable-pass 'print-pretty 'translate)
+  ;; (enable-pass 'print-pretty 'move-dimension-constants-out-foreach)
+  ;; (enable-pass 'print-pretty 'move-foreach-to-func)
+  ;; (enable-pass 'print-pretty 'optimize-transfers)
+  ;;(enable-pass 'print-pretty 'generate-transfers)
+  (run-pass 'print-ast-json
+	    (if hwd
+		(list (cons 'print-ast-json mcl-file-name)
+		      (cons 'translate hwd)
+		      (cons 'semantic-analysis mcl-file-name))
+		(list (cons 'print-ast-json mcl-file-name)
+		      (cons 'semantic-analysis mcl-file-name)))))
+#+end_src
+
+#+begin_src lisp
+(defun print ()
+  (print-ast-json "input/mcpl/matrixmultiplication/matrixmultiplication.mcl"))
 #+end_src
 
 

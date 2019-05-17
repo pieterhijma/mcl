@@ -322,6 +322,33 @@ identifier of the import to the ~pass-data~ data structure.
     (pp module)))
 #+end_src
 
+** Print AST JSON
+    :PROPERTIES:
+    :header-args+: :tangle "system/passes/print-ast-json.lisp"
+    :header-args+: :package ":passes"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :passes)
+#+end_src
+
+#+begin_src lisp
+(defpass print-ast-json
+  (:dependencies semantic-analysis)
+  (:options translate flatten-types move-foreach-to-func remove-hardware-vars
+	    generate-transfers remove-hardware-vars
+	    move-dimension-constants-out-foreach))
+#+end_src
+
+#+begin_src lisp
+(defun do-print-ast-json (pass-data name-mcpl-file)
+  (let ((module (gethash (get-key-from-filename name-mcpl-file pass-data)
+			 (modules pass-data))))
+    (print-ast-json:print-ast-json module)))
+#+end_src
+
 ** Generate code
     :PROPERTIES:
     :header-args+: :tangle "system/passes/generate-code.lisp"
