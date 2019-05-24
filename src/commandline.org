@@ -70,19 +70,22 @@ This section describes the commandline interface to ~mcl~.
       (flag :short-name "h"
             :description "Print this help and exit.")))
 
-;; (defcommand "gen-cpp"
-;;   (clon:defsynopsis (:make-default nil :postfix "FILE") 
-;;       (text :contents "Generate C++ code.")
-;;       (flag :short-name "h" :long-name "help"
-;; 	    :description "Print this help and exit.")
+(defcommand "gen-cpp"
+  (clon:defsynopsis (:make-default nil :postfix "FILE") 
+      (text :contents "Generate C++ code.")
+      (flag :short-name "h" :long-name "help"
+	    :description "Print this help and exit.")
       
-;;       (stropt :short-name "t" :long-name "target"
-;;                       :argument-name "TARGET" 
-;;                       :description "Create C++ code for target TARGET.")
-;;       (comma-sep-list :short-name "e" :long-name "entry-funcs"
-;;                       :argument-name "ENTRY-FUNCS"
-;;                       :description
-;;                       "Create C++ code with entry functions ENTRY-FUNCS.")))
+      (stropt :short-name "t" :long-name "target"
+                      :argument-name "TARGET" 
+                      :description "Create C++ code for target TARGET.")
+      (stropt :short-name "o"
+              :argument-name "OUTPUT-DIR" :env-var "MCL_OUTPUT_DIR"
+              :description "The directory where the files be created.")
+      (strlist :short-name "e" :long-name "entry-funcs"
+                      :argument-name "ENTRY-FUNCS"
+                      :description
+                      "Create C++ code with entry functions ENTRY-FUNCS.")))
 
 (defcommand "gen-cashmere"
     (clon:defsynopsis (:make-default nil :postfix "MCL-FILE...") 
@@ -160,23 +163,22 @@ hardware-descriptions are extracted from the ~hdl~ directory.
 #+end_src
 
 #+begin_src lisp
-;; (def-command-func "gen-cpp" 
-;;   (cond ((clon:getopt :short-name "h")
-;;          (clon:help))
-;;         (t
-;;          (let ((target (clon:getopt :short-name "t"))
-;;                (entry-funcs (clon:getopt :short-name "e"))
-;;                (file (clon:remainder)))
-;;            (unless target
-;;              (exit-with "Need to specify a target."))
-;;            (unless entry-funcs
-;;              (exit-with "Need to specify one or more entry functions."))
-;;            (unless (and file (eql (length file) 1))
-;;              (exit-with "Need to specify an MCL file"))
-;;            (let ((file (first file)))
-;;              (format t "Generating C++ code from file ~a for target ~a for "
-;;                      file target)
-;;              (format t "entry functions ~{~a~^, ~}~%" entry-funcs))))))
+(def-command-func "gen-cpp" 
+  (cond ((clon:getopt :short-name "h")
+         (clon:help))
+        (t
+         (let ((target (clon:getopt :short-name "t"))
+               (entry-funcs (clon:getopt :short-name "e"))
+	       (output-dir (clon:getopt :short-name "o"))
+               (file (clon:remainder)))
+           (unless target
+             (exit-with "Need to specify a target."))
+           (unless entry-funcs
+             (exit-with "Need to specify one or more entry functions."))
+           (unless (and file (eql (length file) 1))
+             (exit-with "Need to specify an MCL file"))
+           (let ((file (first file)))
+             (generate-code file target entry-funcs output-dir))))))
 #+end_src
 
 
