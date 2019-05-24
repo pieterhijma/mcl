@@ -960,7 +960,7 @@ for modules with separate functions with kernel calls:
 	  (emit "{"
 		"    vector<std::string> macros;"
 		"    try {"
-		"        opencl::compile(\"~a/~a\", macros, CL_DEVICE_TYPE_CPU);"
+		"        opencl::compile(\"~a/~a\", macros, CL_DEVICE_TYPE_GPU);"
 		(module-dir kernels-file) (base-filename kernels-file)
 		""
 		"        ~a" (gen stats gen)
@@ -985,7 +985,7 @@ entry-point:
       (emit "{"
 	    "    vector<std::string> macros;"
 	    "    try {"
-	    "        opencl::compile(\"~a/~a\", macros, CL_DEVICE_TYPE_CPU);"
+	    "        opencl::compile(\"~a/~a\", macros, CL_DEVICE_TYPE_GPU);"
 	    (module-dir kernels-file) (base-filename kernels-file)
 	    ""
 	    "        ~a" (gen stats gen)
