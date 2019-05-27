@@ -40,6 +40,7 @@ This section describes the commandline interface to ~mcl~.
 (defpackage :mcl-commandline
   (:use :cl :clon :clon-completion :mcl :errors)
   (:import-from :cl-fad :list-directory :pathname-as-directory)
+  (:import-from :alexandria :read-file-into-string)
   (:export :main))
 #+end_src
 
@@ -234,38 +235,41 @@ hardware-descriptions are extracted from the ~hdl~ directory.
                  (exit-with "Missing command."))
                (dispatch)))
         (clon:exit))
-    (mcl-error (e) (report-mcl-error e))
-    ;; TODO nicely capture parse errors
-    ;; (mismatched-token (e) (report-mcl-error e))
-    ))
+    (mcl-error (e) (report-mcl-error e))))
 
 (defgeneric report-mcl-error (error))
 
 (defmethod report-mcl-error ((e mcl-error))
   (with-slots (loc text) e
-    (when loc (print-mcl-loc loc))
-    (format t "~a~%" text)
+    (if loc (print-mcl-error-with-loc loc text)
+	(format t "~a~%" text))
     (clon:exit 1)))
 
-;; (defmethod report-mcl-error ((e mismatched-token))
-;;   (with-slots (found expected) e
-;;     (destructuring-bind (type value line column filename) found
-;;       (print-loc filename line column)
-;;       (format t "expected token ~a, but found token ~a with value ~sx~%"
-;;               expected type value)
-;;       (clon:exit 1))))
+(defun print-mcl-error-with-loc (loc text)
+  (destructuring-bind ((start-position . end-position) filename) loc
+    (if filename
+	(print-mcl-error-with-file start-position end-position filename text)
+	(format t "between positions ~a and ~a~%" start-position end-position))))
 
-(defun print-mcl-loc (loc)
-  (destructuring-bind ((line . column) filename) loc
-    ;; (let ((filename
-    ;;        (namestring (subtract-pathname pathname (pathname-exists-p
-    ;;        "."))))))
-    (print-loc filename line column)))
-    
-(defun print-loc (filename line column)
-  (format t "In ~a, line ~a,~a:~%" filename line column))
+(defun safe-index (index string)
+  (min (max index 0) (length string)))
 
-;;(write-completion-file "mcl")
+(defun find-newline (string end)
+  (let* ((end (safe-index end string))
+	 (position (position #\Newline string :start 0 :end end :from-end t)))
+    (if position (1+ position) 0)))
+
+
+(defun print-mcl-error-with-file (start-position end-position filename message)
+  (let* ((file-as-string (read-file-into-string filename))
+	 (line (1+ (count #\Newline file-as-string :end start-position)))
+	 (column (- start-position (find-newline file-as-string start-position)))
+	 (nr-columns (max 1 (- end-position start-position 1))))
+    (format *error-output* "~a:~a:~a: error: ~a~%" filename line column message)
+    (when (= (count #\newline message) 0)
+      (let ((lines (split-sequence:split-sequence #\newline file-as-string)))
+	(format *error-output* "~a~%" (nth (1- line) lines))
+	(format *error-output* "~vt~v,,,'^a~%" column nr-columns "")))))
 #+end_src
 
 *** Utility functions

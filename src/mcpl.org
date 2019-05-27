@@ -1807,8 +1807,17 @@ An MCL file is a contains a module with a package declaration.
 (defun parse-mcpl (string)
   (parse 'module string))
 
+
 (defun parse-mcpl-file (filename)
-  (parse-mcpl (read-file-into-string filename)))
+  (let ((*filename* filename))
+    (let ((file-as-string (read-file-into-string *filename*)))
+      (handler-case (parse-mcpl file-as-string)
+	(esrap-parse-error (e)
+	  (let ((position (esrap-error-position e)))
+	    (errors:parse-mcpl-error
+	     (list (cons position (1+ position))
+		   filename)
+	     (format nil "~a" e))))))))
 #+end_src
 
 **** library
