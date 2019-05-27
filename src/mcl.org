@@ -97,7 +97,9 @@ pass over the AST.
 	   :print-pretty :pp
 	   :generate-code :gen
            :generate-cashmere-code
-	   :translate))
+	   :translate
+	   :print-version
+	   :*version*))
 #+end_src
 
 
@@ -112,6 +114,12 @@ pass over the AST.
 <<license-preamble>>
 
 (in-package :mcl)
+#+end_src
+
+The version:
+
+#+begin_src lisp
+(defparameter *version* "0.1.1")
 #+end_src
 
 #+begin_src lisp
@@ -168,6 +176,10 @@ pass over the AST.
 (defun gen ()
   (generate-code "input/mcpl/matrixmultiplication/matrixmultiplication.mcl" "fermi" (list "matmul")
                  (mcl-util:getenv "MCL_OUTPUT_DIR")))
+
+
+(defun print-version ()
+  (format t "Many-Core Levels (MCL) ~a~%" *version*))
 #+end_src
 
 *** Generating Cashmere code
@@ -259,9 +271,21 @@ We define here what hardware we target:
 #+begin_src lisp
 (def-suite mcl-test-suite)
 
+
+
 (defun test-mcl ()
   (with-logging-disabled
     (run! 'mcl-test-suite)))
+
+(def-suite version :in mcl-test-suite)
+(in-suite version)
+
+(test version-ok
+  (let ((filename-version (format nil "~a/VERSION" (mcl-util:getenv "MCL_ROOT_DIR"))))
+    (is 
+     (string= mcl:*version*
+	      (format nil (with-open-file (s filename-version)
+			    (read-line s)))))))
 #+end_src
 
 

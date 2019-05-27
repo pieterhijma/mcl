@@ -118,7 +118,9 @@ This section describes the commandline interface to ~mcl~.
 	:description "Print this help and exit.")
   (lispobj :short-name "l" :argument-name "LOG-LEVEL"
            :argument-type :required :typespec 'integer
-           :description "Set the log-level to LOG-LEVEL" :default-value 0))
+           :description "Set the log-level to LOG-LEVEL" :default-value 0)
+  (flag :short-name "v" :long-name "version"
+	:description "Print the version number."))
 #+end_src
 
 *** Defining the completions
@@ -225,6 +227,8 @@ hardware-descriptions are extracted from the ~hdl~ directory.
         (logging:set-level (clon:getopt :short-name "l"))
         (cond ((clon:getopt :short-name "h")
                (clon:help))
+	      ((clon:getopt :short-name "v")
+	       (print-version))
               (t
                (unless (clon:remainder)
                  (exit-with "Missing command."))
