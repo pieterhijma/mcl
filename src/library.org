@@ -46,7 +46,8 @@ the two parsers.
 #+begin_src lisp
 (defpackage :parsing
      (:use :cl :esrap :parser.common-rules :ast)
-     (:export :skippable
+     (:export :*filename*
+	      :skippable
 	      :skippable?
 	      :defkw
 	      :identifier
@@ -69,7 +70,7 @@ the two parsers.
 
 *** The common parsing functions
     :PROPERTIES:
-    :header-args+: :package ":ast"
+    :header-args+: :package ":parsing"
     :header-args+: :tangle "system/library/parsing/parsing.lisp"
     :END:
 
@@ -80,6 +81,8 @@ the two parsers.
 #+end_src
 
 #+begin_src lisp
+(defparameter *filename* nil)
+
 (defrule skippable (+  (or whitespace
                            c-style-comment/rest-of-line
                            c-style-comment/delimited)))
@@ -100,7 +103,7 @@ the two parsers.
   (:text t))
 
 (defun make-loc (start end)
-  (list (cons start end) nil))
+  (list (cons start end) *filename*))
 
 (defun do-left-assoc (l tail)
   (if tail 
@@ -1118,6 +1121,9 @@ This package defines functionality for errors in MCL.
 
 	   :pass-error
 
+	   :parse-mcpl-error
+	   :parse-hdl-error
+
 	   :export-error :pkg-error
 	   :define-resolve-error :undefined-func-error :unequal-nr-params-error
 	   :undefined-type-error :undeclared-var-error :already-declared-error
@@ -1176,6 +1182,13 @@ This package defines functionality for errors in MCL.
 
 #+begin_src lisp
 (def-mcl-error pass-error mcl-error)
+#+end_src
+
+**** Parse errors
+
+#+begin_src lisp
+(def-mcl-error parse-mcpl-error mcpl-error)
+(def-mcl-error parse-hdl-error mcl-error)
 #+end_src
 
 **** Define/resolve errors
