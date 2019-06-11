@@ -109,6 +109,12 @@ This section describes the commandline interface to ~mcl~.
                :argument-name "HARDWARE-DESCRIPTION" :argument-type :required
                :description (format nil "~a~a" "Translate to hardware "
                                     "description HARDWARE-DESCRIPTION"))))
+
+(defcommand "print-ast-json"
+    (clon:defsynopsis (:make-default nil :postfix "MCL-FILE")
+      (text :contents "Print the AST in JSON format.")
+      (flag :short-name "h"
+            :description "Print this help and exit")))
 #+end_src
 
 *** Defining the main synopsis
@@ -214,6 +220,18 @@ hardware-descriptions are extracted from the ~hdl~ directory.
              (exit-with "Need to specify a hardware description."))
            (if (= (length input-file) 1)
                (format t "~a~%" (translate (first input-file) hwd))
+               (exit-with "Need to specify an MCL file."))))))
+#+end_src
+
+
+#+begin_src lisp
+(def-command-func "print-ast-json"
+  (cond ((clon:getopt :short-name "h")
+         (clon:help))
+        (t
+         (let ((input-file (clon:remainder)))
+           (if (= (length input-file) 1)
+	       (format t "~a~%" (print-ast-json (first input-file)))
                (exit-with "Need to specify an MCL file."))))))
 #+end_src
 

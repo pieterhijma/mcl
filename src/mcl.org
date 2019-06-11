@@ -100,6 +100,7 @@ pass over the AST.
 	   :print-version
 	   :*version*
 	   :translate
+	   :print-ast-json
 	   :print))
 #+end_src
 
@@ -150,19 +151,14 @@ The version:
 
 #+begin_src lisp
 (defun print-ast-json (mcl-file-name &optional hwd)
-  ;; (enable-pass 'print-pretty 'remove-hardware-vars)
-  ;; (enable-pass 'print-pretty 'translate)
-  ;; (enable-pass 'print-pretty 'move-dimension-constants-out-foreach)
-  ;; (enable-pass 'print-pretty 'move-foreach-to-func)
-  ;; (enable-pass 'print-pretty 'optimize-transfers)
-  ;;(enable-pass 'print-pretty 'generate-transfers)
+  ;;(enable-pass 'print-ast-json 'translate)
   (run-pass 'print-ast-json
-	    (if hwd
-		(list (cons 'print-ast-json mcl-file-name)
-		      (cons 'translate hwd)
-		      (cons 'semantic-analysis mcl-file-name))
-		(list (cons 'print-ast-json mcl-file-name)
-		      (cons 'semantic-analysis mcl-file-name)))))
+	    ;; (if hwd)
+	    ;; (list (cons 'print-ast-json mcl-file-name)
+	    ;; 	  (cons 'translate hwd)
+	    ;; 	  (cons 'semantic-analysis mcl-file-name))
+	    (list (cons 'print-ast-json mcl-file-name)
+		  (cons 'semantic-analysis mcl-file-name))))
 #+end_src
 
 #+begin_src lisp
