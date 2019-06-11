@@ -4,6 +4,7 @@ module crossCorrelate;
 
 import gpu;
 
+import lib.math.complex;
 
 
 /* perfect void crossCorrelate(int n, Complex[n] out, Complex[n] x, Complex[n] y) { */

@@ -4,6 +4,8 @@ module toComplexAndFlip;
 
 import perfect;
 
+import lib.math.complex;
+
 
 
 perfect void toComplexAndFlip(int h, int w, Complex[h][w] output, 

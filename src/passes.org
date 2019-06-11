@@ -337,9 +337,11 @@ identifier of the import to the ~pass-data~ data structure.
 #+begin_src lisp
 (defpass print-ast-json
   (:dependencies semantic-analysis)
-  (:options translate flatten-types move-foreach-to-func remove-hardware-vars
-	    generate-transfers remove-hardware-vars
-	    move-dimension-constants-out-foreach))
+  (:options 
+   ;; translate flatten-types move-foreach-to-func remove-hardware-vars
+   ;; generate-transfers remove-hardware-vars
+   ;; move-dimension-constants-out-foreach
+	    ))
 #+end_src
 
 #+begin_src lisp

@@ -5,6 +5,7 @@ module scaleWithVariances;
 import perfect;
 
 import lib.math.common;
+import lib.math.complex;
 
 perfect void scaleWithVariances(int h, int w, Complex[h][w] output,
 	float[h][w] varianceEstimates, float[1] variance) {

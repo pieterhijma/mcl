@@ -2,10 +2,12 @@ package prnu_extract.zeromean;
 
 module zeromean;
 
+export zeromeanVertically;
+
 import perfect;
 
 
-perfect void zeromeanVertically(int h, int w, float[h][w] output, float[h][w] input, int k) {
+perfect void zeromeanVertically(int h, int w, float[h][w] output, float[h][w] input) {
 	
     foreach (int j in w threads) {
 	float sumEven = 0.0;

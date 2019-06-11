@@ -4,6 +4,7 @@ module computeSquaredMagnitudes;
 
 import perfect;
 
+import lib.math.complex;
 
 
 perfect void computeSquaredMagnitudes(int h, int w, float[h][w] output,

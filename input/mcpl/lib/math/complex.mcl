@@ -4,6 +4,8 @@ module complex;
 
 export Complex, assign, mul;
 
+import perfect;
+
 type Complex {
     float real;
     float imag;
