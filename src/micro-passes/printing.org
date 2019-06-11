@@ -775,3 +775,89 @@ Testing a simple module:
 #+end_src
 
 
+
+
+** Print the AST in JSON format
+
+*** The package
+    :PROPERTIES:
+    :header-args+: :package ":cl-user"
+    :header-args+: :tangle "../system/micro-passes/print-ast-json/packages.lisp"
+    :END:
+
+#+header: 
+#+begin_src lisp :mkdirp yes :noweb yes :exports none
+<<license-preamble>>
+
+(in-package :cl-user)
+#+end_src
+
+#+begin_src lisp
+(defpackage :print-ast-json
+  (:use :cl :ast :ast-mcpl :code-emitter)
+  (:export :print-ast-json))
+#+end_src
+
+*** The functionality
+    :PROPERTIES:
+    :header-args+: :package ":print-ast-json"
+    :header-args+: :tangle "../system/micro-passes/print-ast-json/print-ast-json.lisp"
+    :END:
+
+#+begin_src lisp :exports none :noweb yes
+<<license-preamble>>
+
+(in-package :print-ast-json)
+#+end_src
+
+#+begin_src lisp
+(defun slot-values (object)
+  (mapcar #'(lambda (slot-name)
+	      (slot-value object slot-name))
+	  (slot-names-children object)))
+
+(defun slot-name->string (slot-name)
+  (kebab:to-camel-case (format nil "~a" slot-name)))
+
+(defun slot-names (object)
+  (mapcar #'slot-name->string (slot-names-children object)))
+
+(defun print-slots (ast class-name)
+  (emit-list (mapcar #'(lambda (slot-name slot-value)
+			 (emit "\"~a\": ~a" slot-name (print-ast slot-value)))
+		     (cons "class" (slot-names ast))
+		     (cons class-name (slot-values ast)))
+	     :separator ","
+	     :nr-lines 1
+	     ))
+
+(defgeneric print-ast (ast))
+
+(defmethod print-ast ((s string))
+  (format nil "~s" s))
+
+(defmethod print-ast ((n number))
+  (format nil "~a" n))
+
+(defmethod print-ast ((s (eql t)))
+  "true")
+
+(defmethod print-ast ((s (eql nil)))
+  "false")
+
+(defmethod print-ast ((l list))
+  (if l
+      (emit "["
+	    "  ~a" (emit-list l :separator "," :nr-lines 1 :function #'print-ast)
+	    "]")
+      (emit "[]")))
+
+(defmethod print-ast ((ast ast))
+  (emit "{"
+	"  ~a" (print-slots ast (kebab:to-camel-case (symbol-name (sb-mop:class-name (class-of ast)))))
+	"}"))
+  
+(defun print-ast-json (ast)
+  (print-ast ast))
+#+end_src
+

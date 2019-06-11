@@ -19,7 +19,7 @@
 #+title: Many-Core Levels Documentation
 #+options: toc:nil
 
-* Tangle MCL from Emacs :noexport:
+* Tangle MCL from Emacs                                            :noexport:
 
 #+begin_src emacs-lisp :exports none :results output silent
 (async-start

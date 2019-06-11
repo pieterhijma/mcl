@@ -97,9 +97,11 @@ pass over the AST.
 	   :print-pretty :pp
 	   :generate-code :gen
            :generate-cashmere-code
-	   :translate
 	   :print-version
-	   :*version*))
+	   :*version*
+	   :translate
+	   :print-ast-json
+	   :print))
 #+end_src
 
 
@@ -145,6 +147,23 @@ The version:
 
 (defun pp ()
   (print-pretty "input/mcpl/lib/fft/fft.mcl"))
+#+end_src
+
+#+begin_src lisp
+(defun print-ast-json (mcl-file-name &optional hwd)
+  ;;(enable-pass 'print-ast-json 'translate)
+  (run-pass 'print-ast-json
+	    ;; (if hwd)
+	    ;; (list (cons 'print-ast-json mcl-file-name)
+	    ;; 	  (cons 'translate hwd)
+	    ;; 	  (cons 'semantic-analysis mcl-file-name))
+	    (list (cons 'print-ast-json mcl-file-name)
+		  (cons 'semantic-analysis mcl-file-name))))
+#+end_src
+
+#+begin_src lisp
+(defun print ()
+  (print-ast-json "input/mcpl/matrixmultiplication/matrixmultiplication.mcl"))
 #+end_src
 
 

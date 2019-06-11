@@ -5,6 +5,7 @@ module findPeak;
 import gpu;
 
 import lib.math.common;
+import lib.math.complex;
 
 
 gpu void findPeak(int nrBlocks, int n, float peak, float[nrBlocks] peaks, 

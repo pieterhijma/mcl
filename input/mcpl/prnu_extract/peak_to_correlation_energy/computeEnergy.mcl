@@ -4,6 +4,8 @@ module computeEnergy;
 
 import gpu;
 
+import lib.math.complex;
+
 const int SQUARE_SIZE = 11;
 const int RADIUS = SQUARE_SIZE / 2;
 

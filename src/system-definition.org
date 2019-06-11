@@ -102,7 +102,7 @@ good way, we use quicklisp to do that using ~asdf-system-connections~.
 			   :cl-utilities :esrap :parser.common-rules
 			   :parser.common-rules.operators
 			   :string-case :iterate :cl-log 
-			   :net.didierverna.clon :clon-completion
+			   :net.didierverna.clon :clon-completion :kebab
 			   :simple-sets :cl-graph-extension
 			   :code-emitter)
     :components
@@ -357,6 +357,14 @@ good way, we use quicklisp to do that using ~asdf-system-connections~.
 			:components
 			((:file "packages")
 			 (:file "print" :depends-on
+				("packages"))))
+#+end_src
+
+#+begin_src lisp
+	       (:module print-ast-json
+			:components
+			((:file "packages")
+			 (:file "print-ast-json" :depends-on
 				("packages"))))
 #+end_src
 
@@ -745,6 +753,7 @@ good way, we use quicklisp to do that using ~asdf-system-connections~.
 	      ((:file "packages")
 	       (:file "semantic-analysis" :depends-on ("packages"))
 	       (:file "print-pretty" :depends-on ("packages"))
+	       (:file "print-ast-json" :depends-on ("packages"))
 	       (:file "flatten-types" :depends-on ("packages"))
 	       (:file "translate" :depends-on ("packages"))
 	       (:file "remove-hardware-vars" :depends-on ("packages"))

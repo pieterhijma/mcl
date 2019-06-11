@@ -171,8 +171,7 @@ This library allows one to define ASTs.
 
 #+begin_src lisp
 (defpackage :ast
-     (:use :cl ;;:util :lol
-	   )
+     (:use :cl)
      (:import-from :alexandria :flatten)
      (:import-from :anaphora :aif :it)
      (:import-from :utility-directory :splice-if)
@@ -184,6 +183,7 @@ This library allows one to define ASTs.
 	      :location
 	      :parent
 	      :children
+	      :slot-names-children
 	      :parent-in-asts-p
 	      :get-parents
 	      :has-as-child-p
@@ -269,7 +269,8 @@ method to retrieve the children:
            (dolist (c constructors)
              (push (create-constructor c type) res)
              (push (create-visit-methods c) res)
-             (push (create-children-method c) res))
+             (push (create-children-method c) res)
+             (push (create-slot-names-children-method c) res))
            (nreverse res)))))
 #+end_src
 
@@ -501,6 +502,12 @@ The following function retrieves all children from an AST node:
 		    (dolist (f fields)
 		      (push `(,f ast) res))
 		    (nreverse res))))))
+
+(defun create-slot-names-children-method (c)
+  (let ((c-name (first c))
+	(fields (second c)))
+    `(defmethod slot-names-children ((ast ,c-name))
+       ',fields)))
 #+end_src
 
 The following function is a helper function that generates exports for each

@@ -1,6 +1,6 @@
 package prnu_extract.to_complex;
 
-module toComplex;
+module to_complex;
 
 export toComplex;
 

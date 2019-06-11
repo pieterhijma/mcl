@@ -109,6 +109,12 @@ This section describes the commandline interface to ~mcl~.
                :argument-name "HARDWARE-DESCRIPTION" :argument-type :required
                :description (format nil "~a~a" "Translate to hardware "
                                     "description HARDWARE-DESCRIPTION"))))
+
+(defcommand "print-ast-json"
+    (clon:defsynopsis (:make-default nil :postfix "MCL-FILE")
+      (text :contents "Print the AST in JSON format.")
+      (flag :short-name "h"
+            :description "Print this help and exit")))
 #+end_src
 
 *** Defining the main synopsis
@@ -219,6 +225,18 @@ hardware-descriptions are extracted from the ~hdl~ directory.
 
 
 #+begin_src lisp
+(def-command-func "print-ast-json"
+  (cond ((clon:getopt :short-name "h")
+         (clon:help))
+        (t
+         (let ((input-file (clon:remainder)))
+           (if (= (length input-file) 1)
+	       (format t "~a~%" (print-ast-json (first input-file)))
+               (exit-with "Need to specify an MCL file."))))))
+#+end_src
+
+
+#+begin_src lisp
 (defun main ()
   "Entry point for the standalone application."
   (clon:make-context)
@@ -259,17 +277,21 @@ hardware-descriptions are extracted from the ~hdl~ directory.
 	 (position (position #\Newline string :start 0 :end end :from-end t)))
     (if position (1+ position) 0)))
 
-
 (defun print-mcl-error-with-file (start-position end-position filename message)
   (let* ((file-as-string (read-file-into-string filename))
-	 (line (1+ (count #\Newline file-as-string :end start-position)))
-	 (column (- start-position (find-newline file-as-string start-position)))
-	 (nr-columns (max 1 (- end-position start-position 1))))
-    (format *error-output* "~a:~a:~a: error: ~a~%" filename line column message)
+	 (line-nr (1+ (count #\Newline file-as-string :end start-position)))
+	 (column-nr (- start-position (find-newline file-as-string start-position)))
+	 (width-arrows (max 1 (- end-position start-position))))
+    (format *error-output* "~a:~a:~a: error: ~a~%" filename line-nr column-nr message)
     (when (= (count #\newline message) 0)
-      (let ((lines (split-sequence:split-sequence #\newline file-as-string)))
-	(format *error-output* "~a~%" (nth (1- line) lines))
-	(format *error-output* "~vt~v,,,'^a~%" column nr-columns "")))))
+      (print-line-and-arrows line-nr column-nr width-arrows file-as-string))))
+
+(defun print-line-and-arrows (line-nr column-nr width-arrows file-as-string)
+  (let* ((lines (split-sequence:split-sequence #\newline file-as-string))
+	 (line (nth (1- line-nr) lines))
+	 (nr-tabs (count #\tab line :end column-nr)))
+    (format *error-output* "~a~%" line)
+    (format *error-output* "~vt~v,,,'^a~%" (+ column-nr (* (1- 8) nr-tabs)) width-arrows "")))
 #+end_src
 
 *** Utility functions
