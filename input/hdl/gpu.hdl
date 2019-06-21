@@ -15,7 +15,7 @@ parallelism hierarchy {
 	    }
 	
 	    par_group threads {
-		max_nr_units = 1024;
+		max_nr_units = 256;
 	
 		perfect.hierarchy.threads.thread;
 	    }
