@@ -794,9 +794,9 @@ The following ~create-foreach-stat-*~ functions return:
 
 (defun create-dim-expr (dim-names nr-iters par-group hwd-to)
   (let ((max (max-nr-units par-group)))
-    (if (or (null dim-names) (not max))
-	(create-min-call (create-hardware-var hwd-to (name par-group) max)
-                         (copy-ast nr-iters))
+    (if (null dim-names)
+	(let ((hw-var (create-hardware-var hwd-to (name par-group) max)))
+	  (if max (create-min-call hw-var (copy-ast nr-iters)) hw-var))
 	(create-div-call dim-names (copy-ast nr-iters)))))
 
 (defun create-hardware-var (name-hwd name-block max)
@@ -994,7 +994,7 @@ cpu void matmul(const int n, const int m, const int p, main float[n, m] c, const
 "    const int nrBlocksM = divide_up(m, 1 * nrThreadsM);"
 "    foreach (const int i in n blocks) {"
 "        foreach (const int bj in nrBlocksM blocks) {"
-"            const int nrThreadsNrThreadsM = min(fermi.hierarchy.blocks.block.warps.warp.threads.nr_units, nrThreadsM);"
+"            const int nrThreadsNrThreadsM = fermi.hierarchy.blocks.block.warps.warp.threads.nr_units;"
 "            const int nrWarpsNrThreadsM = divide_up(nrThreadsM, 1 * nrThreadsNrThreadsM);"
 "            foreach (const int wtj in nrWarpsNrThreadsM warps) {"
 "                foreach (const int ttj in nrThreadsNrThreadsM threads) {"
