@@ -1,0 +1,123 @@
+hardware_description xeon_e5620;
+
+
+specializes cpu;
+
+
+parallelism hierarchy {
+    memory_space main {
+	default;
+    }
+
+    par_group threads {
+	max_nr_units = unlimited;
+	
+	par_unit thread {
+	    par_group vectors {
+		nr_units = 4;
+				
+		par_unit vector {
+		    memory_space reg {
+			default;
+		    }
+		}
+	    }
+	}
+    }
+}
+
+
+device cpu {
+    mem;
+    mem_bus;
+    sockets;
+}
+
+cache l3_cache {
+    space(main);
+    capacity = 12 MB;
+    cache_line_size = 64B;
+}
+
+memory mem {
+    space(main);
+    capacity = 32 GB;
+}
+
+
+interconnect mem_bus {
+    connects(mem, sockets.socket[*]);
+    latency = 100 cycles;
+}
+
+
+memory regs {
+    space(reg);
+    capacity = 400 B;
+    addressable = false;
+}
+
+interconnect cache_interconnect {
+    connects(l3_cache, cores.core[*]);
+}
+
+device_group sockets {
+    nr_units = 2;
+	
+    device_unit socket {
+	l3_cache;
+	cores;
+    }
+}
+
+
+execution_group cores {
+    nr_units = 4;
+
+    execution_unit core {
+	slots(thread, 2);
+
+	l2_cache;
+	l1_cache;
+	ls_units;	
+	regs;
+	vector_group;
+    }
+}
+
+cache l2_cache {
+    space(main);
+    capacity = 256 kB;
+    cache_line_size = 64B;
+}
+
+cache l1_cache {
+    space(main);
+    capacity = 32 kB;
+    cache_line_size = 64B;
+}
+
+simd_group vector_group {
+    nr_units = 4;
+	
+    slots(vector, 4);
+	
+    simd_unit vector_unit {
+	slots(vector, 1);
+	instructions simd_ops {
+	    op((+), 1);
+	}
+    }
+}
+
+
+load_store_group ls_units {
+    nr_units = 4;
+    slots(vector, 4);
+
+    load_store_unit ls_unit {
+	slots(vector, 1);
+		
+	perfect.cores.core.ls_units.ls_unit.ls_ops;
+    }
+}
