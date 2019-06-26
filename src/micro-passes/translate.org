@@ -396,10 +396,10 @@ unlimited is always unlimited.
 #+begin_src lisp
 (defgeneric multiply (l r))
 
-(defmethod multiply ((l int-literal) (r sub-par-group))
+(defmethod multiply (l (r sub-par-group))
   (multiply l (nr-units r)))
 
-(defmethod multiply ((l int-literal) (r unit-expr))
+(defmethod multiply (l (r unit-expr))
   (multiply l (expr r)))
 
 (defmethod multiply ((l int-literal) (r int-literal))
@@ -407,6 +407,9 @@ unlimited is always unlimited.
 
 (defmethod multiply ((l int-literal) (r unlimited-literal))
   r)
+
+(defmethod multiply ((l unlimited-literal) (r int-literal))
+  l)
 #+end_src
   
 
@@ -791,9 +794,9 @@ The following ~create-foreach-stat-*~ functions return:
 
 (defun create-dim-expr (dim-names nr-iters par-group hwd-to)
   (let ((max (max-nr-units par-group)))
-    (if (or (null dim-names) (not max))
-	(create-min-call (create-hardware-var hwd-to (name par-group) max)
-                         (copy-ast nr-iters))
+    (if (null dim-names)
+	(let ((hw-var (create-hardware-var hwd-to (name par-group) max)))
+	  (if max (create-min-call hw-var (copy-ast nr-iters)) hw-var))
 	(create-div-call dim-names (copy-ast nr-iters)))))
 
 (defun create-hardware-var (name-hwd name-block max)
@@ -938,6 +941,39 @@ Before we start with the actual tests, we define several inputs/outputs:
 "}"
 ""))
 
+(defparameter *output-cpu* (tostring
+				    
+"package matrixmultiplication;
+
+module matrixmultiplication;
+
+
+
+import perfect;
+import cpu;
+
+
+
+cpu void matmul(const int n, const int m, const int p, main float[n, m] c, const main float[n, p] a, const main float[p, m] b) {
+    const int nrVectorsM = cpu.hierarchy.threads.thread.vectors.nr_units;
+    const int nrThreadsM = divide_up(m, 1 * nrVectorsM);
+    foreach (const int i in n threads) {
+        foreach (const int tj in nrThreadsM threads) {
+            foreach (const int vj in nrVectorsM vectors) {
+                const int j = tj * (1 * nrVectorsM) + vj;
+                if (j < m) {
+                    reg float sum = 0.0;
+                    for (reg int k = 0; k < p; k++) {
+                        sum = sum + a[i, k] * b[k, j];
+                    }
+                    c[i, j] += sum;
+                }
+            }
+        }
+    }
+}
+"))
+
 
 
 (defparameter *output-fermi* (tostring
@@ -958,7 +994,7 @@ Before we start with the actual tests, we define several inputs/outputs:
 "    const int nrBlocksM = divide_up(m, 1 * nrThreadsM);"
 "    foreach (const int i in n blocks) {"
 "        foreach (const int bj in nrBlocksM blocks) {"
-"            const int nrThreadsNrThreadsM = min(fermi.hierarchy.blocks.block.warps.warp.threads.nr_units, nrThreadsM);"
+"            const int nrThreadsNrThreadsM = fermi.hierarchy.blocks.block.warps.warp.threads.nr_units;"
 "            const int nrWarpsNrThreadsM = divide_up(nrThreadsM, 1 * nrThreadsNrThreadsM);"
 "            foreach (const int wtj in nrWarpsNrThreadsM warps) {"
 "                foreach (const int ttj in nrThreadsNrThreadsM threads) {"
@@ -1082,6 +1118,11 @@ import fermi;
        (do-translation-file
 	   "input/mcpl/matrixmultiplication/matrixmultiplication.mcl"
 	 "accelerator")))
+  (is (string= 
+       ,*output-cpu* 
+       (do-translation-file
+	   "input/mcpl/matrixmultiplication/matrixmultiplication.mcl"
+	 "cpu")))
   (is (string= 
        ,*output-gpu* 
        (do-translation-file

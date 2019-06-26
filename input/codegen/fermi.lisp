@@ -1,5 +1,6 @@
 '(:target "fermi"
   :output "opencl"
+  :device-type "CL_DEVICE_TYPE_GPU"
   :memory-spaces (("local" . ("" ""))
 		  ("shared" . ("__local" "barrier(CLK_LOCAL_MEM_FENCE)"))
 		  ("reg" .  ("" ""))

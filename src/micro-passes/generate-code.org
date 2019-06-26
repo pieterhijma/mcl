@@ -953,15 +953,15 @@ for modules with separate functions with kernel calls:
 #+begin_src lisp :tangle no
 (defmethod gen ((cb code-block) (gen cpp-generator))
   (with-slots (stats) cb
-    (with-slots (kernels-file) gen
+    (with-slots (kernels-file codegen-info) gen
       (if (remove-if (complement #'(lambda (x)
 				     (and (typep x 'call-stat) (kernel-func-p (call x)))))
 		     stats)
 	  (emit "{"
 		"    vector<std::string> macros;"
 		"    try {"
-		"        opencl::compile(\"~a/~a\", macros, CL_DEVICE_TYPE_GPU);"
-		(module-dir kernels-file) (base-filename kernels-file)
+		"        opencl::compile(\"~a/~a\", macros, ~a);" 
+		(module-dir kernels-file) (base-filename kernels-file) (getf codegen-info :device-type)
 		""
 		"        ~a" (gen stats gen)
 		"        opencl::sync();"
@@ -981,12 +981,12 @@ entry-point:
 #+begin_src lisp
 (defun gen-entry-code-block (cb gen)
   (with-slots (stats) cb
-    (with-slots (kernels-file) gen
+    (with-slots (kernels-file codegen-info) gen
       (emit "{"
 	    "    vector<std::string> macros;"
 	    "    try {"
-	    "        opencl::compile(\"~a/~a\", macros, CL_DEVICE_TYPE_GPU);"
-	    (module-dir kernels-file) (base-filename kernels-file)
+	    "        opencl::compile(\"~a/~a\", macros, ~a);" 
+	    (module-dir kernels-file) (base-filename kernels-file) (getf codegen-info :device-type)
 	    ""
 	    "        ~a" (gen stats gen)
 	    "        opencl::sync();"

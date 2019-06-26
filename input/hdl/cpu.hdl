@@ -1,0 +1,100 @@
+hardware_description cpu;
+
+
+specializes perfect;
+
+
+parallelism hierarchy {
+    memory_space main {
+	default;
+    }
+
+    par_group threads {
+	max_nr_units = unlimited;
+	
+	par_unit thread {
+	    par_group vectors {
+		nr_units = 4;
+				
+		par_unit vector {
+		    memory_space reg {
+			default;
+		    }
+		}
+	    }
+	}
+    }
+}
+
+
+device cpu {
+    mem;
+    mem_bus;
+    sockets;
+}
+
+
+memory mem {
+    space(main);
+    capacity = 32 GB;
+}
+
+
+interconnect mem_bus {
+    connects(mem, sockets.socket[*]);
+    latency = 100 cycles;
+}
+
+
+memory regs {
+    space(reg);
+    capacity = 400 B;
+    addressable = false;
+}
+
+
+device_group sockets {
+    nr_units = 2;
+	
+    device_unit socket {
+	cores;
+    }
+}
+
+
+execution_group cores {
+    nr_units = 4;
+
+    execution_unit core {
+	slots(thread, 2);
+
+	ls_units;	
+	regs;
+	vector_group;
+    }
+}
+
+
+simd_group vector_group {
+    nr_units = 4;
+	
+    slots(vector, 4);
+	
+    simd_unit vector_unit {
+	slots(vector, 1);
+	instructions simd_ops {
+	    op((+), 1);
+	}
+    }
+}
+
+
+load_store_group ls_units {
+    nr_units = 4;
+	
+    load_store_unit ls_unit {
+	slots(vector, 1);
+		
+	perfect.cores.core.ls_units.ls_unit.ls_ops;
+    }
+}

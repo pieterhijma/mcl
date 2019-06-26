@@ -332,8 +332,9 @@
     (intern (format nil "~a-KW/?S" (string-upcase keyword-string))))
 
   (defparameter *block-keywords* '("parallelism" "memory_space" "par_unit" "par_group"
-				   "device" "memory" "interconnect" "device_group"
-				   "device_unit" "execution_group" "execution_unit"
+				   "device_group" "device_unit" "device"
+				   "memory" "interconnect"
+				   "execution_group" "execution_unit"
 				   "instructions" "cache" "simd_group" "simd_unit"
 				   "load_store_group" "load_store_unit"))
 

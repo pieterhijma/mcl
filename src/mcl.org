@@ -193,7 +193,7 @@ The version:
                                              output-dir)))))
 
 (defun gen ()
-  (generate-code "input/mcpl/matrixmultiplication/matrixmultiplication.mcl" "fermi" (list "matmul")
+  (generate-code "input/mcpl/matrixmultiplication/matrixmultiplication.mcl" "xeon_e5620" (list "matmul")
                  (mcl-util:getenv "MCL_OUTPUT_DIR")))
 
 
