@@ -296,13 +296,14 @@ continue to find equivalent par-groups with this mapping.
 			       hwd-from hwd-to)
   (let ((pg-from (from (first par-group-mapping)))
 	(pgs-to (to (first par-group-mapping))))
-    (cond ((equals-size pg-from pgs-to)
+    (cond ((or (equals-size pg-from pgs-to)
+	       (less-size pg-from pgs-to))
 	   (find-equivalent-par-groups
 	    (cons (make-tuple parent-from (list parent-to)) par-group-mapping)
 	    hwd-from
 	    hwd-to))
-	  ((less-size pg-from pgs-to)
-	   (error "from less than to"))
+	  ;; ((less-size pg-from pgs-to)
+	  ;;  (error "from less than to"))
 	  ((greater-size pg-from pgs-to)
 	   (if (typep parent-to 'parallelism)
 	       (push (make-tuple parent-from (list parent-to))
