@@ -624,7 +624,9 @@ Helper functions for deciding whether a variable or declaration is a pointer:
 (defmethod pointer-p ((v var))
   (let ((primitive-var-p (primitive-p v)))
     (or (not primitive-var-p)
-	(and primitive-var-p (written-in-call-p v)))))
+	(and primitive-var-p (or (written-in-call-p v)
+				 (consider-primitive-var-as-pointer-p v))))))
+
 
 (defmethod pointer-p ((d decl))
   (let* ((type-decl (get-type d))
