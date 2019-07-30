@@ -1,0 +1,12 @@
+package lib;
+
+module atomics;
+
+export atomicAdd;
+
+import perfect;
+
+perfect void atomicAdd(reg main float r, const float a) {
+    mcl_builtin_read(a);
+    mcl_builtin_write(r);
+}
