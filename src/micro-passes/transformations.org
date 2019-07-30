@@ -1500,10 +1500,10 @@ The following functions are helper functions:
 		(query-hdl-mcpl:get-memory-spaces decl))))
 
 (defun get-modifiers-call (call)
-  (mapcar #'get-modifiers-expr (params call)))
+  (mapcar #'get-modifiers-expr (params call) (params (func call))))
 
-(defun get-modifiers-expr (expr)
-  (if (memory-space-disallowed expr)
+(defun get-modifiers-expr (expr decl)
+  (if (memory-space-disallowed decl)
       (list 'no-mod)
       (progn
 	(assert (typep expr 'var-expr))
