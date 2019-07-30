@@ -42,7 +42,8 @@
   (:import-from :anaphora :aif :acond :it)
   (:import-from :string-case :string-case)
   (:import-from :cl-fad :pathname-as-directory)
-  (:import-from :utility-directory :cartesian-product :def-methods :fixed-point)
+  (:import-from :utility-directory :cartesian-product :def-methods :fixed-point
+		:replace-all-multiple)
   (:export :generate-code :cashmere-info :default-func :copy-func-header
            :call-conditions :set-argument))
 #+end_src
@@ -1068,7 +1069,7 @@ Calls:
       
 
 (defun gen-builtin-codegen (call name-func gen)
-  (emit "~a(~a)" name-func (gen-params (params call) gen)))
+  (emit "~a(~a)" name-func (gen (params call) gen)))
 
 (defgeneric get-codegen-builtin (ast codegen-info))
 
@@ -1076,8 +1077,23 @@ Calls:
   (get-codegen-builtin (id c) codegen-info))
 
 (defmethod get-codegen-builtin ((id id) codegen-info)
-  (cdr (assoc (name id) (getf codegen-info :builtin-funcs))))
+  (cdr (assoc (get-name-func-without-memory-spaces id codegen-info)
+	      (getf codegen-info :builtin-funcs)
+	      :test #'string=)))
 
+(defgeneric get-name-func-without-memory-spaces (func codegen-info))
+
+(defmethod get-name-func-without-memory-spaces ((id id) codegen-info)
+  (get-name-func-without-memory-spaces (name id) codegen-info))
+
+(defmethod get-name-func-without-memory-spaces ((name string) codegen-info)
+  (let* ((memory-spaces (mapcar #'first (getf codegen-info :memory-spaces)))
+	 (mss-upcase (mapcar #'(lambda (x) (string-upcase x :end 1))
+			     memory-spaces))
+	 (replacement-list (reduce #'(lambda (x l) (cons x (cons "" l)))
+				   mss-upcase :from-end t
+				   :initial-value nil)))
+    (apply #'replace-all-multiple name replacement-list )))
 #+end_src
 
 Generating an allocate:
@@ -1906,9 +1922,13 @@ For calls we have to take into account the builtin functions.
 
 #+begin_src lisp
 (defmethod gen ((c call) (gen opencl-generator))
-  (if (builtin-func-p c)
-      (gen-builtin c gen)
-      (call-next-method)))
+  (with-slots (codegen-info) gen
+    (acond ((builtin-func-p c)
+	    (gen-builtin c gen))
+	   ((get-codegen-builtin c codegen-info)
+	    (gen-builtin-codegen c it gen))
+	   (t
+	    (call-next-method)))))
 #+end_src
 
 

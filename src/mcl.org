@@ -193,7 +193,7 @@ The version:
                                              output-dir)))))
 
 (defun gen ()
-  (generate-code "input/mcpl/reduction/reduction.mcl" "xeon_e5620" (list "matmul")
+  (generate-code "input/mcpl/reduction/reduction.mcl" "xeon_e5620" (list "reduce")
                  (mcl-util:getenv "MCL_OUTPUT_DIR")))
 
 
