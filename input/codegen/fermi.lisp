@@ -11,4 +11,4 @@
   :dimensions (("get_local_id" . (3 :func))
 	       ("get_group_id" . (3 :func)))
   :bandwidth-memoryspace "global"
-  :builtin-funcs (("atomicAdd" . "atomic_add")))
+  :builtin-funcs (nil))
