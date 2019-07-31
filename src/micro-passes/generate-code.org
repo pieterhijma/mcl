@@ -1981,9 +1981,11 @@ For special functions:
 	       (format header "        next.f32 = expected.f32 + val;~%")
 	       (format header "        current.u32 = atomic_cmpxchg((volatile __global unsigned int *) addr,~%")
 	       (format header "                expected.u32, next.u32);~%")
+	       (format header "    }~%")
 	       (format header "    while (current.u32 != expected.u32);~%")
 	       (format header "}~%")
-	       (push ms atomic-funcs-in-header)))))))
+	       (push ms atomic-funcs-in-header))))))
+  (emit "~a(~a)" (name (id c)) (gen (params c) gen)))
 #+end_src
 
 
