@@ -277,7 +277,7 @@ MAXIMA_TAR_FILE=$MAXIMA_PKG.tar.gz
 MAXIMA_TAR_PATH=$MCL_LIB_DIR/$MAXIMA_TAR_FILE
 MAXIMA_PATH=$MCL_LIB_DIR/$MAXIMA_PKG
 
-MAXIMA_URL=https://kent.dl.sourceforge.net/project/maxima/Maxima-source/$MAXIMA_VERSION-source/$MAXIMA_TAR_FILE
+MAXIMA_URL=https://downloads.sourceforge.net/project/maxima/Maxima-source/$MAXIMA_VERSION-source/$MAXIMA_TAR_FILE
 
 if [ ! -f $MAXIMA_TAR_PATH ]
 then
