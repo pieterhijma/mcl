@@ -121,7 +121,7 @@ pass over the AST.
 The version:
 
 #+begin_src lisp
-(defparameter *version* "0.1.4")
+(defparameter *version* "0.1.5")
 #+end_src
 
 #+begin_src lisp
