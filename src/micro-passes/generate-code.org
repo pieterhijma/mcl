@@ -42,7 +42,8 @@
   (:import-from :anaphora :aif :acond :it)
   (:import-from :string-case :string-case)
   (:import-from :cl-fad :pathname-as-directory)
-  (:import-from :utility-directory :cartesian-product :def-methods :fixed-point)
+  (:import-from :utility-directory :cartesian-product :def-methods :fixed-point
+		:replace-all-multiple)
   (:export :generate-code :cashmere-info :default-func :copy-func-header
            :call-conditions :set-argument))
 #+end_src
@@ -623,7 +624,9 @@ Helper functions for deciding whether a variable or declaration is a pointer:
 (defmethod pointer-p ((v var))
   (let ((primitive-var-p (primitive-p v)))
     (or (not primitive-var-p)
-	(and primitive-var-p (written-in-call-p v)))))
+	(and primitive-var-p (or (written-in-call-p v)
+				 (consider-primitive-var-as-pointer-p v))))))
+
 
 (defmethod pointer-p ((d decl))
   (let* ((type-decl (get-type d))
@@ -1068,7 +1071,7 @@ Calls:
       
 
 (defun gen-builtin-codegen (call name-func gen)
-  (emit "~a(~a)" name-func (gen-params (params call) gen)))
+  (emit "~a(~a)" name-func (gen (params call) gen)))
 
 (defgeneric get-codegen-builtin (ast codegen-info))
 
@@ -1076,8 +1079,23 @@ Calls:
   (get-codegen-builtin (id c) codegen-info))
 
 (defmethod get-codegen-builtin ((id id) codegen-info)
-  (cdr (assoc (name id) (getf codegen-info :builtin-funcs))))
+  (cdr (assoc (get-name-func-without-memory-spaces id codegen-info)
+	      (getf codegen-info :builtin-funcs)
+	      :test #'string=)))
 
+(defgeneric get-name-func-without-memory-spaces (func codegen-info))
+
+(defmethod get-name-func-without-memory-spaces ((id id) codegen-info)
+  (get-name-func-without-memory-spaces (name id) codegen-info))
+
+(defmethod get-name-func-without-memory-spaces ((name string) codegen-info)
+  (let* ((memory-spaces (mapcar #'first (getf codegen-info :memory-spaces)))
+	 (mss-upcase (mapcar #'(lambda (x) (string-upcase x :end 1))
+			     memory-spaces))
+	 (replacement-list (reduce #'(lambda (x l) (cons x (cons "" l)))
+				   mss-upcase :from-end t
+				   :initial-value nil)))
+    (apply #'replace-all-multiple name replacement-list )))
 #+end_src
 
 Generating an allocate:
@@ -1735,7 +1753,8 @@ The OpenCL generator builds on the C++ generator.
 (defclass opencl-generator (c-base-generator kernel-generator exports-generator
                                              entry-funcs-generator)
   ((typedefs :initform nil :accessor typedefs)
-   (global-constants :initform nil :accessor global-constants)))
+   (global-constants :initform nil :accessor global-constants)
+   (atomic-funcs-in-header :initform nil :accessor atomic-funcs-in-header)))
 #+end_src
 
 
@@ -1906,10 +1925,69 @@ For calls we have to take into account the builtin functions.
 
 #+begin_src lisp
 (defmethod gen ((c call) (gen opencl-generator))
-  (if (builtin-func-p c)
-      (gen-builtin c gen)
-      (call-next-method)))
+  (with-slots (codegen-info) gen
+    (acond ((builtin-func-p c)
+	    (gen-builtin c gen))
+	   ((is-special-func-p c codegen-info)
+	    (gen-special-func c gen))
+	   ((get-codegen-builtin c codegen-info)
+	    (gen-builtin-codegen c it gen))
+	   (t
+	    (call-next-method)))))
 #+end_src
+
+For special functions:
+
+#+begin_src lisp
+(defgeneric is-special-func-p (func codegen-info))
+
+(defmethod is-special-func-p ((f func) codegen-info)
+  (is-special-func-p (id f) codegen-info))
+
+(defmethod is-special-func-p ((c call) codegen-info)
+  (is-special-func-p (id c) codegen-info))
+
+(defmethod is-special-func-p ((id id) codegen-info)
+  (is-special-func-p (name id) codegen-info))
+
+(defmethod is-special-func-p ((name string) codegen-info)
+  (string= (get-name-func-without-memory-spaces name codegen-info)
+	   "atomicAdd"))
+
+(defgeneric gen-special-func (call gen))
+
+(defmethod gen-special-func ((c call) (gen opencl-generator))
+  (with-slots (kernels-file codegen-info atomic-funcs-in-header) gen
+    (with-slots (header) kernels-file
+      (let* ((memory-space-info (getf codegen-info :memory-spaces))
+	     (memory-spaces (mapcar #'first memory-space-info))
+	     (mss-upcase (mapcar #'(lambda (x) (string-upcase x :end 1)) memory-spaces))
+	     ;; (replacement-list (reduce #'(lambda (x l) (cons x (cons "" l)))
+	     ;; 			       mss-upcase :from-end t :initial-value nil))
+	     )
+	;;(format t "~a: ~%" replacement-list)
+	(loop for ms in memory-spaces for msu in mss-upcase do
+	     (when (and (search msu (name (id c)) :test #'string=)
+			(not (member ms atomic-funcs-in-header :test #'string=)))
+	       (format header "inline void atomicAdd~a(volatile ~a float *addr, float val) {~%"
+		       msu (second (assoc ms memory-space-info :test #'string=)))
+	       (format header "    union {~%")
+	       (format header "        unsigned int u32;~%")
+	       (format header "        float f32;~%")
+	       (format header "    } next, expected, current;~%")
+	       (format header "    current.f32 = *addr;~%")
+	       (format header "    do {~%")
+	       (format header "        expected.f32 = current.f32;~%")
+	       (format header "        next.f32 = expected.f32 + val;~%")
+	       (format header "        current.u32 = atomic_cmpxchg((volatile __global unsigned int *) addr,~%")
+	       (format header "                expected.u32, next.u32);~%")
+	       (format header "    }~%")
+	       (format header "    while (current.u32 != expected.u32);~%")
+	       (format header "}~%")
+	       (push ms atomic-funcs-in-header))))))
+  (emit "~a(~a)" (name (id c)) (gen (params c) gen)))
+#+end_src
+
 
 
 For assignment statements, we have to prevent the C++ generator to generate its

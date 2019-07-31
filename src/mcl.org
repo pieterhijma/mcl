@@ -129,7 +129,7 @@ The version:
   (run-pass 'semantic-analysis (list (cons 'semantic-analysis mcl-file-name))))
 
 (defun sa ()
-  (semantic-analysis "input/mcpl/prnu_extract/prnu_extract.mcl"))
+  (semantic-analysis "input/mcpl/reduction/reduction.mcl"))
 #+end_src
 
 #+begin_src lisp
@@ -193,7 +193,7 @@ The version:
                                              output-dir)))))
 
 (defun gen ()
-  (generate-code "input/mcpl/matrixmultiplication/matrixmultiplication.mcl" "xeon_e5620" (list "matmul")
+  (generate-code "input/mcpl/reduction/reduction.mcl" "xeon_e5620" (list "reduce")
                  (mcl-util:getenv "MCL_OUTPUT_DIR")))
 
 

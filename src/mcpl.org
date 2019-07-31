@@ -54,6 +54,7 @@
 	   :const-id-p
 
 	   :param-written-p
+	   :consider-primitive-var-as-pointer-p
 	   :param-p
 	   :get-position-in-call
 	   :param-call->param-func
@@ -629,17 +630,21 @@ for each parameter and whether it is written (t) or not (nil).
 
 #+begin_src lisp
 (defparameter *specs-builtin-funcs*
-  `(("toFloat" ,(make-flt) (nil))
-    ("toDouble" ,(make-double) (nil))
-    ("mcl_builtin_read" ,(make-void) (nil))
-    ("mcl_builtin_write" ,(make-void) (t))
-    ("mcl_builtin_transfer_to_device" ,(make-void) (nil))
-    ("mcl_builtin_transfer_from_device" ,(make-void) (t))
-    ("mcl_builtin_allocate_on_device" ,(make-void) (nil))
-    ("mcl_builtin_deallocate_on_device" ,(make-void) (nil))
-    ("min" ,(make-int) (nil))
-    ("max" ,(make-int) (nil))
-    ("divide_up" ,(make-int) (nil))))
+  `(("toFloat" ,(make-flt) (nil) (nil))
+    ("toDouble" ,(make-double) (nil) (nil))
+    ("mcl_builtin_read" ,(make-void) (nil) (nil))
+    ("mcl_builtin_write" ,(make-void) (t) (nil))
+    
+    ;; The following 3 are considered to be pointer when dealing with
+    ;; a primitive type.  
+    ("mcl_builtin_transfer_to_device" ,(make-void) (nil) (t))
+    ("mcl_builtin_allocate_on_device" ,(make-void) (nil) (t))
+    ("mcl_builtin_deallocate_on_device" ,(make-void) (nil) (t))
+    ("mcl_builtin_transfer_from_device" ,(make-void) (t) (t))
+
+    ("min" ,(make-int) (nil) (nil))
+    ("max" ,(make-int) (nil) (nil))
+    ("divide_up" ,(make-int) (nil) (nil))))
 
 (defparameter *builtin-funcs*
   (mapcar #'first *specs-builtin-funcs*))
@@ -681,6 +686,33 @@ for each parameter and whether it is written (t) or not (nil).
 	    "mcl_builtin_allocate_on_device"
 	    "mcl_builtin_deallocate_on_device")
 	  :test #'string=))
+
+(defgeneric consider-primitive-var-as-pointer-p (var))
+
+(defmethod consider-primitive-var-as-pointer-p ((v var))
+  (and (param-p v)
+       (consider-primitive-var-as-pointer-p (parent v))))
+
+(defmethod consider-primitive-var-as-pointer-p ((e expr))
+  (assert (param-p e))
+  (and (eq (type-of e) 'var-expr)
+       (let ((index (get-index-param e))
+	     (call (parent e)))
+	 (if (builtin-func-p call)
+	     (consider-primitive-var-as-pointer-builtin-p call index)
+	     nil))))
+
+(defgeneric consider-primitive-var-as-pointer-builtin-p (func index))
+
+(defmethod consider-primitive-var-as-pointer-builtin-p ((call call) index)
+  (consider-primitive-var-as-pointer-builtin-p (id call) index))
+
+(defmethod consider-primitive-var-as-pointer-builtin-p ((id id) index)
+  (consider-primitive-var-as-pointer-builtin-p (name id) index))
+
+(defmethod consider-primitive-var-as-pointer-builtin-p ((s string) index)
+  (nth index (fourth (assoc s *specs-builtin-funcs* :test #'string=))))
+
 
 #+end_src
 **** Checking for casting functions
@@ -845,7 +877,7 @@ an expr, decl or var."))
   (param-written-builtin-p (name id) index))
 
 (defmethod param-written-builtin-p ((s string) index)
-  (nth index (third (assoc s *specs-builtin-funcs*))))
+  (nth index (third (assoc s *specs-builtin-funcs* :test #'string=))))
 
 (defmethod param-written-p ((e expr))
   (assert (param-p e))
